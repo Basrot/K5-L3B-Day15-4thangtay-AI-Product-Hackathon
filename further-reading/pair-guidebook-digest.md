@@ -9,7 +9,7 @@ Nguồn: **People + AI Guidebook**, Google PAIR — https://pair.withgoogle.com/
 | 1. User needs & defining success | 1.1, 1.3, 2.2 | §1–§2 pain / bằng chứng, §4 mức tự động, §7 chuẩn "đạt" |
 | 2. Data & model evolution | 1.2, 2.4, 4.1 | §7 bộ câu thử, định nghĩa "tốt" · `data/DATA_CARD.md` |
 | 3. Mental models & expectations | 2.2, 3.2 | §4 nguyên tắc, câu giới thiệu của bản chạy thử |
-| 4. Trust & explanations | 2.2, 2.3 | §4, §5 chỗ khó ① nguồn sự thật |
+| 4. Trust & explanations | 2.2, 2.3 | §4, §5 chỗ khó số 1 (nguồn sự thật) |
 | 5. Feedback & controls | 2.2, 4.3 | §4, §10 changelog |
 | 6. Errors & graceful failures | 2.3 | §5–§6 bốn lớp chỗ khó, kịch bản rủi ro |
 
@@ -120,7 +120,7 @@ Với AI sinh, người dùng có thể yêu cầu bất cứ thứ gì → cầ
 - Ba lớp giải thích: **in-product** (onboarding, giới thiệu tính năng) · **in-the-moment** (ngay tại kết quả, giúp quyết định tin/không tin, khuyến khích kiểm chứng) · **beyond-the-product** (help center, FAQ).
 - Kiểu giải thích: nguồn dữ liệu nào chi phối · input nào của người dùng ảnh hưởng · so sánh phương án · phản chứng "đổi X thì ra Y" · ví dụ đa dạng · điểm/tiêu chí so sánh · giải thích một phần (partial) về nguồn và giới hạn.
 
-*Dùng cho hackathon:* guide 2.2 G11 và chỗ khó ① nguồn sự thật ở 2.3 — trích mã đoạn nguồn là giải thích in-the-moment.
+*Dùng cho hackathon:* guide 2.2 G11 và chỗ khó số 1 (nguồn sự thật) ở 2.3 — trích mã đoạn nguồn là giải thích in-the-moment.
 
 ---
 
@@ -162,7 +162,7 @@ Với AI sinh, người dùng có thể yêu cầu bất cứ thứ gì → cầ
 - **Lỗi chất lượng/độ liên quan của output:** hoàn thành một phần do thiếu bộ nhớ/ngữ cảnh · kết quả tự tin nhưng trình bày không hợp nhu cầu.
 - **Lỗi hệ thống nhiều tầng:** các hệ AI không "nói chuyện" với nhau.
 
-*Dùng cho hackathon:* đối chiếu với **bốn lớp chỗ khó** ở guide 2.3 (① nguồn sự thật ② mơ hồ ③ ngoài phạm vi ④ đặc thù giáo dục) — bốn nguồn lỗi của PAIR giúp nhóm tìm kịch bản cho mỗi lớp.
+*Dùng cho hackathon:* đối chiếu với **bốn lớp chỗ khó** ở guide 2.3 ((1) nguồn sự thật (2) mơ hồ (3) ngoài phạm vi (4) đặc thù giáo dục) — bốn nguồn lỗi của PAIR giúp nhóm tìm kịch bản cho mỗi lớp.
 
 ### 6.3 Đường đi tiếp sau thất bại
 - Stakes cao thì cần kiểm tra an toàn thêm, giải thích giới hạn; kết quả "đơn giản" có thể không đủ.

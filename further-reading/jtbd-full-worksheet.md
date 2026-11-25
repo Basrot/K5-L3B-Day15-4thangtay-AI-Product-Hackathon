@@ -29,7 +29,7 @@ Muốn soát kỹ hơn, đi lần lượt 8 bước của **job map**: xác đ�
 
 ## 3. Viết job statement *(7')*
 
-Công thức: `động từ + đối tượng + bối cảnh`. Ba tiêu chí tự kiểm: ① bỏ công cụ đi, việc vẫn tồn tại · ② trong câu không có tên sản phẩm, AI, chatbot, app · ③ mô tả điều người dùng muốn hoàn thành, không phải thứ sản phẩm làm.
+Công thức: `động từ + đối tượng + bối cảnh`. Ba tiêu chí tự kiểm: (1) bỏ công cụ đi, việc vẫn tồn tại · (2) trong câu không có tên sản phẩm, AI, chatbot, app · (3) mô tả điều người dùng muốn hoàn thành, không phải thứ sản phẩm làm.
 
 - Chưa tốt: `hỏi AI tutor về bài học`
 - Tốt hơn: `làm rõ ngay chỗ vừa xem không hiểu mà không phải rời trang bài học`

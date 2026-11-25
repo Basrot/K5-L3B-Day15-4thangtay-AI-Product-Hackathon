@@ -58,17 +58,17 @@ Data BTC cấp đã dùng (nếu có — không commit nguyên file): __
 
 ## §5. Chỗ khó — 4 lớp + ≥6 kịch bản + 2 tấn công *(guide 2.3)*
 
-| Kịch bản | Lớp ①②③④ | Hành vi mong muốn (nói gì, hiện gì, cho làm gì tiếp) | Câu thử |
+| Kịch bản | Lớp (1–4) | Hành vi mong muốn (nói gì, hiện gì, cho làm gì tiếp) | Câu thử |
 |---|---|---|---|
 |  |  |  |  |
 | *(tấn công)* |  |  |  |
 | *(tấn công)* |  |  |  |
 
-① nguồn sự thật · ② mơ hồ / thiếu thông tin · ③ ngoài phạm vi / thẩm quyền · ④ đặc thù giáo dục
+(1) nguồn sự thật · (2) mơ hồ / thiếu thông tin · (3) ngoài phạm vi / thẩm quyền · (4) đặc thù giáo dục
 
 ## §6. Bốn đường đi của trải nghiệm
-- Mọi thứ suôn sẻ: · Không chắc (②): · Không có căn cứ (①): · Người dùng sửa:
-- Bị đòi ngoài phạm vi (③): · Trường hợp đặc thù giáo dục (④):
+- Mọi thứ suôn sẻ: · Không chắc (lớp 2): · Không có căn cứ (lớp 1): · Người dùng sửa:
+- Bị đòi ngoài phạm vi (lớp 3): · Trường hợp đặc thù giáo dục (lớp 4):
 
 ## §7. Đánh giá & chuẩn "đạt" *(guide 2.4, 4.1)*
 - Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — __ câu (thuong __ · kho __ · tu_choi __) · metric: `eval/metric_spec.yaml` (__ metric)

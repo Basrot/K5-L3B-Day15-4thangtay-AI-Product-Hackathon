@@ -22,11 +22,11 @@ Bài của nhóm phải cân bằng hai nửa: **tư duy sản phẩm** (đúng 
 
 | # | File | Đọc khi nào | Trong đó có gì |
 |---|---|---|---|
-| ① | **README.md** *(file này)* | Đầu buổi Zoom | Tổng quan · checkpoint · chấm điểm · luật |
-| ② | [01-challenge-brief.md](01-challenge-brief.md) | Lúc chọn track | Đề bài: bối cảnh, 5 track, 7 hạng mục bắt buộc, dữ liệu |
-| ③ | [tracks/](tracks/README.md): **file của track nhóm chọn** | Ngay sau ② | Bối cảnh · người dùng · định hướng ý tưởng · data · công cụ gợi ý |
-| ④ | [**02-guide.md**](02-guide.md) | **Mở suốt hai ngày** | Làm từng bước: câu hỏi phải trả lời → làm gì → ra file nào → nộp mốc nào |
-| ⑤ | [03-rubric.md](03-rubric.md) | Trước mỗi checkpoint | Chấm từng phần thế nào |
+| 1 | **README.md** *(file này)* | Đầu buổi Zoom | Tổng quan · checkpoint · chấm điểm · luật |
+| 2 | [01-challenge-brief.md](01-challenge-brief.md) | Lúc chọn track | Đề bài: bối cảnh, 5 track, 7 hạng mục bắt buộc, dữ liệu |
+| 3 | [tracks/](tracks/README.md): **file của track nhóm chọn** | Ngay sau file 2 | Bối cảnh · người dùng · định hướng ý tưởng · data · công cụ gợi ý |
+| 4 | [**02-guide.md**](02-guide.md) | **Mở suốt hai ngày** | Làm từng bước: câu hỏi phải trả lời → làm gì → ra file nào → nộp mốc nào |
+| 5 | [03-rubric.md](03-rubric.md) | Trước mỗi checkpoint | Chấm từng phần thế nào |
 
 Đi kèm:
 - [starter-repo/](starter-repo/README.md): khung repo nộp bài. Có sẵn thư mục, file mẫu, và lệnh `run.py` chạy bộ câu thử và mô phỏng chi phí.

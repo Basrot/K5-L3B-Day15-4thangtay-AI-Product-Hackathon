@@ -12,7 +12,7 @@ Dataset nào, xử lý gì: tóm 2–3 dòng từ `data/DATA_CARD.md`.
 - `eval/benchmark.csv`: __ câu (thuong __ · kho __ · tu_choi __, trong đó __ câu tấn công)
 - Nguồn (`python run.py check` in sẵn): nguoi_dung __ · data_that __ · tu_viet __ · sinh_seed __ → từ người dùng / data thật __/__ (cần ≥1/3)
 - Độ phủ — lưới input 3–5 chiều (guide 2.4 bước 5): __
-- Câu `kho` trỏ về 4 lớp chỗ khó (`spec.md` §5): ① __ · ② __ · ③ __ · ④ __
+- Câu `kho` trỏ về 4 lớp chỗ khó (`spec.md` §5): lớp 1: __ · lớp 2: __ · lớp 3: __ · lớp 4: __
 
 ## 3. Metric và cách chấm
 

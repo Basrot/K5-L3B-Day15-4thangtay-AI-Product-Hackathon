@@ -96,7 +96,7 @@ Cả ba nguồn: tổng **≥5 trích dẫn hoặc ví dụ nguyên văn**, có 
 4. Data chỉ cho biết người ta **làm gì**. Muốn biết **vì sao** → hỏi người dùng.
 
 **Phỏng vấn — 3 quy tắc, 3 phản xạ:**
-- **Quy tắc:** ① nói về cuộc sống của họ, không giới thiệu ý tưởng của mình · ② hỏi chuyện cụ thể **đã xảy ra**, không hỏi họ sẽ làm gì · ③ nói ít, nghe nhiều.
+- **Quy tắc:** (1) nói về cuộc sống của họ, không giới thiệu ý tưởng của mình · (2) hỏi chuyện cụ thể **đã xảy ra**, không hỏi họ sẽ làm gì · (3) nói ít, nghe nhiều.
 - **Phản xạ khi nghe:** được khen → cảm ơn rồi quay lại chuyện thật · nghe "mình thường… / mình sẽ…" → hỏi *"lần gần nhất là khi nào?"* · nghe đề xuất tính năng → hỏi *"cái đó giúp bạn làm được gì?"*
 - **Nên hỏi:** *"Lần gần nhất bạn [làm việc này], bạn đã làm gì? Mất bao lâu?"* · *"Bạn đã thử cách nào khác — vì sao vẫn chưa bỏ?"* · **Tránh:** *"Bạn có muốn tính năng X không?"* (ai cũng trả lời có).
 - n = 3 **không ghi %** — viết "2/3 người" và liệt kê từng người.
@@ -202,10 +202,10 @@ Cả ba nguồn: tổng **≥5 trích dẫn hoặc ví dụ nguyên văn**, có 
 
 - **Câu hỏi:** Ở lát cắt này, AI dễ sai ở đâu nhất — và sai thì hậu quả gì?
 - **Làm:** cụ thể hoá **4 lớp chỗ khó** cho lát cắt:
-  - ① **Nguồn sự thật** — chỗ nào AI bịa được? Không có căn cứ thì làm gì?
-  - ② **Mơ hồ / thiếu thông tin** — hỏi lại, đoán có báo, hay từ chối?
-  - ③ **Ngoài phạm vi / thẩm quyền** — người dùng đòi gì mà sản phẩm không được làm?
-  - ④ **Đặc thù giáo dục** — sai gì thì học viên học sai, mất điểm, lỡ hạn, mất niềm tin?
+  1. **Nguồn sự thật** — chỗ nào AI bịa được? Không có căn cứ thì làm gì?
+  2. **Mơ hồ / thiếu thông tin** — hỏi lại, đoán có báo, hay từ chối?
+  3. **Ngoài phạm vi / thẩm quyền** — người dùng đòi gì mà sản phẩm không được làm?
+  4. **Đặc thù giáo dục** — sai gì thì học viên học sai, mất điểm, lỡ hạn, mất niềm tin?
 
   Chốt **≥6 kịch bản**, mỗi kịch bản một dòng: `tình huống | lớp | hành vi mong muốn (nói gì, hiện gì, cho làm gì tiếp)`. Thêm **2 kịch bản tấn công** nhắm vào chỗ chặn rủi ro ở [2.2](#b2-2) (vd người dùng cố bắt AI làm điều bị cấm).
 - **Output:** `spec.md` §5. **Mỗi kịch bản thành ≥1 câu thử** ở [2.4](#b2-4).
