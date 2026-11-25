@@ -15,7 +15,7 @@ Chế độ giả (mặc định khi .env chưa có MODEL_PROVIDER, hoặc MODEL
     Lượt `run.py eval` / `run.py simulate` chạy bằng model giả KHÔNG được tính.
 
 Nối model thật: điền .env (chép từ .env.example), rồi viết nhánh gọi API ở dưới theo docs/connect-model.md
-(có ví dụ Gemini, OpenAI, Claude, model chạy trên máy). Không dán API key vào file này.
+(có ví dụ OpenAI, Claude, model chạy trên máy, và cách nối nhà cung cấp khác). Không dán API key vào file này.
 """
 import os
 
@@ -50,7 +50,7 @@ def call_model(system: str, user: str) -> dict:
         return {"text": "[câu trả lời giả — chưa nối model] " + last[:60], "model": "fake", "tokens_in": 0, "tokens_out": 0}
 
     # NHÓM VIẾT: gọi model thật ở đây (theo MODEL_PROVIDER, MODEL_NAME, API_KEY) rồi trả đúng 4 khoá.
-    # Ví dụ chép được cho từng nhà cung cấp: docs/connect-model.md mục 4.
+    # Ví dụ chép được cho từng nhà cung cấp: docs/connect-model.md mục 2.
     raise NotImplementedError(
         "chưa viết phần gọi model thật cho MODEL_PROVIDER=%s trong codebase/ai.py — xem docs/connect-model.md"
         % MODEL_PROVIDER)

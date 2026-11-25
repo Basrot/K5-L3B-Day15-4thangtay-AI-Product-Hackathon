@@ -280,7 +280,7 @@ Nộp CP2: [README → Checkpoint](README.md#checkpoint). **Trước khi rời l
 ## 3.3 Nối model & an toàn *(cặp X · tối Thứ Sáu 27/11 — việc dễ kẹt nhất, nên xong trước khi ngủ)*
 
 - **Làm:**
-  1. Lấy key gói miễn phí hoặc của nhóm. Làm theo [starter-repo/docs/connect-model.md](starter-repo/docs/connect-model.md). Key để trong `.env`, **không commit**.
+  1. Lấy API key của nhóm, làm theo [starter-repo/docs/connect-model.md](starter-repo/docs/connect-model.md). Key để trong `.env`, **không commit**.
   2. `python run.py` hỏi thử 1 câu → `python run.py eval --try` chạy 3 câu thử, thấy số token > 0 là nối được.
   3. Cài chỗ chặn rủi ro đã thiết kế ở [2.2](#b2-2).
 - **An toàn:** gói miễn phí có thể dùng dữ liệu để huấn luyện. Data trong `data/` của bộ đề đưa vào được. Dữ liệu người thật nhóm tự thu thì chỉ đưa bản đã bỏ tên hoặc đoạn đã viết lại ([01-challenge-brief → Data](01-challenge-brief.md#data)).
@@ -441,7 +441,7 @@ Mọi thứ hackathon đòi, nhóm đã làm trong lab của 15 ngày giai đo�
 
 **Kết quả ngược giả thuyết thì sao?** Vẫn đủ điểm nếu số là thật. Ghi lại và đổi hướng: đó là bằng chứng tốt.
 
-**Không lấy được API key?** Xem các lựa chọn miễn phí ở [further-reading/model-prices.md](further-reading/model-prices.md) và cách nối ở [starter-repo/docs/connect-model.md](starter-repo/docs/connect-model.md). Kẹt quá 20 phút thì hỏi ngay.
+**Kẹt khi nối model?** Xem mục "Lỗi hay gặp" trong [starter-repo/docs/connect-model.md](starter-repo/docs/connect-model.md). Kẹt quá 20 phút thì hỏi ngay.
 
 **Dùng gói miễn phí mà vẫn phải tính chi phí?** Có. Mô phỏng chi phí là cho **lúc đưa vào dùng thật**, tính theo giá gói trả phí.
 

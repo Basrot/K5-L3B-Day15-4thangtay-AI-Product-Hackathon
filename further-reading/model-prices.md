@@ -81,20 +81,11 @@ Mỗi dòng đã được đọc lại và đối chiếu với bản lưu trang
 
 Groq (ngày 25/11 groq.com/pricing chỉ hiện trang giới thiệu, không có bảng giá); Mistral, xAI, Together, OpenRouter, nhà cung cấp Việt Nam: chưa kiểm. Nhóm dùng các mô hình này thì tự ghi giá + link + ngày xem.
 
-## 2. Không có API key do BTC cấp: các lựa chọn đã kiểm
+## 2. Nối model và đo token
 
-**BTC không cấp API key.** Nhóm dùng gói miễn phí hoặc tài khoản của nhóm.
+Cách nối model và xử lý lỗi: [starter-repo/docs/connect-model.md](../starter-repo/docs/connect-model.md).
 
-| Lựa chọn | Đã kiểm gì | Lưu ý |
-|---|---|---|
-| **Gemini API gói miễn phí** (Google AI Studio) | Trang giá ghi "Free of charge" cho gemini-3.1-flash-lite, 3.5-flash-lite, 3.8-flash, 4-hydrogen, gemma-4 | Trang ghi gói miễn phí **"Content used to improve our products"**: **chỉ đưa dữ liệu giả, dữ liệu nhóm tự thu đã bỏ tên, hoặc đoạn đã viết lại**. Giới hạn số lượt theo từng project, xem trong AI Studio; trang giới hạn lượt gọi không ghi con số gói miễn phí cho các mô hình này, nên **chạy bộ câu thử 20–30 câu có thể chạm giới hạn**: chạy trước, đừng để sát giờ |
-| **Anthropic credit dùng thử** | Trang FAQ ghi "New users receive free credits to test the API" | **Không ghi số tiền**; cần đăng ký thẻ hay không: chưa kiểm |
-| **Chạy mô hình mở trên máy (Ollama + Gemma 4)** | ollama.com/library/gemma4: bản `gemma4:e2b` 4,6–7,5 GB, `gemma4:e4b` 6,6–9,5 GB, có hỗ trợ tools | Không tốn tiền API nhưng chậm trên laptop yếu; chất lượng khác mô hình lớn. Vẫn phải tính chi phí theo **mô hình định dùng khi ra sản phẩm thật** |
-| OpenAI | Chưa thấy gói API miễn phí trên trang giá | Nhóm tự nạp tiền nếu dùng |
-
-**Lấy key, điền `.env`, chép code nối model, xử lý lỗi:** [starter-repo/docs/connect-model.md](../starter-repo/docs/connect-model.md) mục 1–6.
-
-> Không nhóm nào bắt buộc phải trả tiền: bảng chi phí là **ước tính** từ token đo được, có thể đo bằng mô hình thuộc gói miễn phí rồi **nhân với giá** mô hình định dùng thật (khai trong `cost/personas.yaml` mục `prices`). Ghi rõ "đo trên model X, tính giá model Y".
+Có thể đo token bằng model đang dùng để build rồi **nhân với giá** model định dùng thật (khai trong `cost/personas.yaml` mục `prices`). Ghi rõ "đo trên model X, tính giá model Y".
 
 ## 3. Quy tắc ước lượng token (chỉ những quy tắc có nguồn)
 
