@@ -83,7 +83,7 @@ Nhóm 3 người: một cặp + một người lẻ. Nhóm 5 người: hai cặp
 
 | Nguồn | Ngưỡng tối thiểu | Ghi ở |
 |---|---|---|
-| **Đào data** — các bộ data chính trong [data/](data/) (vd [data/preclass/](data/preclass/README.md)), kênh công khai của khoá, review công khai | Đếm được: **x/N và %** · cách chọn mẫu và cách đếm ghi trước, người khác chạy lại được · ≥5 ví dụ cụ thể | `evidence/data-mining.md` + script / công thức |
+| **Đào data** — Track A: data BTC cấp trong [data/](data/) (vd [data/preclass/](data/preclass/README.md)), kênh công khai của khoá. Track B–F: **review công khai** (Google Play, App Store, Google Maps…), số liệu công khai có nguồn | Đếm được: **x/N và %** · cách chọn mẫu và cách đếm ghi trước, người khác chạy lại được · ≥5 ví dụ cụ thể | `evidence/data-mining.md` + script / công thức |
 | **Phỏng vấn** | **≥3 người ngoài nhóm**, đúng người dùng · 10–15 phút / người · hỏi chuyện **1 tháng qua** · mỗi người 1 file ghi chép | `evidence/interviews/P1.md`… |
 | **Khảo sát** | **≥20 người ngoài nhóm**, đúng người dùng · giữ log đủ câu hỏi và từng câu trả lời | `evidence/survey/` |
 
@@ -94,6 +94,13 @@ Cả ba nguồn: tổng **≥5 trích dẫn hoặc ví dụ nguyên văn**, có 
 2. **Viết cách đếm trước khi chạy:** đếm gì · trên tập nào · lọc gì · mẫu số là gì. Mẫu số sai là lỗi hay gặp nhất.
 3. **Đếm được mới là bằng chứng:** "x/N (y%) …" ✓ · "nhiều bạn…" ✗. Ghi giới hạn của data (thiếu gì, từ ngày nào).
 4. Data chỉ cho biết người ta **làm gì**. Muốn biết **vì sao** → hỏi người dùng.
+
+**Đào review công khai (track B–F):**
+1. **Chọn nguồn và ghi cách chọn mẫu trước khi đọc.** Ví dụ: "N review mới nhất của app X trên Google Play, từ ngày … đến ngày …, mọi mức sao". Lọc riêng 1–3 sao cũng được, nhưng phải ghi rõ, vì như vậy mẫu nghiêng về phía phàn nàn.
+2. **Đọc thử khoảng 30 review, rồi mới đặt nhãn** theo loại vấn đề. Mỗi nhãn có một câu định nghĩa, để người khác gắn nhãn cũng ra giống mình.
+3. **Gắn nhãn từng review vào một bảng:** nguồn · ngày · số sao · trích tối đa 2 câu · nhãn. Không chép tên người viết.
+4. **Đếm x/N và %.** N là số review đã đọc và gắn nhãn, kể cả review không liên quan. Ghi link nguồn và ngày xem.
+5. **Biết giới hạn:** người viết review thường là người đang bực, nên % trong review không phải % của mọi người dùng. Kiểm lại bằng vài cuộc phỏng vấn hoặc một khảo sát ngắn thì bằng chứng mạnh hơn hẳn.
 
 **Phỏng vấn — 3 quy tắc, 3 phản xạ:**
 - **Quy tắc:** (1) nói về cuộc sống của họ, không giới thiệu ý tưởng của mình · (2) hỏi chuyện cụ thể **đã xảy ra**, không hỏi họ sẽ làm gì · (3) nói ít, nghe nhiều.
@@ -169,7 +176,7 @@ Cả ba nguồn: tổng **≥5 trích dẫn hoặc ví dụ nguyên văn**, có 
      |---|---|
      | Workflow cố định (các bước định sẵn, AI làm 1–2 bước) | Việc lặp lại, các bước rõ — thường **rẻ hơn, dễ đo hơn** |
      | Một agent (AI tự chọn bước tiếp, gọi công cụ) | Đường đi thay đổi theo input |
-     | Nhiều agent (mỗi agent một vai) | Các vai thật sự khác nhau (vd lớp học có nhiều vai AI ở Track D) |
+     | Nhiều agent (mỗi agent một vai) | Các vai thật sự khác nhau (vd lớp học có nhiều vai AI, hướng lớp học kiểu mới ở track A) |
 
      Chọn hình dạng đơn giản nhất làm được lát cắt. Phải nói được vì sao **không** chọn cái phức tạp hơn.
   2. **AI dựa vào đâu:** dữ liệu / công cụ của bài toán mà AI dùng (tra đoạn bài, đọc lịch, đọc thông báo…). Mỗi công cụ: tên · input · output · có tác động ra ngoài không (gửi tin, sửa dữ liệu). Số công cụ do thiết kế quyết định.

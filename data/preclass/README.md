@@ -1,7 +1,7 @@
 # Data pack — trang pre-class của khoá (AI20K Level 3-4, khoá 5)
 
 > `README.md` → `01-challenge-brief.md` → `tracks/` → **`data/preclass/`** → `02-guide.md`
-> Liên quan nhất tới **Track A** và **Track D**; track khác dùng được nếu bài toán chạm tới việc học trước buổi.
+> Liên quan nhất tới [Track A](../../tracks/track-a-edtech.md): hướng A1 (tutor) và A4 (lớp học kiểu mới); hướng khác dùng được nếu bài toán chạm tới việc học trước buổi.
 
 Đây là nhật ký **hành vi** của học viên khoá mình trên trang pre-class ([preclass-online.com](https://preclass-online.com)): mở bài, xem video, tua, trả lời câu hỏi, làm mini lab, nhắn trợ giảng AI và bạn học AI. Mỗi file là một bảng CSV, mở thẳng bằng Excel, Google Sheets hoặc pandas.
 

@@ -1,14 +1,14 @@
 # Data pack — vận hành đào tạo: lịch, phòng, phân công *(giả lập)*
 
 > `README.md` → `01-challenge-brief.md` → `tracks/` → **`data/training-ops/`** → `02-guide.md`
-> Liên quan nhất tới **Track B** (B1 — trả lời lịch, logistics có căn cứ) và hướng **Vận hành đào tạo** của **Track E**.
+> Liên quan nhất tới **Track A**: hướng [A5 · Vận hành đào tạo](../../tracks/track-a-edtech.md#van-hanh-dao-tao) và [A2 · Trợ lý Discord](../../tracks/track-a-edtech.md#a2--trợ-lý-discord) (trả lời lịch, logistics có căn cứ).
 
 Bộ này dựng lại cách một khoá AI20K **vận hành lịch học**:
 - Ban đào tạo mở form cho giảng viên đăng ký buổi, rồi phân công giảng viên theo phòng.
 - Đội lab coach xếp ca lab và đổi ca qua form riêng.
 - Học viên nhận lịch qua email, tra lớp và nhóm của mình trong một danh sách chung của khoá.
 
-Bối cảnh vận hành (khoá thiếu cơ sở vật chất, phòng học không cố định, nhiều phòng chỉ chốt sát ngày): [track E → Vận hành đào tạo](../../tracks/track-e-open-lane.md#van-hanh-dao-tao).
+Bối cảnh vận hành (khoá thiếu cơ sở vật chất, phòng học không cố định, nhiều phòng chỉ chốt sát ngày): [track A → Vận hành đào tạo](../../tracks/track-a-edtech.md#van-hanh-dao-tao).
 
 **Cấu trúc file, tên sheet, tên cột và cách ghi** được dựng theo các bảng tính thật của khoá. **Người, email, mã và ngày đều là giả.** Khoá trong data là "Khoá 9", học từ 15/04 đến 08/05/2027.
 

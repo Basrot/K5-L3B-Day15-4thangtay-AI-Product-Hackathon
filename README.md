@@ -2,7 +2,7 @@
 
 > **[README]** → [01-challenge-brief](01-challenge-brief.md) → [tracks/](tracks/README.md) → [02-guide](02-guide.md) → [03-rubric](03-rubric.md)
 
-**Tìm một chỗ đau thật trong việc học và dạy ở chính khoá AI20K, thiết kế một giải pháp AI cho nó, rồi chứng minh bằng số.**
+**Tìm một chỗ đau thật của người dùng, thiết kế một giải pháp AI cho nó, rồi chứng minh bằng số.**
 
 Bài của nhóm phải cân bằng hai nửa: **tư duy sản phẩm** (đúng người dùng, đúng chỗ đau, đáng làm) và **giải pháp AI** (thiết kế công nghệ ra sao, AI dựa vào dữ liệu và công cụ nào, chạy thật được). Ba câu phải trả lời, mỗi câu bằng số:
 
@@ -12,7 +12,7 @@ Bài của nhóm phải cân bằng hai nửa: **tư duy sản phẩm** (đúng 
 
 - Nhóm **3–5 người**, tự ghép, bầu một đội trưởng.
 - Khoảng **10 giờ làm thật**: chiều tối Thứ Sáu 27/11 và sáng Thứ Bảy 28/11.
-- Phạm vi: **chỉ việc học và dạy ở chính khoá AI20K**.
+- **6 track:** A EdTech (chính khoá AI20K) · B Y tế · C Du lịch · D Thương mại điện tử · E Tài chính · F Làn khác (lĩnh vực bất kỳ, có insight từ người dùng thật).
 - BTC **không cấp API key**. Nhóm dùng gói miễn phí hoặc tài khoản của nhóm.
 - Mọi kỹ thuật cần dùng, nhóm đã học trong 15 ngày giai đoạn 1. [02-guide.md](02-guide.md) chỉ rõ bước nào ôn lại ngày nào.
 
@@ -23,14 +23,14 @@ Bài của nhóm phải cân bằng hai nửa: **tư duy sản phẩm** (đúng 
 | # | File | Đọc khi nào | Trong đó có gì |
 |---|---|---|---|
 | 1 | **README.md** *(file này)* | Đầu buổi Zoom | Tổng quan · checkpoint · chấm điểm · luật |
-| 2 | [01-challenge-brief.md](01-challenge-brief.md) | Lúc chọn track | Đề bài: bối cảnh, 5 track, 7 hạng mục bắt buộc, dữ liệu |
+| 2 | [01-challenge-brief.md](01-challenge-brief.md) | Lúc chọn track | Đề bài: bối cảnh, 6 track, 7 hạng mục bắt buộc, dữ liệu |
 | 3 | [tracks/](tracks/README.md): **file của track nhóm chọn** | Ngay sau file 2 | Bối cảnh · người dùng · định hướng ý tưởng · data · công cụ gợi ý |
 | 4 | [**02-guide.md**](02-guide.md) | **Mở suốt hai ngày** | Làm từng bước: câu hỏi phải trả lời → làm gì → ra file nào → nộp mốc nào |
 | 5 | [03-rubric.md](03-rubric.md) | Trước mỗi checkpoint | Chấm từng phần thế nào |
 
 Đi kèm:
 - [starter-repo/](starter-repo/README.md): khung repo nộp bài. Có sẵn thư mục, file mẫu, và lệnh `run.py` chạy bộ câu thử và mô phỏng chi phí.
-- [data/](01-challenge-brief.md#data): dữ liệu để đào và để chạy thử.
+- [data/](01-challenge-brief.md#data): dữ liệu BTC cấp cho track A (EdTech). Track B–F nhóm tự tìm data.
 - [further-reading/](further-reading/README.md): JTBD, phỏng vấn người dùng, HAX, PAIR, bảng giá model.
 
 ---
@@ -46,7 +46,7 @@ Bài của nhóm phải cân bằng hai nửa: **tư duy sản phẩm** (đúng 
 ### CP1 · 17:00 Thứ Sáu 27/11 · 3 điểm
 
 - `TEAMS.md` điền đủ thành viên + mã học viên, **đúng format** (đội trưởng ở dòng 1).
-- Track + bài toán của nhóm trong 1–2 câu: ai, đang làm gì trong khoá, vướng ở đâu. Không viết chữ AI.
+- Track (A–F) + bài toán của nhóm trong 1–2 câu: ai, đang làm gì, vướng ở đâu. Không viết chữ AI. Track F kèm thẻ đề.
 - Lát cắt dự kiến (1 câu).
 - Canvas 7 dòng (`canvas.md`).
 - Link repo GitHub công khai, mở được bằng cửa sổ ẩn danh.

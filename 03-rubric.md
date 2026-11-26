@@ -82,7 +82,7 @@ Kiểm tại CP4, 14:30 Thứ Bảy 28/11. Thiếu 1 trong 4 điều kiện → 
 
 | Tiêu chí | Điểm |
 |---|---|
-| **Pain cụ thể và bảng ≥3 hướng:** ai, ở đâu trong khoá, vướng gì, hậu quả gì (không có chữ AI) · số trong bảng lấy từ bằng chứng ở R1 · hướng bị loại giữ lại, có lý do | 5 |
+| **Pain cụ thể và bảng ≥3 hướng:** ai, ở đâu, vướng gì, hậu quả gì (không có chữ AI) · số trong bảng lấy từ bằng chứng ở R1 · hướng bị loại giữ lại, có lý do | 5 |
 | **Công thức impact / tháng** của hướng chọn ra một con số (số người × lần / tháng × tốn bao nhiêu mỗi lần) · mỗi thừa số trỏ về nguồn, hoặc ghi rõ *(tự ước tính)* | 6 |
 
 <a id="r3"></a>
@@ -106,7 +106,7 @@ Kiểm tại CP4, 14:30 Thứ Bảy 28/11. Thiếu 1 trong 4 điều kiện → 
 | **Metric và chuẩn "đạt":** `eval/metric_spec.yaml` ≥3 metric (định nghĩa kiểm chứng được · cách chấm · ngưỡng) · người thứ hai chấm thử 5 output khớp ≥4/5, ghi trong `eval/README.md` · chuẩn "đạt" bằng số trong `spec.md` §7, commit trước 19:30 Thứ Sáu 27/11, không sửa sau | 5 |
 | **Data card + chạy một lệnh:** `data/DATA_CARD.md` (dataset nào, từ đâu, xử lý gì, bao nhiêu dòng, data giả lập ghi cách sinh + seed) · `python run.py eval` ra `eval/run-N.csv` có run ID, model, token từng câu | 3 |
 
-- **Track D:** chuẩn "đạt" phải có **≥1 chỉ số về học** (trả lời đúng sau khi học, giải thích lại được, thời gian tới lời giải). Thiếu thì trừ 2 điểm ở tiêu chí thứ hai.
+- **Track A, hướng lớp học kiểu mới:** chuẩn "đạt" phải có **≥1 chỉ số về học** (trả lời đúng sau khi học, giải thích lại được, thời gian tới lời giải). Thiếu thì trừ 2 điểm ở tiêu chí thứ hai.
 
 <a id="r5"></a>
 ### R5 · Báo cáo đánh giá — 8

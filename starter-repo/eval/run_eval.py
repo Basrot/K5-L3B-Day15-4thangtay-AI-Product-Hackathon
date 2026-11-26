@@ -334,8 +334,8 @@ def check_teams():
             warn.append("TEAMS.md: dòng \"%s\" chưa điền." % f)
     if fields.get("Lớp") and "____" not in fields["Lớp"] and fields["Lớp"] not in ("L3A", "L3B"):
         warn.append("TEAMS.md: Lớp ghi đúng L3A hoặc L3B (đang ghi %r)." % fields["Lớp"])
-    if fields.get("Track") and "____" not in fields["Track"] and fields["Track"] not in ("A", "B", "C", "D", "E"):
-        warn.append("TEAMS.md: Track ghi một chữ A, B, C, D hoặc E (đang ghi %r)." % fields["Track"])
+    if fields.get("Track") and "____" not in fields["Track"] and fields["Track"] not in ("A", "B", "C", "D", "E", "F"):
+        warn.append("TEAMS.md: Track ghi một chữ A, B, C, D, E hoặc F (đang ghi %r)." % fields["Track"])
     rows, header = [], None
     for line in text.splitlines():
         if not line.strip().startswith("|"):
