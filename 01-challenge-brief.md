@@ -69,7 +69,7 @@ Ví dụ để hình dung độ lớn: *Một học viên · dán lỗi khi làm
 2. **Bản chạy thử chạy riêng, không sửa và không kết nối vào hệ thống thật** (trang pre-class, LMS, Discord của khoá, hay app của bất kỳ hãng nào).
    - Đó là bản mô phỏng tính năng (dòng lệnh, web nhỏ, bot thử, notebook) trên dữ liệu giả lập, tự viết hoặc đã ẩn danh. Không bắt buộc đưa lên mạng.
    - Bắt buộc: gọi AI thật ở quyết định trung tâm, và quyết định dựa trên dữ liệu / công cụ của bài toán ([guide 3.2](02-guide.md#b3-2)).
-3. **Tự xác định 4 lớp chỗ khó** cho lát cắt, rồi biến thành câu thử ([guide 2.3](02-guide.md#b2-3)): nguồn sự thật · mơ hồ, thiếu thông tin · ngoài phạm vi, thẩm quyền · đặc thù giáo dục.
+3. **Tự xác định 4 lớp chỗ khó** cho lát cắt, rồi biến thành câu thử ([guide 2.3](02-guide.md#b2-3)): nguồn sự thật · mơ hồ, thiếu thông tin · ngoài phạm vi, thẩm quyền · đặc thù lĩnh vực (sai thì ai mất gì).
 4. **Mô tả hệ thống đang có phải có nguồn** (ảnh chụp tài khoản của mình đã che thông tin, trang chính thức). Không kiểm được thì ghi "chưa kiểm".
 
 <a id="7-hang-muc"></a>
@@ -84,7 +84,7 @@ Ví dụ để hình dung độ lớn: *Một học viên · dán lỗi khi làm
 | 3 | **Thiết kế giải pháp AI** | AI quyết định gì, dựa trên dữ liệu và công cụ nào, chặn rủi ro ở đâu, người duyệt ở đâu? | 1 sơ đồ: hình dạng (workflow / 1 agent / nhiều agent) + lý do · dữ liệu và công cụ AI dùng · chỗ chặn rủi ro · chỗ người duyệt | [2.2](02-guide.md#b2-2) | `spec.md` |
 | 4 | **Bản chạy thử làm trọn lát cắt** | Người dùng đưa gì vào, AI quyết định gì, ra cái gì dùng được? | Gọi AI thật · quyết định dựa trên dữ liệu / công cụ của bài toán · chạy được bằng `run.py eval` và `run.py simulate` | [3.2](02-guide.md#b3-2) | `codebase/` |
 | 5 | **Định nghĩa "tốt" + bộ câu thử** | Thế nào là đủ tốt với người dùng, và giải pháp đúng được bao nhiêu? | Data card · 20–30 câu thử · metric spec ≥3 metric · chuẩn "đạt" chốt ở CP2 · lượt 1 → lượt 2 | [2.4](02-guide.md#b2-4), [4.1](02-guide.md#b4-1) | `data/`, `eval/` |
-| 6 | **Mô phỏng chi phí khi dùng thật** | Dùng thật cho cả khoá thì tốn bao nhiêu mỗi tháng, có đáng so với impact? | ≥50 phiên giả lập chạy qua bản chạy thử → chi phí / task thành công → 3 kịch bản ở quy mô thật | [4.2](02-guide.md#b4-2) | `cost/` |
+| 6 | **Mô phỏng chi phí khi dùng thật** | Dùng thật ở quy mô thật của sản phẩm thì tốn bao nhiêu mỗi tháng, có đáng so với impact? | ≥50 phiên giả lập chạy qua bản chạy thử → chi phí / task thành công → 3 kịch bản ở quy mô thật | [4.2](02-guide.md#b4-2) | `cost/` |
 | 7 | **Slide + demo + video dự phòng** | Kết luận go / iterate / stop dựa trên số nào? | `demo-slides.pdf` có trang "Đánh giá thế nào" và "Chi phí khi dùng thật" | [5.1](02-guide.md#b5-1) | thư mục gốc repo |
 | + | *Bonus:* người dùng thử | Người dùng thật dùng được không, đổi gì sau khi thử? | 2–3 người ngoài nhóm dùng thử, có log | [4.3](02-guide.md#b4-3) | `validation/` |
 

@@ -212,7 +212,7 @@ Cả ba nguồn: tổng **≥5 trích dẫn hoặc ví dụ nguyên văn**, có 
   1. **Nguồn sự thật** — chỗ nào AI bịa được? Không có căn cứ thì làm gì?
   2. **Mơ hồ / thiếu thông tin** — hỏi lại, đoán có báo, hay từ chối?
   3. **Ngoài phạm vi / thẩm quyền** — người dùng đòi gì mà sản phẩm không được làm?
-  4. **Đặc thù giáo dục** — sai gì thì học viên học sai, mất điểm, lỡ hạn, mất niềm tin?
+  4. **Đặc thù lĩnh vực** — sai ở đâu thì người dùng mất gì đắt nhất trong lĩnh vực này? Ví dụ: track A, học viên học sai, mất điểm, lỡ hạn · track B, bỏ sót dấu hiệu nguy hiểm, gợi ý thuốc sai · track C, báo còn chỗ khi đã hết, sai giờ bay · track D, bồi thường vượt hạn mức, vi phạm dị ứng · track E, mất tiền, mở chặn giao dịch lừa đảo · track F, nhóm tự chỉ ra. Mục "An toàn" và "Chuẩn đạt nên có điều kiện cứng" trong file track là nơi bắt đầu.
 
   Chốt **≥6 kịch bản**, mỗi kịch bản một dòng: `tình huống | lớp | hành vi mong muốn (nói gì, hiện gì, cho làm gì tiếp)`. Thêm **2 kịch bản tấn công** nhắm vào chỗ chặn rủi ro ở [2.2](#b2-2) (vd người dùng cố bắt AI làm điều bị cấm).
 - **Output:** `spec.md` §5. **Mỗi kịch bản thành ≥1 câu thử** ở [2.4](#b2-4).
@@ -334,7 +334,7 @@ Nộp CP2: [README → Checkpoint](README.md#checkpoint). **Trước khi rời l
 <a id="b4-2"></a>
 ## 4.2 Mô phỏng chi phí khi dùng thật *(cặp Y · ~1 giờ)*
 
-- **Câu hỏi:** Nếu đưa vào dùng thật cho cả khoá, mỗi tháng tốn bao nhiêu — và có đáng so với impact không?
+- **Câu hỏi:** Nếu đưa vào dùng thật ở quy mô thật của sản phẩm, mỗi tháng tốn bao nhiêu — và có đáng so với impact không? Quy mô thật: track A là khoá học (lớp L3 hơn 700 học viên, cả khoá hơn 1.000); track B–F là số người dùng của sản phẩm hoặc nhóm người dùng nhóm nhắm tới, lấy từ nguồn công khai có link, không chép số 700 của khoá.
 - **Input:** số lần dùng của từng kiểu người dùng ([1.3](#b1-3)) · tỉ lệ đạt ([4.1](#b4-1)) · bảng giá model ([further-reading/model-prices.md](further-reading/model-prices.md)).
 - **Làm:**
   1. **Persona** `cost/personas.yaml`: ≥3 kiểu người dùng (dùng ít · vừa · nhiều), tỉ lệ mỗi kiểu, số lần dùng / tháng — **số lấy từ data, phỏng vấn, khảo sát**; thiếu thì ghi rõ *(tự ước tính)*.
@@ -350,7 +350,7 @@ Nộp CP2: [README → Checkpoint](README.md#checkpoint). **Trước khi rời l
 <a id="b4-3"></a>
 ## 4.3 Người dùng thử *(bonus · 2–3 người ngoài nhóm · 10 phút / người)*
 
-Đổi chéo với nhóm khác là nhanh nhất — ai trong khoá cũng là người dùng thật.
+Đổi chéo với nhóm khác là nhanh nhất, **nếu** bạn nhóm kia đúng là người dùng của lát cắt: track A, cả khoá là người dùng; track D, E, học viên cũng là người mua online, người dùng ví; track B, C, F, phải đúng vai (người đi khám, người đi du lịch…). Vai chuyên môn như dược sĩ, lễ tân thì phải hẹn người làm nghề thật.
 
 **Một phiên — 5 nhịp:**
 1. **Làm quen (~1'):** "Tụi mình đánh giá sản phẩm, không đánh giá bạn. Cứ nói to suy nghĩ."

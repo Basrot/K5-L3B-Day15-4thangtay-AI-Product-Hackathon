@@ -162,7 +162,7 @@ Với AI sinh, người dùng có thể yêu cầu bất cứ thứ gì → cầ
 - **Lỗi chất lượng/độ liên quan của output:** hoàn thành một phần do thiếu bộ nhớ/ngữ cảnh · kết quả tự tin nhưng trình bày không hợp nhu cầu.
 - **Lỗi hệ thống nhiều tầng:** các hệ AI không "nói chuyện" với nhau.
 
-*Dùng cho hackathon:* đối chiếu với **bốn lớp chỗ khó** ở guide 2.3 ((1) nguồn sự thật (2) mơ hồ (3) ngoài phạm vi (4) đặc thù giáo dục) — bốn nguồn lỗi của PAIR giúp nhóm tìm kịch bản cho mỗi lớp.
+*Dùng cho hackathon:* đối chiếu với **bốn lớp chỗ khó** ở guide 2.3 ((1) nguồn sự thật (2) mơ hồ (3) ngoài phạm vi (4) đặc thù lĩnh vực) — bốn nguồn lỗi của PAIR giúp nhóm tìm kịch bản cho mỗi lớp.
 
 ### 6.3 Đường đi tiếp sau thất bại
 - Stakes cao thì cần kiểm tra an toàn thêm, giải thích giới hạn; kết quả "đơn giản" có thể không đủ.
