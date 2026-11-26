@@ -16,9 +16,9 @@
 - [data/training-ops/](../data/training-ops/README.md): bộ **giả lập** bảng phân công giảng dạy và bảng lab coach, dựng theo cấu trúc thật. Để hình dung và chạy thử, **không phải bằng chứng pain**.
 - Để chạy thử, nhóm tự dựng: bài có mã đoạn, thông báo mẫu, đoạn transcript. Trích ngắn hoặc viết lại, không commit nguyên tài liệu khoá.
 
-**A1–A6 không phải danh sách đóng.** Nhóm được đi hướng khác, miễn người dùng là người trong khoá mà nhóm gặp được, và pain có bằng chứng.
-
 ---
+
+> **Các hướng dưới đây chỉ là gợi ý.** Nhóm được đi hướng khác trong bối cảnh khoá AI20K, miễn là có pain có bằng chứng. Người dùng phải là người trong khoá mà nhóm gặp được.
 
 ## A1 · Tutor cho LMS và trang pre-class
 

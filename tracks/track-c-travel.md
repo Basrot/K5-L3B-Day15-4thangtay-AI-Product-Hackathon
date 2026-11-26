@@ -15,6 +15,8 @@
 
 ---
 
+> **Các hướng dưới đây chỉ là gợi ý.** Nhóm được đi hướng khác trong bối cảnh du lịch, miễn là có pain có bằng chứng.
+
 ## C1 · Lịch trình một ngày ở khu vui chơi
 
 **Định hướng ý tưởng.** Khách nhập ngân sách, sở thích, khung giờ, ai đi cùng. AI chọn điểm và thứ tự, tự kiểm lại kế hoạch (trễ giờ mở cửa, chồng giờ, vượt ngân sách) rồi sửa, đến khi sạch hoặc kết luận không xếp được. Mưa hay show bị huỷ thì xếp lại phần còn lại của ngày.
@@ -38,8 +40,6 @@
 **Lát cắt gợi ý** *(để hình dung độ lớn, nhóm tự viết câu của mình)*: *Một hành khách đi cùng con nhỏ · vừa bị huỷ chuyến, nhắn "đổi giúp mình sang sáng mai" · AI quyết định giữ chỗ, hỏi lại, đổi vé hay chuyển nhân viên · khách có chỗ trên chuyến kịp đi, không mất vé hay tiền*
 
 **Tình huống khó.** "Đổi đi" mà không rõ chuyến nào, cho ai · "thôi huỷ hết, hoàn tiền": phải nói trước gửi rồi không huỷ được · hỏi bồi thường khi huỷ do thời tiết · khách xác nhận mơ hồ, hoặc báo vừa đổi nhầm · trẻ nhỏ bay một mình · tin tự xưng "nhân viên hãng" đòi bỏ qua quy định.
-
-Nhóm được đi hướng khác trong bối cảnh du lịch, miễn là có pain có bằng chứng.
 
 ---
 

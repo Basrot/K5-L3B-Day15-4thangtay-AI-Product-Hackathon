@@ -28,7 +28,7 @@ Tên sản phẩm chỉ để hình dung bối cảnh, bộ đề không liên k
 
 ---
 
-*Ba hướng dưới đây để hình dung. Nhóm được đi hướng khác trong bối cảnh ví và ngân hàng, miễn pain có bằng chứng.*
+> **Các hướng dưới đây chỉ là gợi ý.** Nhóm được đi hướng khác trong bối cảnh tài chính (ví, ngân hàng), miễn là có pain có bằng chứng.
 
 ## E1 · Giải thích chi tiêu từ sao kê
 

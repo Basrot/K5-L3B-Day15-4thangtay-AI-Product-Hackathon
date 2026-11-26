@@ -18,6 +18,8 @@
 
 ---
 
+> **Các hướng dưới đây chỉ là gợi ý.** Nhóm được đi hướng khác trong bối cảnh thương mại điện tử, miễn là có pain có bằng chứng.
+
 ## D1 · Xử lý khiếu nại đơn giao đồ ăn
 
 **Định hướng ý tưởng.** Khách báo thiếu món, sai món, giao trễ. AI tra đơn, tra chính sách, đề xuất phương án **trong hạn mức** (hoàn món thiếu, voucher), vượt hạn mức thì chuyển nhân viên.

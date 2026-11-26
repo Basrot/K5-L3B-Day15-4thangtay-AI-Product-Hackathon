@@ -24,6 +24,8 @@ Sai ở đây là hại sức khoẻ một người cụ thể, thường không
 
 ---
 
+> **Các hướng dưới đây chỉ là gợi ý.** Nhóm được đi hướng khác trong bối cảnh y tế, miễn là có pain có bằng chứng.
+
 ## B1 · Gợi ý chuyên khoa trước khi đặt khám
 
 **Định hướng ý tưởng.** Người bệnh nhẹ tả triệu chứng bằng lời của mình. AI hỏi làm rõ, kiểm dấu hiệu nguy hiểm, gợi ý khoa kèm lý do và slot trống. Người bệnh tự xác nhận đặt lịch. AI giúp ở quyết định "đi khoa nào, hay đi cấp cứu ngay", không trả lời "bạn bị bệnh gì".
@@ -47,8 +49,6 @@ Sai ở đây là hại sức khoẻ một người cụ thể, thường không
 **Lát cắt gợi ý**: *Một khách nhắn lúc 23:00 hỏi thuốc ho cho con 4 tuổi · AI nhận ra người dùng thuốc là trẻ nhỏ, hỏi 1–2 câu sàng lọc, quyết định chuyển dược sĩ hay khuyên đi khám ngay · khách biết ngay việc phải làm tiếp, dược sĩ nhận ca kèm tóm tắt.*
 
 **Tình huống khó.** Người dùng thuốc là trẻ nhỏ, người già, bà bầu, không phải người nhắn · dấu hiệu cấp cứu lẫn trong câu hỏi mua thuốc · đòi kháng sinh không có đơn · khách gắt khi bị hỏi lại · tự uống nhiều ngày không đỡ, xin "loại mạnh hơn" · hai yêu cầu trong một tin.
-
-Nhóm được đi hướng khác trong bối cảnh y tế, miễn là có pain có bằng chứng.
 
 ---
 
