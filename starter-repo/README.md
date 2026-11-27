@@ -3,11 +3,13 @@
 
 # [Tên nhóm] — [Tên lát cắt]
 
-Tích hợp phần AI đọc phiếu CBC và Zipformer theo [hướng dẫn bàn giao CP2](docs/cbc-ai-handoff.md).
+Tích hợp phần AI đọc phiếu với 8 mã HGB, RBC, HCT, MCV, MCH, MCHC, WBC, PLT; tham khảo [hướng dẫn dùng app](docs/cbc-ai-handoff.md).
 
 Backend FastAPI cho Railway: [triển khai và SQLite volume](docs/railway-deployment.md). Bạn làm frontend Vercel xem [hợp đồng API, ví dụ fetch và ghi âm](docs/frontend-api-handoff.md).
 
-Chạy bản đầy đủ 24 chỉ số, LLM/Vision/VieNeu qua API và SQLite trên VPS CPU theo [hướng dẫn Docker](docs/vps-deployment.md).
+Backend hỗ trợ 8 mã đề xuất, FastAPI, LLM/Vision/VieNeu qua API và SQLite; xem [hướng dẫn deploy Railway](docs/railway-deployment.md) và [bàn giao frontend Vercel](docs/frontend-api-handoff.md).
+
+Để mở web demo trên Windows, vào `starter-repo/` rồi chạy `./start-voice-demo.ps1`; mở `http://127.0.0.1:8501`. Hỏi đáp mặc định cần Ollama cùng model `qwen3:4b`; đặt `MODEL_PROVIDER=fake` trước khi chạy để thử giao diện không gọi model thật. Đọc ảnh cần model Vision; giọng đọc VieNeu cần `VIENEU_API_KEY`.
 
 **Thành viên, lớp, track:** xem [TEAMS.md](TEAMS.md). **Điền TEAMS.md đúng format**: khi chấm và đánh giá, BTC quét file này để ghép điểm cho từng người.
 

@@ -17,6 +17,7 @@ from .api_limits import BodyLimitMiddleware
 from .catalog import ANALYTES, DEFAULT_UNITS, GROUPS
 from .service import CBCService
 from .tools import compare_cbc
+from .references import study_references, SUPPORTED_ANALYTES
 
 IMAGE_LIMIT = 10 * 1024 * 1024
 WAV_LIMIT = 3 * 1024 * 1024
@@ -39,10 +40,12 @@ class LabRow(Payload):
 
 
 class Report(Payload):
+    reference_mode: Literal["study", "lab"] | None = None
+    reference_version: Annotated[StrictStr, Field(min_length=1, max_length=64)] | None = None
     pregnancy_status: Literal["pregnant", "not_pregnant", "unknown"] | None = None
     adult_confirmed: StrictBool | None = None
     gestational_age: Annotated[StrictStr, Field(max_length=10)] | None = None
-    rows: Annotated[list[LabRow], Field(min_length=1, max_length=24)]
+    rows: Annotated[list[LabRow], Field(min_length=1, max_length=8)]
 
 
 class Login(Payload):
@@ -139,8 +142,12 @@ def create_app(db_path=None) -> FastAPI:
 
     @router.get("/catalog")
     def catalog():
-        return [{"code": code, "name": name, "unit": DEFAULT_UNITS[code], "group": GROUPS[code]}
-                for code, name in ANALYTES.items()]
+        return [{"code": code, "name": ANALYTES[code], "unit": DEFAULT_UNITS[code], "group": GROUPS[code]}
+                for code in SUPPORTED_ANALYTES]
+
+    @router.get("/references")
+    def references(gestational_age: Annotated[str, Query(min_length=1, max_length=10)]):
+        return study_references(gestational_age)
 
     @router.post("/reports/validate")
     def validate(body: Report):

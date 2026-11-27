@@ -37,10 +37,14 @@ class VisionTest(unittest.TestCase):
                                             "ref_low": None, "ref_high": None, "ref_unit": None}])
         self.assertIsInstance(result["warnings"], list)
 
-    def test_all_24_codes_can_be_extracted(self):
-        codes = "RBC HGB HCT MCV MCH MCHC RDW RDW_SD WBC NEUT_ABS NEUT_PCT LYMPH_ABS LYMPH_PCT MONO_ABS MONO_PCT EOS_ABS EOS_PCT BASO_ABS BASO_PCT PLT MPV PT APTT FIB".split()
+    def test_only_the_supported_eight_codes_can_be_extracted(self):
+        codes = "HGB RBC HCT MCV MCH MCHC WBC PLT".split()
         result = self.extract({"rows": [row(analyte=code) for code in codes], "warnings": []})
         self.assertEqual([item["analyte"] for item in result["rows"]], codes)
+
+    def test_unsupported_code_is_rejected_from_ocr(self):
+        with self.assertRaises(RuntimeError):
+            self.extract({"rows": [row(analyte="RDW")], "warnings": []})
 
     def test_image_bytes_and_vision_model_reach_central_model_boundary(self):
         source = image_bytes("JPEG")
