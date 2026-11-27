@@ -2,13 +2,27 @@
 
 ## Phạm vi mở rộng
 
-Ứng dụng nhận tối đa 24 dòng từ cùng một phiếu, gồm 21 chỉ số CBC và PT, APTT, FIB. Danh mục, cách gọi và đơn vị hỗ trợ nằm trong `codebase/catalog.py`. Các dòng tỷ lệ bạch cầu có hậu tố `_PCT`, số lượng tuyệt đối có hậu tố `_ABS`.
+Ứng dụng trong demo nhận 8 chỉ số CBC đã đề xuất: HGB, RBC, HCT, MCV, MCH, MCHC, WBC và PLT. Danh mục đầy đủ từ workbook vẫn có trong `codebase/catalog.py`, nhưng API và giao diện chỉ công bố 8 mã trong phạm vi demo.
 
-Mở trang bằng `./start-voice-demo.ps1`. Có thể dùng phiếu giả lập 24 chỉ số, nhập phiếu mới, hoặc tải JPG/PNG rồi đọc vào các ô. Điền tuổi thai lúc xét nghiệm và kiểm từng trường trước khi bấm “Xác nhận và nhận kết quả”. App trả bảng đối chiếu từng dòng, tóm tắt số dòng dưới/trong/trên khoảng và bản kết quả tải về. Khi sửa dữ liệu, kết quả và xác nhận cũ được xóa, cần xác nhận lại.
+Mở trang bằng `./start-voice-demo.ps1`. Có thể dùng phiếu giả lập 8 chỉ số, nhập phiếu mới, hoặc tải JPG/PNG rồi đọc vào các ô. Phiếu mới mặc định dùng “Nghiên cứu theo tam cá nguyệt”: chỉ nhập kết quả và đơn vị, xác nhận từ 18 tuổi, đang mang thai và điền tuổi thai lúc xét nghiệm. Backend chọn khoảng nghiên cứu tương ứng; không cần gõ giới hạn dưới/trên. Muốn dùng khoảng của phòng xét nghiệm thì chọn “Khoảng ghi trên phiếu” và kiểm đủ năm trường mỗi dòng. App trả bảng đối chiếu từng dòng, tóm tắt số dòng dưới/trong/trên khoảng và bản kết quả tải về. Khi sửa dữ liệu, tuổi thai hoặc nguồn khoảng, kết quả và xác nhận cũ được xóa, cần xác nhận lại.
 
-Đọc ảnh dùng `extract_report(image_bytes, mime_type)` qua model thị giác Ollama cục bộ `gemma3:4b`. Cài model bằng `ollama pull gemma3:4b`. Có thể đổi `VISION_MODEL`. Trường không đọc được hoặc không có trên ảnh để trống để người dùng bổ sung. Dùng `analyze_report(report)` để lấy bảng đối chiếu toàn phiếu sau xác nhận. Gọi `answer()` cho câu hỏi từng chỉ số hoặc yêu cầu tóm tắt.
+Đọc ảnh dùng `extract_report(image_bytes, mime_type)` qua model thị giác đã cấu hình: API tương thích OpenAI hoặc Ollama cục bộ `gemma3:4b`. Có thể đổi `VISION_MODEL`; xem cấu hình nhà cung cấp trong `.env.example`. Trường không đọc được hoặc không có trên ảnh để trống để người dùng bổ sung, đặc biệt không tự điền đơn vị thiếu. OCR vẫn trả các khoảng in trên ảnh nhưng study bỏ qua chúng; lab chỉ dùng sau khi người dùng kiểm lại. Dùng `analyze_report(report)` để lấy bảng đối chiếu toàn phiếu sau xác nhận. Gọi `answer()` cho câu hỏi từng chỉ số hoặc yêu cầu tóm tắt.
 
-File `data/full-panel-demo.json` là số dựng để kiểm phần mềm, gồm các khoảng dựng. Dữ liệu nghiên cứu gốc vẫn nằm ngoài repo. Mọi phép đối chiếu dựa trên khoảng ghi trên phiếu được người dùng kiểm lại.
+File `data/full-panel-demo.json` là số dựng để kiểm phần mềm, gồm các khoảng dựng. Giao diện mặc định lấy kết quả/đơn vị của mẫu và bỏ qua khoảng dựng khi dùng study. Dữ liệu nghiên cứu gốc vẫn nằm ngoài repo. Khoảng study lấy từ bảng công bố của Pham et al. (2023), không tính lại từ các dòng dữ liệu riêng tư. Kết quả mang reference_mode, trimester, reference_source, reference_note; giao diện hiển thị nguồn và ghi chú cùng bảng, đưa cả vào bản tải xuống. reference_source có title và url tùy chọn; nguồn phiếu trong lab có thể chỉ có title, khi đó hiển thị tên nguồn và không tạo liên kết. Đây là khoảng nghiên cứu theo quần thể và phương pháp của bài báo, không phải ngưỡng chẩn đoán hoặc khoảng đã được xác nhận cho phòng xét nghiệm của người dùng. Giữ nguyên reference_note để trình bày các giới hạn áp dụng.
+
+Ví dụ phiếu study tối thiểu:
+
+```json
+{
+  "adult_confirmed": true,
+  "pregnancy_status": "pregnant",
+  "gestational_age": "21w3d",
+  "reference_mode": "study",
+  "rows": [{"analyte": "HGB", "value": "108", "unit": "g/L"}]
+}
+```
+
+`reference_mode: "lab"` yêu cầu thêm ref_low/ref_high/ref_unit theo phiếu. Khi không có reference_mode, phiếu không có khoảng nào được xử lý theo study, phiếu có bất kỳ khoảng nào giữ lab; không trộn hai nguồn. Mở lại phiên cũ có khoảng không tự đổi sang study. Explicit study luôn bỏ qua khoảng gửi kèm. Quy ước tam cá nguyệt của demo giữ 28w6d ở nhóm 2 và chuyển sang nhóm 3 từ 29w0d. Frontend Vercel có thể xem trước nguồn/khoảng bằng endpoint có bearer token `/v1/references?gestational_age=21w3d`; xem [bàn giao API](frontend-api-handoff.md).
 
 ## Hai hàm dùng từ giao diện
 
@@ -51,7 +65,7 @@ print(result["output"])
 3. **Zipformer.** Chạy `python -m pip install -r requirements.txt`. Tải và giải nén gói Zipformer tiếng Việt 30M INT8 được dẫn trong [tài liệu sherpa-onnx](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-transducer/zipformer-transducer-models.html#sherpa-onnx-zipformer-vi-30m-int8-2026-02-09-vietnamese). Đặt `ZIPFORMER_MODEL_DIR` trong `.env` trỏ đến thư mục chứa ba tệp ONNX và `tokens.txt`. Dùng WAV PCM mono 16-bit, 8–48 kHz, tối đa 30 giây. Mẫu WAV trong gói model dùng để thử kết nối. Ghi thêm một câu riêng có “huyết sắc tố” để thử luồng demo.
 4. **Kiểm thử tự động.** Chạy `python -m unittest discover -s tests -v`.
 
-Hàm AI nhận dữ liệu có cấu trúc. Phần đọc ảnh và xác nhận kết quả thuộc giao diện của thành viên 4. Model chọn dòng và loại câu hỏi gợi ý. Mọi số, đơn vị, khoảng và trạng thái hiển thị đều lấy từ hàm đối chiếu. Phần giải thích chỉ dùng khoảng tham chiếu do người dùng xác nhận trên phiếu.
+Hàm AI nhận dữ liệu có cấu trúc. Phần đọc ảnh và xác nhận kết quả thuộc giao diện của thành viên 4. Model chọn dòng và loại câu hỏi gợi ý. Mọi số, đơn vị, khoảng và trạng thái hiển thị đều lấy từ hàm đối chiếu. Phần giải thích dùng khoảng nghiên cứu đã chọn từ tuổi thai trong study hoặc khoảng do người dùng xác nhận trên phiếu trong lab, và nêu rõ nguồn.
 
 **Trạng thái kiểm thử giọng nói.** Windows Application Control chặn thư viện native của wheel sherpa-onnx. Backend ONNX bên dưới đã nhận dạng được WAV tiếng Việt mẫu trên chính máy này và chuyển bản chép đến Ollama thật. Màn hình thử mic đã được mở tại cổng 8501. Độ chính xác với giọng nói của người dùng cần kiểm qua micro thực tế.
 

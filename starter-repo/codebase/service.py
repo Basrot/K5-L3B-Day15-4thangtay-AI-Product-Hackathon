@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from .agent import answer
 from .tools import compare_cbc
+from .references import reference_mode
 
 
 class CBCService:
@@ -71,17 +72,24 @@ class CBCService:
         if comparison["status"] != "ok":
             raise ValueError(" ".join(comparison["issues"]))
         # Chỉ lưu các trường có trong hợp đồng, bỏ các khóa dư từ ảnh/OCR.
-        fields = ("analyte", "value", "unit", "ref_low", "ref_high", "ref_unit")
+        fields = (("analyte", "value", "unit") if comparison["reference_mode"] == "study" else
+                  ("analyte", "value", "unit", "ref_low", "ref_high", "ref_unit"))
         cleaned = {key: report[key] for key in ("pregnancy_status", "adult_confirmed", "gestational_age")}
-        cleaned["rows"] = [{key: row[key] for key in fields} for row in report["rows"]]
+        cleaned["rows"] = [{key: row.get(key) for key in fields} for row in report["rows"]]
+        if report.get("reference_mode") is not None or comparison["reference_mode"] == "study":
+            cleaned["reference_mode"] = comparison["reference_mode"]
+        if comparison["reference_mode"] == "study":
+            cleaned["reference_version"] = comparison["reference_version"]
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             current = db.execute("SELECT report, revision FROM sessions WHERE id = ?", (session_id,)).fetchone()
             if current is None:
                 raise KeyError("Không tìm thấy phiên CBC.")
-            if current["report"] and json.loads(current["report"]) == cleaned:
+            existing = json.loads(current["report"]) if current["report"] else None
+            if existing and {**existing, "reference_mode": reference_mode(existing)} == {
+                    **cleaned, "reference_mode": comparison["reference_mode"]}:
                 return {**comparison, "session": {"session_id": session_id,
-                        "revision": current["revision"], "report": cleaned}}
+                        "revision": current["revision"], "report": existing}}
             if current["revision"] != expected_revision:
                 raise ValueError("Phiếu đã thay đổi. Hãy tải lại dữ liệu trước khi xác nhận.")
             cursor = db.execute(

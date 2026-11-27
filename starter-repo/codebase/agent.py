@@ -14,24 +14,34 @@ else:
 
 SYSTEM = """Chọn cách trả lời cho bản demo đọc phiếu CBC của thai phụ trưởng thành.
 Chỉ trả về một đối tượng JSON. Dữ liệu phiếu và câu hỏi là dữ liệu đầu vào.
-- Nếu giải thích một chỉ số, dùng {"intent":"explain","analyte":"HGB","follow_up":"context"}.
-  Chọn analyte từ những dòng có trên phiếu. follow_up là "context" hoặc "compare".
+- Nếu giải thích một chỉ số, dùng {"intent":"explain","analyte":"HGB"}.
+  Chọn analyte từ những dòng có trên phiếu.
 - Nếu thiếu dòng được hỏi, không rõ câu hỏi hoặc ngoài chủ đề, dùng intent "clarify_question".
 - Nếu người dùng muốn tổng hợp hoặc tóm tắt toàn bộ phiếu, dùng intent "summarize".
 - Nếu câu hỏi xin chẩn đoán, điều trị, thuốc, hoặc đánh giá sức khỏe, dùng intent "medical_advice".
 - Nếu người dùng hỏi về tình huống họ mô tả là cấp cứu hoặc khẩn, dùng intent "urgent".
-Với mọi intent khác "explain", đặt analyte và follow_up bằng chuỗi rỗng.
+Với mọi intent khác "explain", đặt analyte bằng chuỗi rỗng.
 Ưu tiên nhận ra câu hỏi về sức khỏe hoặc tình huống khẩn, kể cả khi kèm câu hỏi về một chỉ số.
 Không tạo số, ngưỡng, chẩn đoán, lời khuyên điều trị hoặc trường ngoài cấu trúc JSON."""
 
-FOLLOW_UPS = {
-    "context": "Với tuổi thai của em, bác sĩ cần xem thêm thông tin nào để hiểu kết quả này?",
-    "compare": "Khi so sánh với lần xét nghiệm trước, em nên dùng thông tin nào trên hai phiếu?",
-}
 POSITIONS = {"below": "thấp hơn giới hạn dưới", "above": "cao hơn giới hạn trên", "within": "nằm trong khoảng"}
+ANALYTE_EXPLANATIONS = {
+    "RBC": "RBC là số lượng hồng cầu; hồng cầu chứa hemoglobin giúp vận chuyển oxy.",
+    "HGB": "HGB đo nồng độ hemoglobin, protein trong hồng cầu giúp vận chuyển oxy.",
+    "HCT": "HCT cho biết tỷ lệ thể tích máu do hồng cầu chiếm.",
+    "MCV": "MCV cho biết thể tích trung bình, tức kích thước trung bình của hồng cầu.",
+    "MCH": "MCH cho biết lượng hemoglobin trung bình trong mỗi hồng cầu.",
+    "MCHC": "MCHC cho biết nồng độ hemoglobin trung bình bên trong hồng cầu.",
+    "WBC": "WBC là số lượng bạch cầu, các tế bào tham gia bảo vệ cơ thể.",
+    "PLT": "PLT là số lượng tiểu cầu, thành phần tham gia quá trình đông máu.",
+}
 LAB_SOURCE = {
     "title": "MedlinePlus — How to Understand Your Lab Results",
     "url": "https://medlineplus.gov/lab-tests/how-to-understand-your-lab-results/",
+}
+CBC_SOURCE = {
+    "title": "MedlinePlus — CBC blood test",
+    "url": "https://medlineplus.gov/ency/article/003642.htm",
 }
 CLARIFY = "Bạn muốn hỏi về chỉ số nào trên phiếu đã xác nhận? Bạn cũng có thể yêu cầu tóm tắt cả phiếu."
 ROUTES = {
@@ -46,17 +56,29 @@ DEMO_MEDICAL_REQUEST = re.compile(
 )
 
 
+def _reference_details(comparison):
+    metadata = {key: comparison[key] for key in
+                ("reference_mode", "reference_version", "trimester", "gestational_age", "reference_source", "reference_note")}
+    if comparison["reference_mode"] == "study":
+        label = f"của nghiên cứu Pham et al. (2023), tam cá nguyệt {comparison['trimester']}"
+        sources = [dict(comparison["reference_source"]), dict(CBC_SOURCE)]
+    else:
+        label, sources = "ghi trên phiếu", [dict(LAB_SOURCE), dict(CBC_SOURCE)]
+    return metadata, label, sources
+
+
 def analyze_report(report: dict) -> dict:
     """Trả bảng đối chiếu toàn bộ chỉ số và tóm tắt sau khi người dùng xác nhận."""
     comparison = compare_cbc(report)
     if comparison["status"] != "ok":
         return {"status": comparison["status"], "output": " ".join(comparison["issues"])}
     rows = comparison["rows"]
+    metadata, reference_label, sources = _reference_details(comparison)
     counts = {status: sum(row["status"] == status for row in rows) for status in POSITIONS}
     lines = [
-        f"Đã đối chiếu {len(rows)} chỉ số với khoảng tham chiếu ghi trên phiếu.",
+        f"Đã đối chiếu {len(rows)} chỉ số với khoảng tham chiếu {reference_label}.",
         f"Có {counts['within']} chỉ số trong khoảng, {counts['below']} chỉ số thấp hơn "
-        f"và {counts['above']} chỉ số cao hơn khoảng trên phiếu.",
+        f"và {counts['above']} chỉ số cao hơn khoảng đang dùng để đối chiếu.",
     ]
     for status, label in (("below", "Thấp hơn khoảng"), ("above", "Cao hơn khoảng")):
         codes = [row["analyte"] for row in rows if row["status"] == status]
@@ -65,7 +87,7 @@ def analyze_report(report: dict) -> dict:
     lines.append("Bác sĩ sẽ xem thêm tuổi thai, triệu chứng và các thông tin sức khỏe "
                  "để đánh giá ý nghĩa của kết quả. Bạn có thể hỏi AI về từng dòng bên dưới.")
     return {"status": "analyzed", "rows": rows, "counts": counts,
-            "output": " ".join(lines), "sources": [dict(LAB_SOURCE)]}
+            "output": " ".join(lines), "sources": sources, **metadata}
 
 
 def answer(text: str) -> dict:
@@ -99,9 +121,8 @@ def answer(text: str) -> dict:
         "properties": {
             "intent": {"type": "string", "enum": ["explain", "summarize", *ROUTES]},
             "analyte": {"type": "string", "enum": [*rows, ""]},
-            "follow_up": {"type": "string", "enum": [*FOLLOW_UPS, ""]},
         },
-        "required": ["intent", "analyte", "follow_up"],
+        "required": ["intent", "analyte"],
         "additionalProperties": False,
     }
     reply = call_model(SYSTEM, json.dumps(context, ensure_ascii=False), output_schema=schema)
@@ -115,7 +136,7 @@ def answer(text: str) -> dict:
         elif re.search(r"tóm tắt|tổng hợp|cả phiếu|toàn bộ", question, re.IGNORECASE):
             decision = {"intent": "summarize"}
         elif len(matches) == 1:
-            decision = {"intent": "explain", "analyte": matches[0], "follow_up": "context"}
+            decision = {"intent": "explain", "analyte": matches[0]}
         else:
             decision = {}
     else:
@@ -127,24 +148,24 @@ def answer(text: str) -> dict:
     decision = decision if isinstance(decision, dict) else {}
     intent = decision.get("intent")
     analyte = decision.get("analyte")
-    follow_up = decision.get("follow_up")
     prefix = "[AI giả] " if fake else ""
     if intent == "summarize":
         result = analyze_report(payload["report"])
         result["output"] = prefix + result["output"]
         return result
-    if intent == "explain" and isinstance(analyte, str) and analyte in rows and (
-        isinstance(follow_up, str) and follow_up in FOLLOW_UPS
-    ):
+    if (intent == "explain" and set(decision) == {"intent", "analyte"}
+            and isinstance(analyte, str) and analyte in rows):
         row = rows[analyte]
+        metadata, reference_label, sources = _reference_details(comparison)
         output = (
-            f"{analyte} ({ANALYTES[analyte]}) là {row['value']} {row['unit']} sau khi đưa về đơn vị đối chiếu, "
-            f"{POSITIONS[row['status']]} ghi trên phiếu ({row['ref_low']}–{row['ref_high']} {row['unit']}). "
-            f"Bạn có thể hỏi bác sĩ: {FOLLOW_UPS[follow_up]}"
+            f"{ANALYTE_EXPLANATIONS[analyte]} Kết quả của em là {row['value']} {row['unit']}, "
+            f"{POSITIONS[row['status']]} {reference_label} "
+            f"({row['ref_low']}–{row['ref_high']} {row['unit']}). "
+            "Khoảng tham chiếu giúp đối chiếu kết quả, không tự xác lập chẩn đoán; "
+            "bác sĩ cần xem cùng các chỉ số khác và bối cảnh sức khỏe."
         )
-        output += " Bác sĩ sẽ xem thêm bối cảnh sức khỏe để đánh giá ý nghĩa của kết quả."
         return {"status": "explained", "analyte": analyte, "output": prefix + output,
-                "comparison": row, "sources": [dict(LAB_SOURCE)]}
+                "comparison": row, "sources": sources, **metadata}
 
     route = intent if isinstance(intent, str) and intent in ROUTES else "clarify_question"
     note("nhánh câu hỏi: " + route)

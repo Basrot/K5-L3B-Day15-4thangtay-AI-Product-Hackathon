@@ -40,8 +40,10 @@ class APITest(unittest.TestCase):
         self.assertEqual(self.client.get("/openapi.json").status_code, 200)
         self.assertEqual(self.client.get("/v1/catalog").status_code, 401)
         catalog = self.request("GET", "/v1/catalog").json()
-        self.assertEqual(len(catalog), 24)
+        self.assertEqual(len(catalog), 8)
         self.assertEqual(set(catalog[0]), {"code", "name", "unit", "group"})
+        self.assertEqual({item["code"] for item in catalog},
+                         {"HGB", "RBC", "HCT", "MCV", "MCH", "MCHC", "WBC", "PLT"})
 
     def test_session_confirm_analysis_chat_retry_stale_and_delete(self):
         state = self.request("POST", "/v1/sessions").json()
@@ -166,6 +168,34 @@ class APITest(unittest.TestCase):
             with self.subTest(origin=origin), patch.dict(os.environ, {"CORS_ORIGINS": origin}):
                 with self.assertRaises(ValueError):
                     api.create_app(Path(self.directory.name) / "unused.sqlite3")
+
+    def test_study_reference_endpoint_and_result_only_confirmation(self):
+        self.assertEqual(self.client.get("/v1/references?gestational_age=21w3d").status_code, 401)
+        references = self.request("GET", "/v1/references?gestational_age=28w6d")
+        self.assertEqual(references.status_code, 200, references.text)
+        self.assertEqual(references.json()["trimester"], 2)
+        self.assertEqual(len(references.json()["rows"]), 8)
+        self.assertIn("note", references.json())
+        self.assertEqual(self.request("GET", "/v1/references?gestational_age=28w7d").status_code, 422)
+        path = "/v1/sessions/" + self.request("POST", "/v1/sessions").json()["session_id"]
+        new_report = {"adult_confirmed": True, "pregnancy_status": "pregnant", "gestational_age": "21w3d",
+                      "reference_mode": "study", "rows": [{"analyte": "HGB", "value": 108, "unit": "g/L"}]}
+        confirmed = self.request("PUT", path + "/report", json={
+            "report": new_report, "confirmed": True, "expected_revision": 0})
+        self.assertEqual(confirmed.status_code, 200, confirmed.text)
+        pinned_report = {**new_report, "reference_version": "pham2023-tables-v1"}
+        self.assertEqual(confirmed.json()["report"], pinned_report)
+        self.assertEqual(confirmed.json()["analysis"]["reference_mode"], "study")
+        self.assertEqual(confirmed.json()["analysis"]["rows"][0]["status"], "within")
+        self.assertEqual(self.request("GET", path).json()["report"], pinned_report)
+
+    def test_result_only_without_mode_selects_study_but_old_lab_payload_is_preserved(self):
+        new_report = report()
+        new_report["rows"] = [{"analyte": "HGB", "value": "10.8", "unit": "g/dL"}]
+        result = self.request("POST", "/v1/reports/validate", json=new_report)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["reference_mode"], "study")
+        self.assertEqual(self.request("POST", "/v1/reports/validate", json=report()).json()["reference_mode"], "lab")
 
 
 if __name__ == "__main__":
