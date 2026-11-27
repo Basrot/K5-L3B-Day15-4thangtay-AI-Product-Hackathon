@@ -11,7 +11,7 @@
   1. Lọc tập các bản ghi có panel CBC hoàn chỉnh (`cbc_panel_complete == 1`) trên sheet `Du_lieu` (loại 30 dòng thiếu CBC, không tự điền `0` vào ô trống).
   2. Đếm số thai phụ khỏe mạnh có `HGB < 12.0 g/dL` (`< 120 g/L`) — tương ứng tỷ lệ bị gắn cờ "thiếu máu" sai nếu phiếu phòng xét nghiệm áp dụng ngưỡng nữ trưởng thành không mang thai của WHO 2024.
   3. Đếm số thai phụ khỏe mạnh có `HGB` dưới ngưỡng sàng lọc thiếu máu thai kỳ WHO 2024 (`< 11.0 g/dL` ở TCN1/TCN3; `< 10.5 g/dL` ở TCN2), tách theo từng tam cá nguyệt.
-  4. Đếm số dòng bị loại ngoại lai (`ri_excluded_analytes`, Dixon `D/R >= 1/3`) trên 8 chỉ số CBC được chọn (`RBC`, `HGB`, `HCT`, `MCV`, `MCH`, `WBC`, `NEUT_abs`, `PLT`).
+  4. Đếm số dòng bị loại ngoại lai (`ri_excluded_analytes`, Dixon `D/R >= 1/3`) trên 8 chỉ số CBC được chọn (`HGB`, `RBC`, `HCT`, `MCV`, `MCH`, `MCHC`, `WBC`, `PLT`).
 - **Mẫu số là gì:** **`N = 837` panel CBC hoàn chỉnh** (gồm `287` TCN1 + `273` TCN2 + `277` TCN3; tách riêng khỏi `867` tổng bản ghi vì `30` dòng chỉ có dữ liệu đông máu/thiếu CBC).
 - Script / công thức (dùng để tái lập khi có tệp `.xlsx` ngoài repo):
 

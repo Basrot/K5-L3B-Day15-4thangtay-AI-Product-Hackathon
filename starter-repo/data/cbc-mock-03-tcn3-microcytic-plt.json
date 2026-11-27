@@ -45,19 +45,19 @@
         "ref_unit": "pg"
       },
       {
+        "analyte": "MCHC",
+        "value": "32.2",
+        "unit": "g/dL",
+        "ref_low": "32.0",
+        "ref_high": "36.0",
+        "ref_unit": "g/dL"
+      },
+      {
         "analyte": "WBC",
         "value": "11.2",
         "unit": "10^9/L",
         "ref_low": "4.0",
         "ref_high": "10.0",
-        "ref_unit": "10^9/L"
-      },
-      {
-        "analyte": "NEUT_abs",
-        "value": "7.8",
-        "unit": "10^9/L",
-        "ref_low": "1.8",
-        "ref_high": "7.5",
         "ref_unit": "10^9/L"
       },
       {
@@ -70,5 +70,5 @@
       }
     ]
   },
-  "question": "Tuần 33w1d có MCV 75.8, MCH 24.4 và tiểu cầu PLT 138 thấp hơn ngưỡng phiếu thì cần lưu ý gì khi đi khám?"
+  "question": "Tóm tắt toàn bộ phiếu CBC tuần thai 33w1d này giúp tôi."
 }

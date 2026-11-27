@@ -45,19 +45,19 @@
         "ref_unit": "pg"
       },
       {
+        "analyte": "MCHC",
+        "value": "33.0",
+        "unit": "g/dL",
+        "ref_low": "32.0",
+        "ref_high": "36.0",
+        "ref_unit": "g/dL"
+      },
+      {
         "analyte": "WBC",
         "value": "12.8",
         "unit": "10^9/L",
         "ref_low": "4.0",
         "ref_high": "10.0",
-        "ref_unit": "10^9/L"
-      },
-      {
-        "analyte": "NEUT_abs",
-        "value": "8.9",
-        "unit": "10^9/L",
-        "ref_low": "1.8",
-        "ref_high": "7.5",
         "ref_unit": "10^9/L"
       },
       {
@@ -70,5 +70,5 @@
       }
     ]
   },
-  "question": "Thai 24 tuần 2 ngày, WBC 12.8 và HGB 104 g/L đều bị đánh dấu bất thường trên phiếu có đáng lo không?"
+  "question": "Giải thích chỉ số HGB 104 g/L trên phiếu ở tuần thai 24w2d."
 }

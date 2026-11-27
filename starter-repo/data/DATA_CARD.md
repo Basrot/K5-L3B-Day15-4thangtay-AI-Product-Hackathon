@@ -21,12 +21,12 @@
 | | |
 |---|---|
 | Dùng để làm gì | Đầu vào kiểm thử đọc/hiển thị phiếu và JSON đáp án cho N2 (`codebase/`) và N4 (UI/demo); **không dùng làm bằng chứng pain**. |
-| Từ đâu | Nhóm tự sinh (`synthetic`) trong `starter-repo/data/` tương thích cấu trúc `data/cbc-demo-input.json`: `cbc-mock-01-tcn1-normal.{png,json}` (`10w4d`), `cbc-mock-02-tcn2-borderline-unitmix.{png,json}` (`24w2d`, trộn đơn vị `g/L` vs `g/dL`), `cbc-mock-03-tcn3-microcytic-plt.{png,json}` (`33w1d`, `MCV/MCH` thấp + `PLT` giảm nhẹ). |
-| Xử lý những bước gì | Dựng HTML phiếu bệnh viện gắn banner/watermark rõ ràng `"MẪU GIẢ LẬP (SYNTHETIC) — KHÔNG PHẢI PHIẾU XÉT NGHIỆM THẬT"`, kết xuất PNG độ phân giải cao bằng trình duyệt headless, và đối chiếu khớp 100% giá trị, đơn vị, khoảng tham chiếu và tuổi thai sang từng file JSON. |
-| Số dòng / số đoạn | 3 ảnh PNG + 3 JSON đáp án (mỗi phiếu phủ đủ 8 chỉ số `RBC, HGB, HCT, MCV, MCH, WBC, NEUT_abs, PLT` = 24 dòng chỉ số giả lập), kèm 1 file mẫu gốc `data/cbc-demo-input.json` (3 chỉ số). |
-| Phiên bản / ngày lấy | v1.0 · 27/11/2026. |
+| Từ đâu | Nhóm tự sinh (`synthetic`) trong `starter-repo/data/` tương thích cấu trúc `data/cbc-demo-input.json` và danh mục `SUPPORTED_ANALYTES` (`codebase/references.py`): `cbc-mock-01-tcn1-normal.{png,json}` (`10w4d`), `cbc-mock-02-tcn2-borderline-unitmix.{png,json}` (`24w2d`, trộn đơn vị `g/L` vs `g/dL`), `cbc-mock-03-tcn3-microcytic-plt.{png,json}` (`33w1d`, `MCV/MCH` thấp + `PLT` giảm nhẹ). |
+| Xử lý những bước gì | Dựng HTML phiếu bệnh viện gắn banner/watermark rõ ràng `"MẪU GIẢ LẬP (SYNTHETIC) — KHÔNG PHẢI PHIẾU XÉT NGHIỆM THẬT"`, kết xuất PNG độ phân giải cao (`2160×1880` px) bằng trình duyệt headless, và đối chiếu khớp 100% giá trị, đơn vị, khoảng tham chiếu và tuổi thai sang từng file JSON. |
+| Số dòng / số đoạn | 3 ảnh PNG + 3 JSON đáp án (mỗi phiếu phủ đủ 8 chỉ số hỗ trợ giải thích `RBC, HGB, HCT, MCV, MCH, MCHC, WBC, PLT` = 24 dòng chỉ số giả lập), kèm `data/cbc-demo-input.json` (3 chỉ số) và `data/full-panel-demo.json` (24 chỉ số danh mục nền). |
+| Phiên bản / ngày lấy | v1.1 · 27/11/2026 (đã đồng bộ 8 mã chuẩn `SUPPORTED_ANALYTES` trên `main`). |
 | Nhãn | `synthetic` (dữ liệu giả lập 100%, không phải phiếu bệnh nhân thật). |
-| Giới hạn | **Data `synthetic` (nhóm tự sinh):** Sinh tất định từ 3 kịch bản lâm sàng cố định (không dùng ngẫu nhiên; thông số tham chiếu lấy từ bảng *Pham et al. 2023* và ngưỡng WHO 2024); người kiểm: Đào Ngọc Hân (N1); số dòng đã kiểm tay & script: 24/24 dòng chỉ số trên 3 cặp phiếu (khớp 100% PNG ↔ JSON). Data tự dựng **không phải bằng chứng pain**. **Lưu ý đồng bộ N2/N4:** `codebase/tools.py` và `spec.md §4` hiện chỉ kiểm tra 3 chỉ số (`HGB`, `WBC`, `PLT`), trong khi 3 bộ phiếu giả lập phủ đủ 8 chỉ số theo phạm vi đề tài (`RBC, HGB, HCT, MCV, MCH, WBC, NEUT_abs, PLT`) — N2 có thể lọc tập con 3 chỉ số cho bản CP2 hoặc mở rộng `tools.py` lên 8 chỉ số. |
+| Giới hạn | **Data `synthetic` (nhóm tự sinh):** Sinh tất định từ 3 kịch bản lâm sàng cố định (không dùng ngẫu nhiên; thông số sinh học nhất quán `MCV ≈ HCT×10/RBC`, `MCH ≈ HGB×10/RBC`, `MCHC ≈ HGB×100/HCT` và đối chiếu bảng *Pham et al. 2023* / WHO 2024); người kiểm: Đào Ngọc Hân (N1); số dòng đã kiểm tay & script: 24/24 dòng chỉ số trên 3 cặp phiếu (khớp 100% PNG ↔ JSON và chạy thông `codebase.agent.answer`). Data tự dựng **không phải bằng chứng pain**. |
 
 ## Quy tắc ẩn danh & Không PII (Áp dụng toàn bộ dự án)
 - **Tuyệt đối không thu thập hoặc lưu trong repo:** ảnh chụp phiếu xét nghiệm thật, họ tên, SĐT, email, CCCD, mã bệnh nhân, tên phòng khám gắn danh tính cá nhân.

@@ -45,19 +45,19 @@
         "ref_unit": "pg"
       },
       {
+        "analyte": "MCHC",
+        "value": "33.2",
+        "unit": "g/dL",
+        "ref_low": "32.0",
+        "ref_high": "36.0",
+        "ref_unit": "g/dL"
+      },
+      {
         "analyte": "WBC",
         "value": "9.80",
         "unit": "10^9/L",
         "ref_low": "4.00",
         "ref_high": "10.00",
-        "ref_unit": "10^9/L"
-      },
-      {
-        "analyte": "NEUT_abs",
-        "value": "6.40",
-        "unit": "10^9/L",
-        "ref_low": "1.80",
-        "ref_high": "7.50",
         "ref_unit": "10^9/L"
       },
       {
