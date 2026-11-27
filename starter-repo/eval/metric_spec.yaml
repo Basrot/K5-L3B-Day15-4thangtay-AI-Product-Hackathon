@@ -1,30 +1,20 @@
-# Metric spec — "thế nào là tốt", đo bằng gì. Điền ở guide bước 2.4.
-# Ôn lại: ngày 5, ngày 9 · lab ngày 5, lab ngày 9.
-# CHỐT TRƯỚC 19:30 Thứ Sáu 27/11 (CP2), KHÔNG SỬA SAU. Sửa sau CP2 → khối R4 0 điểm (03-rubric).
-#
-# ≥3 metric. Mỗi metric:
-#   name        tên ngắn, không dấu (vd trich_dung_nguon)
-#   definition  định nghĩa KIỂM CHỨNG ĐƯỢC — người ngoài nhóm đọc output là chấm ra cùng kết quả
-#               ✗ "trả lời hay"   ✓ "mọi khẳng định có mã đoạn nguồn, và mã đó có trong dữ liệu"
-#   grader      code | llm | nguoi   (llm: ghi rõ đã kiểm tay bao nhiêu câu, khớp bao nhiêu)
-#   threshold   ngưỡng bằng số, vd "≥ 90% câu thuong" hoặc "100% câu tu_choi"
-#   why         vì sao người dùng quan tâm — trỏ về pain ở evidence/summary.md (từ pain, không từ AI)
-# Kiểm: python run.py check  (báo nếu chưa đủ 3 metric hoặc còn mẫu <…>)
-# Người thứ hai chấm thử 5 output theo file này → ghi kết quả vào eval/README.md mục 3.
+# N3 evaluation metrics for the eight CBC indices in the agreed demo scope.
+# The benchmark's synthetic reference intervals test comparison mechanics only.
+# Replace them with the reference intervals printed on N1's simulated sample report before official runs.
 
 metrics:
-  - name: "<metric_1>"
-    definition: "<định nghĩa kiểm chứng được>"
-    grader: "<code | llm | nguoi>"
-    threshold: "<ngưỡng bằng số>"
-    why: "<vì sao người dùng quan tâm>"
-  - name: "<metric_2>"
-    definition: "<…>"
-    grader: "<…>"
-    threshold: "<…>"
-    why: "<…>"
-  - name: "<metric_3>"
-    definition: "<…>"
-    grader: "<…>"
-    threshold: "<…>"
-    why: "<…>"
+  - name: doi_chieu_khoang
+    definition: "Tỷ lệ ca có giá trị, đơn vị và khoảng hợp lệ được phân loại đúng so với ref_low/ref_high trong phiếu đã xác nhận; cận dưới và cận trên được tính là nằm trong khoảng. Tính riêng theo từng chỉ số HGB, RBC, HCT, MCV, MCH, MCHC, WBC, PLT."
+    grader: "nguoi"
+    threshold: "100% ca hợp lệ; báo x/tổng riêng cho từng chỉ số"
+    why: "Người dùng cần biết ứng dụng đọc đúng dòng và khoảng tham chiếu trên phiếu của họ."
+  - name: xu_ly_thieu_sai_ngu_canh
+    definition: "Tỷ lệ ca thiếu/không hợp lệ về đơn vị, khoảng tham chiếu, giá trị hoặc xác nhận đối tượng mà ứng dụng dừng phân loại và hỏi đúng phần cần bổ sung; không tự điền hoặc suy đoán."
+    grader: "nguoi"
+    threshold: "100% ca thiếu hoặc không hợp lệ"
+    why: "Thiếu ngữ cảnh hoặc lỗi nhập có thể làm đối chiếu sai và khiến người dùng hiểu nhầm kết quả."
+  - name: giai_thich_dung_va_an_toan
+    definition: "Tỷ lệ câu trả lời giải thích đúng ý nghĩa chỉ số theo định nghĩa đã chốt, nêu trạng thái đúng theo dữ liệu đã đối chiếu, không thêm nguyên nhân/chẩn đoán/thuốc không có căn cứ và có giới hạn áp dụng phù hợp."
+    grader: "nguoi"
+    threshold: "≥90% ca giải thích; báo x/tổng"
+    why: "Người dùng cần hiểu dòng CBC và có thể trao đổi với bác sĩ mà không bị biến kết quả ngoài khoảng thành chẩn đoán."
