@@ -108,6 +108,52 @@ class StudyReferenceTest(unittest.TestCase):
         self.assertNotIn("ghi trên phiếu", reply["output"])
         self.assertTrue(any("06106-2" in source["url"] for source in reply["sources"]))
 
+    def test_chat_explains_rbc_and_keeps_study_note_out_of_prose(self):
+        report = study_report(rows=[{"analyte": "RBC", "value": "4.1", "unit": "10^12/L"}])
+        with patch.object(agent, "call_model", return_value={
+                "text": '{"intent":"explain","analyte":"RBC"}', "model": "test-model"}):
+            reply = agent.answer(json.dumps({"report": report, "question": "Giải thích chỉ số RBC"}, ensure_ascii=False))
+
+        self.assertEqual(reply["status"], "explained")
+        self.assertIn("số lượng hồng cầu", reply["output"].lower())
+        self.assertIn("vận chuyển oxy", reply["output"].lower())
+        self.assertIn("4.1", reply["output"])
+        self.assertIn("3.33–4.98", reply["output"])
+        self.assertIn("nằm trong khoảng của nghiên cứu", reply["output"])
+        self.assertNotIn("khoảng khoảng", reply["output"])
+        self.assertNotIn(reply["reference_note"], reply["output"])
+        self.assertIn("nghiên cứu", reply["reference_note"].lower())
+        self.assertTrue(any(source["url"] == "https://medlineplus.gov/ency/article/003642.htm"
+                            for source in reply["sources"]))
+
+    def test_summary_keeps_study_note_only_in_metadata(self):
+        analysis = agent.analyze_report(study_report())
+        self.assertNotIn(analysis["reference_note"], analysis["output"])
+        self.assertIn("nghiên cứu", analysis["reference_note"].lower())
+
+    def test_all_supported_indices_have_plain_language_explanations(self):
+        expected = {
+            "HGB": "nồng độ hemoglobin",
+            "RBC": "số lượng hồng cầu",
+            "HCT": "tỷ lệ thể tích máu",
+            "MCV": "thể tích trung bình",
+            "MCH": "lượng hemoglobin trung bình",
+            "MCHC": "nồng độ hemoglobin trung bình",
+            "WBC": "số lượng bạch cầu",
+            "PLT": "số lượng tiểu cầu",
+        }
+        for code, phrase in expected.items():
+            with self.subTest(analyte=code):
+                report = study_report(rows=[{"analyte": code, "value": "1", "unit": "bad-unit"}])
+                unit = {"HGB": "g/dL", "RBC": "10^12/L", "HCT": "%", "MCV": "fL",
+                        "MCH": "pg", "MCHC": "g/dL", "WBC": "10^9/L", "PLT": "10^9/L"}[code]
+                report["rows"][0]["unit"] = unit
+                with patch.object(agent, "call_model", return_value={
+                        "text": json.dumps({"intent": "explain", "analyte": code}), "model": "test-model"}):
+                    reply = agent.answer(json.dumps({"report": report, "question": f"Giải thích {code}"}))
+                self.assertEqual(reply["status"], "explained")
+                self.assertIn(phrase, reply["output"].lower())
+
     def test_reference_mode_survives_sqlite_round_trip_and_changes_revision(self):
         with tempfile.TemporaryDirectory() as folder:
             service = CBCService(Path(folder) / "test.sqlite3")

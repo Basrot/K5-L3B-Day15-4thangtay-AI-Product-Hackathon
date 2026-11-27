@@ -66,18 +66,19 @@ class CBCWorkflowTest(unittest.TestCase):
         wbc = {**report()["rows"][1], "unit": "10e9/L"}
         self.assertEqual(tools.compare_cbc(report(rows=[wbc]))["status"], "needs_input")
 
-    def test_model_selects_row_and_followup_but_values_come_from_tool(self):
-        model_reply = {"text": '{"intent":"explain","analyte":"HGB","follow_up":"context"}'}
+    def test_model_selects_row_and_explanation_uses_comparison_data(self):
+        model_reply = {"text": '{"intent":"explain","analyte":"HGB"}'}
         with patch.object(agent, "call_model", return_value=model_reply):
             result = agent.answer(question("Tại sao huyết sắc tố có dấu L?"))
         self.assertEqual((result["status"], result["analyte"]), ("explained", "HGB"))
+        self.assertIn("đo nồng độ hemoglobin", result["output"])
         self.assertIn("10.8 g/dL", result["output"])
         self.assertIn("11–14 g/dL", result["output"])
-        self.assertIn("tuổi thai", result["output"])
+        self.assertIn("không tự xác lập chẩn đoán", result["output"])
 
     def test_unknown_model_analyte_or_free_text_is_not_rendered(self):
-        for decision in ('{"intent":"explain","analyte":"RBC","follow_up":"context"}',
-                         '{"intent":"explain","analyte":"HGB","follow_up":"take medicine"}',
+        for decision in ('{"intent":"explain","analyte":"RBC"}',
+                         '{"intent":"explain","analyte":"HGB","extra":"take medicine"}',
                          'Hãy uống thuốc.'):
             with self.subTest(decision=decision):
                 with patch.object(agent, "call_model", return_value={"text": decision}):
@@ -123,7 +124,7 @@ class CBCWorkflowTest(unittest.TestCase):
         def respond(_system, user, *, output_schema):
             self.assertEqual(output_schema["properties"]["analyte"]["enum"], ["HGB", "WBC", ""])
             self.assertNotIn("ref_low", user)
-            return {"text": '{"intent":"explain","analyte":"HGB","follow_up":"context"}'}
+            return {"text": '{"intent":"explain","analyte":"HGB"}'}
 
         with patch.object(agent, "call_model", side_effect=respond):
             result = agent.answer(question("Vì sao dấu L đứng cạnh huyết sắc tố?"))
