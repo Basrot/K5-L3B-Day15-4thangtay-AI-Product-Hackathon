@@ -68,9 +68,18 @@ def transcribe_wav(wav_bytes: bytes) -> str:
     model_dir = Path(configured_dir).expanduser()
     if not model_dir.is_absolute():
         model_dir = Path(__file__).resolve().parents[1] / model_dir
+    samples = [sample / 32768 for (sample,) in struct.iter_unpack("<h", raw)]
+    backend = os.environ.get("ZIPFORMER_BACKEND", "sherpa").strip().lower()
+    if backend == "onnx":
+        if __package__:
+            from .zipformer_onnx import get_recognizer
+        else:
+            from zipformer_onnx import get_recognizer
+        return get_recognizer(model_dir.resolve()).transcribe(samples, rate)
+    if backend != "sherpa":
+        raise ValueError("ZIPFORMER_BACKEND phải là sherpa hoặc onnx.")
     recognizer = _recognizer(model_dir.resolve())
     stream = recognizer.create_stream()
-    samples = [sample / 32768 for (sample,) in struct.iter_unpack("<h", raw)]
     stream.accept_waveform(rate, samples)
     recognizer.decode_stream(stream)
     return stream.result.text.strip()

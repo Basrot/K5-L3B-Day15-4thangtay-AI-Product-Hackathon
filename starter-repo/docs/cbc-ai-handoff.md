@@ -43,7 +43,15 @@ print(result["output"])
 
 Hàm AI nhận dữ liệu có cấu trúc. Phần đọc ảnh và xác nhận kết quả thuộc giao diện của thành viên 4. Model chọn dòng và loại câu hỏi gợi ý. Mọi số, đơn vị, khoảng và trạng thái hiển thị đều lấy từ hàm đối chiếu. Phần giải thích chỉ dùng khoảng tham chiếu do người dùng xác nhận trên phiếu.
 
-**Trạng thái kiểm thử giọng nói.** Các kiểm thử WAV tự động xác nhận đọc mẫu âm thanh, chuẩn hóa và chuyển dữ liệu đến bộ nhận dạng. Trên máy phát triển, Windows Application Control chặn thư viện native của wheel sherpa-onnx. Cần kiểm lại một WAV qua model thật trên máy demo hỗ trợ thư viện này.
+**Trạng thái kiểm thử giọng nói.** Windows Application Control chặn thư viện native của wheel sherpa-onnx. Backend ONNX bên dưới đã nhận dạng được WAV tiếng Việt mẫu trên chính máy này và chuyển bản chép đến Ollama thật. Màn hình thử mic đã được mở tại cổng 8501. Độ chính xác với giọng nói của người dùng cần kiểm qua micro thực tế.
+
+### Thử giọng nói trên Windows với ONNX Runtime
+
+Backend `onnx` chạy cùng model Zipformer tiếng Việt 30M INT8 qua ONNX Runtime. Màn hình `voice_demo.py` dùng phiếu giả lập cố định để kiểm luồng micro → bản chép → xác nhận câu hỏi → AI giải thích. Trên máy này đã chuẩn bị `.venv` và model trong `runtime/zipformer`.
+
+Mở PowerShell trong `starter-repo` và chạy `./start-voice-demo.ps1`, sau đó mở [màn hình thử](http://127.0.0.1:8501). Cho trình duyệt dùng micro, ghi một câu ngắn như “Vì sao huyết sắc tố có dấu L?”, bấm Chuyển thành chữ, sửa bản chép nếu cần, xác nhận phiếu mẫu rồi bấm Hỏi AI. Ollama dùng `qwen3:4b` trên cổng 11434.
+
+Trên máy khác, tạo `.venv` bằng Python 3.12, cài `pip install -r requirements-voice.txt`, giải nén model vào `runtime/zipformer` và tải model Ollama trước khi chạy script. Đặt `ZIPFORMER_BACKEND=onnx` để dùng backend tương thích này trong giao diện chính. Hàm `transcribe_wav` giữ cùng cách gọi, backend ONNX nhận WAV 16 kHz. Giữ chế độ ghi âm `sample_rate=16000`.
 
 ## SQLite và lịch sử phiên
 
