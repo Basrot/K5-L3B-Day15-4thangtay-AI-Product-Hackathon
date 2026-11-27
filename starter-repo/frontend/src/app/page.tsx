@@ -5,7 +5,6 @@ import {
   AlertCircle,
   Check,
   CheckCircle2,
-  ClipboardList,
   Copy,
   Download,
   ExternalLink,
@@ -83,9 +82,9 @@ const STATUS_META: Record<RowStatus, { label: string; meaning: string; cls: stri
 };
 
 const PREGNANCY_STAGE = {
-  1: { title: "Giai đoạn 1", weeks: "từ 1 tuần 0 ngày đến hết 13 tuần 6 ngày", shortWeeks: "tuần 1–13" },
-  2: { title: "Giai đoạn 2", weeks: "từ 14 tuần 0 ngày đến hết 28 tuần 6 ngày", shortWeeks: "tuần 14–28" },
-  3: { title: "Giai đoạn 3", weeks: "từ 29 tuần 0 ngày trở đi", shortWeeks: "từ tuần 29" },
+  1: { title: "Tam cá nguyệt 1", weeks: "từ 1 tuần 0 ngày đến hết 13 tuần 6 ngày", shortWeeks: "tuần 1–13" },
+  2: { title: "Tam cá nguyệt 2", weeks: "từ 14 tuần 0 ngày đến hết 28 tuần 6 ngày", shortWeeks: "tuần 14–28" },
+  3: { title: "Tam cá nguyệt 3", weeks: "từ 29 tuần 0 ngày trở đi", shortWeeks: "từ tuần 29" },
 } as const;
 
 function makeEmptyReport(mode: ReferenceMode = "study"): CBCReport {
@@ -210,8 +209,11 @@ export default function HomePage() {
   const [sessionId, setSessionId] = useState("");
   const authEpochRef = useRef(0);
   const [revision, setRevision] = useState(0);
-  const [draft, setDraft] = useState<CBCReport>(() => makeMockTCN2Report());
+  const [draft, setDraft] = useState<CBCReport>(() => makeEmptyReport("study"));
   const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
+  const [formExpanded, setFormExpanded] = useState(true);
+  const formRef = useRef<HTMLElement>(null);
+  const assistantRef = useRef<HTMLDivElement | null>(null);
 
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -248,6 +250,7 @@ export default function HomePage() {
     setRevision(0);
     setDraft(makeEmptyReport("study"));
     setOcrWarnings([]);
+    setFormExpanded(true);
     setAnalysis(null);
     setHistory([]);
     setReportHistory([]);
@@ -329,6 +332,12 @@ export default function HomePage() {
       if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
   }, [audioUrl]);
+
+  useEffect(() => {
+    if (formExpanded && analysis) {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [analysis, formExpanded]);
 
   function abortInFlight() {
     if (abortRef.current) {
@@ -426,6 +435,7 @@ export default function HomePage() {
       setSessionId(session.session_id);
       setRevision(session.revision);
       setDraft(makeEmptyReport("study"));
+      setFormExpanded(true);
       setAnalysis(null);
       setReply(null);
       setHistory([]);
@@ -446,6 +456,7 @@ export default function HomePage() {
 
   async function handleLoadMockTCN2() {
     await invalidateIfConfirmed();
+    setFormExpanded(true);
     setBannerError("");
     setOcrWarnings([]);
     setDoctorPrompt("");
@@ -457,6 +468,7 @@ export default function HomePage() {
     if (!id) return;
     const requestEpoch = authEpochRef.current;
     abortInFlight();
+    setFormExpanded(true);
     setBannerError("");
     setLoadingAction("session");
     try {
@@ -478,7 +490,12 @@ export default function HomePage() {
         ]);
         if (requestEpoch !== authEpochRef.current) return;
         const msgs = hist.messages || [];
-        setAnalysis(ana);
+        const hasAnalysis = ana.status === "analyzed";
+        setAnalysis(hasAnalysis ? ana : null);
+        setFormExpanded(!hasAnalysis);
+        if (!hasAnalysis) {
+          setBannerError(ana.output || "Phiếu này cần được kiểm tra và xác nhận lại.");
+        }
         setHistory(msgs);
         if (msgs.length > 0) {
           const latest = msgs[msgs.length - 1];
@@ -491,6 +508,7 @@ export default function HomePage() {
       } else {
         setDraft(makeEmptyReport("study"));
         setAnalysis(null);
+        setFormExpanded(true);
         setHistory([]);
         setReply(null);
         setBannerError(`Phiên ${snap.session_id} chưa có phiếu nào được xác nhận.`);
@@ -557,6 +575,7 @@ export default function HomePage() {
     e.target.value = "";
     if (!file) return;
     const requestEpoch = authEpochRef.current;
+    setFormExpanded(true);
 
     await invalidateIfConfirmed();
     if (requestEpoch !== authEpochRef.current) return;
@@ -614,7 +633,12 @@ export default function HomePage() {
       );
       if (requestEpoch !== authEpochRef.current) return;
       setRevision(res.revision);
-      setAnalysis(res.analysis);
+      const hasAnalysis = res.analysis.status === "analyzed";
+      setAnalysis(hasAnalysis ? res.analysis : null);
+      setFormExpanded(!hasAnalysis);
+      if (!hasAnalysis) {
+        setBannerError(res.analysis.output || "Phiếu cần được kiểm tra lại trước khi xem kết quả.");
+      }
       setReply(null);
       setDoctorPrompt("");
       const hist = await api.getHistory(sessionId, controller.signal);
@@ -800,6 +824,16 @@ export default function HomePage() {
   const resultStage = pregnancyStageInfo(analysis?.trimester);
   const resultRows = analysis?.rows || [];
   const rowsToReview = resultRows.filter((row) => row.status !== "within");
+  const draftHasResults = draft.rows.some((row) => (row.value ?? "").trim() !== "");
+  const progressStep = analysis?.status === "analyzed" ? 3 : draftHasResults ? 2 : 1;
+  const questionRows = rowsToReview.length > 0 ? rowsToReview.slice(0, 2) : resultRows.slice(0, 1);
+  const suggestedQuestions = questionRows.map((row) => {
+    const name = ANALYTE_LIST.find((item) => item.code === row.analyte)?.name || row.analyte;
+    const label = `${row.analyte} (${name})`;
+    return row.status === "within"
+      ? `${label} của tôi có ổn không?`
+      : `${label} ${row.status === "below" ? "thấp" : "cao"} hơn khoảng có ý nghĩa gì?`;
+  });
   const otherSavedReports = useMemo(
     () => reportHistory.filter((item) => item.session_id !== sessionId),
     [reportHistory, sessionId]
@@ -996,7 +1030,7 @@ export default function HomePage() {
                 Đọc phiếu CBC thai kỳ
               </h1>
               <p className="text-xs text-[var(--muted)]">
-                Đối chiếu 8 chỉ số cốt lõi · Hỗ trợ chuẩn bị câu hỏi cho bác sĩ
+                Nhập hoặc chụp phiếu CBC, xem kết quả đối chiếu và chuẩn bị câu hỏi cho bác sĩ
               </p>
             </div>
           </div>
@@ -1008,7 +1042,7 @@ export default function HomePage() {
               className="btn-outline h-9 text-xs"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
-              Phiếu mẫu TCN2
+              Thử với phiếu mẫu
             </button>
             <button
               type="button"
@@ -1038,8 +1072,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Main 2-column Option A */}
-      <main className="flex-1 max-w-[1280px] w-full mx-auto px-4 sm:px-6 py-5 space-y-4">
+      <main className="flex-1 max-w-[1000px] w-full mx-auto px-4 sm:px-6 py-5 space-y-4">
         {bannerError && (
           <div className="p-3.5 rounded-xl bg-[#fff1f2] text-[#be123c] text-sm flex items-start justify-between gap-3">
             <div className="flex items-start gap-2">
@@ -1055,12 +1088,47 @@ export default function HomePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* Left Column (5/12): Form + OCR + Confirm */}
-          <section className="lg:col-span-5 soft-card p-4 sm:p-5 space-y-4">
+        <div className="space-y-5">
+          <section className="soft-card p-4 sm:p-5 space-y-3" aria-label="Tiến trình đọc phiếu CBC">
+              <div>
+                <h2 className="font-semibold text-base">Cùng đọc phiếu theo 3 bước</h2>
+                <p className="mt-1 text-xs text-[var(--muted)]">Bạn có thể chụp phiếu hoặc nhập những dòng kết quả đang có.</p>
+              </div>
+              <ol className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { number: 1, title: "Thêm phiếu", help: "Chụp ảnh hoặc nhập số liệu" },
+                  { number: 2, title: "Kiểm tra", help: "Xem lại thông tin rồi xác nhận" },
+                  { number: 3, title: "Hiểu kết quả", help: "Xem đối chiếu và câu hỏi gợi ý" },
+                ].map((step) => (
+                  <li
+                    key={step.number}
+                    aria-current={progressStep === step.number ? "step" : undefined}
+                    className={`flex gap-2 rounded-xl border p-3 ${progressStep === step.number
+                      ? "border-[var(--primary)] bg-[var(--primary-light)]"
+                      : "border-[var(--border-strong)] bg-white"}`}
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold" aria-hidden="true">
+                      {progressStep > step.number ? <Check className="h-3.5 w-3.5" /> : step.number}
+                    </span>
+                    <span>
+                      <span className="block text-xs font-semibold">{step.title}</span>
+                      <span className="mt-0.5 block text-[11px] text-[var(--muted)]">{step.help}</span>
+                      {progressStep === step.number && <span className="sr-only"> — bước hiện tại</span>}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+          </section>
+
+          {/* Entry form */}
+          <section
+            ref={formRef}
+            id="report-form"
+            className={`${analysis && !formExpanded ? "hidden" : ""} soft-card p-4 sm:p-6 space-y-5 scroll-mt-4`}
+          >
             <div className="flex items-center justify-between gap-2">
               <h2 className="font-semibold text-[15px]">
-                Thông tin & Xác nhận phiếu
+                {analysis ? "Chỉnh sửa phiếu CBC" : progressStep === 2 ? "Bước 2 · Kiểm tra phiếu" : "Bước 1 · Thêm phiếu CBC"}
               </h2>
               <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-[var(--primary-light)] text-[var(--primary)]">
                 {draft.reference_mode === "study"
@@ -1069,6 +1137,8 @@ export default function HomePage() {
               </span>
             </div>
 
+            <div>
+              <p className="mb-2 text-xs font-medium">Chọn khoảng để đối chiếu</p>
             {/* Mode selector */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
@@ -1080,9 +1150,9 @@ export default function HomePage() {
                     : "border-[var(--border-strong)] bg-white text-[var(--foreground)]"
                 }`}
               >
-                Khoảng nghiên cứu theo tuần thai
+                Khoảng nghiên cứu theo tuổi thai
                 <span className="block text-[11px] font-normal text-[var(--muted)] mt-0.5">
-                  Tự chọn khoảng theo tuần thai
+                  Hệ thống chọn theo số tuần thai bạn nhập
                 </span>
               </button>
               <button
@@ -1094,22 +1164,23 @@ export default function HomePage() {
                     : "border-[var(--border-strong)] bg-white text-[var(--foreground)]"
                 }`}
               >
-                Khoảng ghi trên phiếu
+                Khoảng tham chiếu trên phiếu
                 <span className="block text-[11px] font-normal text-[var(--muted)] mt-0.5">
-                  Tự nhập giới hạn dưới/trên
+                  Bạn nhập giới hạn in cạnh từng chỉ số
                 </span>
               </button>
             </div>
 
             {draft.reference_mode === "study" && (
-              <div className="rounded-xl bg-[#f8fafa] border border-[var(--border-strong)] p-3 text-[11px] text-[var(--muted)] space-y-1">
-                <p className="font-medium text-[var(--foreground)]">
-                  Thai kỳ được chia thành ba giai đoạn theo số tuần như sau:
-                </p>
-                <p>Giai đoạn 1: từ 1 tuần 0 ngày đến hết 13 tuần 6 ngày · Giai đoạn 2: từ 14 tuần 0 ngày đến hết 28 tuần 6 ngày · Giai đoạn 3: từ 29 tuần 0 ngày trở đi.</p>
-                <p>Tuổi thai được ghi theo dạng 24w2d, nghĩa là 24 tuần 2 ngày. Khoảng nghiên cứu được chọn theo tuổi thai lúc xét nghiệm.</p>
-              </div>
+              <details className="mt-2 rounded-xl border border-[var(--border-strong)] bg-[#f8fafa]">
+                <summary className="cursor-pointer select-none p-3 text-xs font-medium">Khoảng nghiên cứu theo tuổi thai là gì?</summary>
+                <div className="space-y-2 px-3 pb-3 text-[11px] leading-relaxed text-[var(--muted)]">
+                  <p>Tam cá nguyệt là một trong ba giai đoạn của thai kỳ. Tuổi thai ghi theo tuần và ngày, ví dụ 24w2d là 24 tuần 2 ngày. Hệ thống dùng tuổi thai lúc xét nghiệm để chọn giai đoạn: tuần 1–13, tuần 14–28 hoặc từ tuần 29.</p>
+                  <p>Đây là khoảng trong một nghiên cứu, không phải ngưỡng chẩn đoán và có thể khác khoảng của phòng xét nghiệm trên phiếu.</p>
+                </div>
+              </details>
             )}
+            </div>
 
             {/* OCR Upload */}
             <div className="border border-dashed border-[var(--border-strong)] rounded-xl p-3 bg-[#f9fbfb] flex items-center justify-between gap-3">
@@ -1162,6 +1233,7 @@ export default function HomePage() {
                     updateField("gestational_age", e.target.value)
                   }
                   placeholder="24w2d (24 tuần 2 ngày)"
+                  aria-label="Tuổi thai lúc lấy mẫu, theo tuần và ngày"
                 />
               </div>
               <div>
@@ -1174,7 +1246,7 @@ export default function HomePage() {
                   value={draft.specimen_date || ""}
                   onChange={(e) => updateField("specimen_date", e.target.value)}
                 />
-                <p className="mt-1 text-[10px] text-[var(--muted)]">Dùng để so sánh với lần xét nghiệm trước.</p>
+                <p className="mt-1 text-[10px] text-[var(--muted)]">Không bắt buộc. Cần có ngày để so sánh với phiếu trước.</p>
               </div>
               <div>
                 <label className="block text-xs text-[var(--muted)] mb-1">
@@ -1205,17 +1277,18 @@ export default function HomePage() {
                     }
                     className="accent-[var(--primary)] w-4 h-4"
                   />
-                  <span>Xác nhận ≥ 18 tuổi</span>
+                <span>Tôi từ 18 tuổi trở lên</span>
                 </label>
               </div>
             </div>
 
             {/* 8 Analytes */}
             <div className="space-y-2.5">
-              <div className="text-xs font-medium text-[var(--muted)]">
-                8 chỉ số CBC hỗ trợ (để trống nếu phiếu không có)
+              <div>
+                <h3 className="text-sm font-semibold">Kết quả trên phiếu</h3>
+                <p className="mt-1 text-xs text-[var(--muted)]">Chỉ nhập các dòng có trên phiếu. Có thể để trống những chỉ số không có.</p>
               </div>
-              <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+              <div className="space-y-2 pr-1">
                 {ANALYTE_LIST.map((item) => {
                   const row = draft.rows.find((r) => r.analyte === item.code) || {
                     analyte: item.code,
@@ -1238,6 +1311,8 @@ export default function HomePage() {
                           <input
                             className="wf-input h-8 text-xs"
                             placeholder="Kết quả"
+                            inputMode="decimal"
+                            aria-label={`${item.name} (${item.code}) — kết quả`}
                             value={row.value ?? ""}
                             onChange={(e) =>
                               updateRow(item.code, "value", e.target.value)
@@ -1247,7 +1322,8 @@ export default function HomePage() {
                         <div className="col-span-4">
                           <input
                             className="wf-input h-8 text-xs"
-                            placeholder="Đơn vị *"
+                            placeholder="Đơn vị"
+                            aria-label={`${item.name} (${item.code}) — đơn vị kết quả`}
                             value={row.unit ?? ""}
                             onChange={(e) =>
                               updateRow(item.code, "unit", e.target.value)
@@ -1261,6 +1337,8 @@ export default function HomePage() {
                           <input
                             className="wf-input h-8 text-xs"
                             placeholder="Giới hạn dưới"
+                            inputMode="decimal"
+                            aria-label={`${item.name} (${item.code}) — giới hạn dưới trên phiếu`}
                             value={row.ref_low ?? ""}
                             onChange={(e) =>
                               updateRow(item.code, "ref_low", e.target.value)
@@ -1269,6 +1347,8 @@ export default function HomePage() {
                           <input
                             className="wf-input h-8 text-xs"
                             placeholder="Giới hạn trên"
+                            inputMode="decimal"
+                            aria-label={`${item.name} (${item.code}) — giới hạn trên trên phiếu`}
                             value={row.ref_high ?? ""}
                             onChange={(e) =>
                               updateRow(item.code, "ref_high", e.target.value)
@@ -1277,6 +1357,7 @@ export default function HomePage() {
                           <input
                             className="wf-input h-8 text-xs"
                             placeholder="Đơn vị khoảng"
+                            aria-label={`${item.name} (${item.code}) — đơn vị khoảng tham chiếu`}
                             value={row.ref_unit ?? ""}
                             onChange={(e) =>
                               updateRow(item.code, "ref_unit", e.target.value)
@@ -1298,72 +1379,50 @@ export default function HomePage() {
             >
               <CheckCircle2 className="w-4 h-4" />
               {loadingAction === "confirm"
-                ? "Đang đối chiếu..."
-                : "Xác nhận và nhận kết quả"}
+                ? "Đang kiểm tra phiếu..."
+                : analysis
+                  ? "Lưu thay đổi và cập nhật kết quả"
+                  : "Kiểm tra phiếu và xem kết quả"}
             </button>
           </section>
 
-          {/* Right Column (7/12): Analysis + Q&A + Voice */}
-          <section className="lg:col-span-7 space-y-4">
-            {loadingAction === "confirm" ? (
-              <div className="soft-card p-6 space-y-4 animate-pulse">
-                <div className="h-5 bg-[#e4e7ea] rounded w-1/3" />
-                <div className="h-32 bg-[#f2f5f7] rounded-xl" />
-                <div className="h-12 bg-[#f2f5f7] rounded-xl" />
-              </div>
-            ) : !analysis ? (
-              <div className="soft-card p-8 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-[var(--primary-light)] text-[var(--primary)] mx-auto flex items-center justify-center">
-                  <ClipboardList className="w-6 h-6" />
-                </div>
-                <h3 className="font-semibold text-base">
-                  Chưa có phiếu được xác nhận
-                </h3>
-                <p className="text-xs text-[var(--muted)] max-w-md mx-auto leading-relaxed">
-                  Kiểm tra lại kết quả, đơn vị và tuổi thai ở cột bên trái, sau
-                  đó bấm <strong>Xác nhận và nhận kết quả</strong> để xem bảng đối
-                  chiếu và đặt câu hỏi cho AI.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleLoadMockTCN2}
-                  className="btn-outline text-xs"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5" />
-                  Nạp phiếu mẫu giai đoạn 2 (24 tuần 2 ngày)
-                </button>
-              </div>
-            ) : (
-              <>
+          {loadingAction === "confirm" && (
+            <section className="soft-card p-6 space-y-4" role="status" aria-live="polite">
+              <p className="text-sm font-medium">Đang kiểm tra phiếu và đối chiếu các chỉ số…</p>
+              <div className="h-24 bg-[#f2f5f7] rounded-xl animate-pulse" />
+            </section>
+          )}
+
+          {analysis?.status === "analyzed" && (
+            <section id="cbc-results" className="space-y-5" aria-label="Kết quả phiếu CBC">
                 {/* Results overview and optional details */}
                 <div className="soft-card p-4 sm:p-5 space-y-3.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <h2 className="font-semibold text-[15px]">
-                        Kết quả CBC
-                        {resultStage
-                          ? ` · ${resultStage.title} (${resultStage.weeks})`
-                          : ""}
+                        Kết quả đối chiếu CBC
                       </h2>
                       <p className="text-xs text-[var(--muted)] mt-0.5">
-                        {rowsToReview.length > 0
-                          ? `Có ${rowsToReview.length}/${resultRows.length} chỉ số nằm ngoài khoảng đang chọn.`
-                          : `Cả ${resultRows.length} chỉ số đã nhập đang nằm trong khoảng đang chọn.`}
+                        Đã đối chiếu {resultRows.length} chỉ số
+                        {resultStage ? ` với khoảng nghiên cứu cho ${resultStage.title.toLowerCase()} (${resultStage.weeks})` : " với khoảng đã chọn"}.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleDownloadTxt}
-                      className="btn-outline h-8 px-3 text-xs"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      Tải kết quả
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => setFormExpanded(true)} className="btn-outline h-8 px-3 text-xs" aria-controls="report-form">Sửa thông tin phiếu</button>
+                      <button type="button" onClick={handleDownloadTxt} className="btn-outline h-8 px-3 text-xs"><Download className="w-3.5 h-3.5" /> Tải kết quả</button>
+                    </div>
                   </div>
 
-                  <p className="text-xs text-[var(--muted)]">
-                    Đây là phép so sánh với khoảng đã chọn, không phải kết luận bệnh. Kết quả trong khoảng cũng không loại trừ bệnh.
-                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" aria-label="Tóm tắt trạng thái các chỉ số">
+                    {([
+                      ["within", "Trong khoảng"], ["below", "Thấp hơn khoảng"], ["above", "Cao hơn khoảng"],
+                    ] as const).map(([status, label]) => {
+                      const count = resultRows.filter((row) => row.status === status).length;
+                      return <div key={status} className={`rounded-xl px-3 py-2 text-xs ${STATUS_META[status].cls}`}><strong className="text-base">{count}</strong><span className="ml-2">{label}</span></div>;
+                    })}
+                  </div>
+                  <p className="text-xs leading-relaxed text-[var(--muted)]">“Trong khoảng” chỉ có nghĩa là con số nằm giữa hai giới hạn đang dùng; “thấp hơn” hoặc “cao hơn” nghĩa là nằm ngoài một giới hạn. Những nhãn này không tự xác định có bệnh hay không. Bác sĩ cần xem phiếu gốc, triệu chứng và tình trạng sức khỏe của bạn.</p>
+
                   {analysis.issues && analysis.issues.length > 0 && (
                     <p role="status" className="rounded-lg bg-[#fffbeb] p-2.5 text-xs text-[#8a5b10]">
                       Một số dòng chưa thể đối chiếu: {analysis.issues.join("; ")}
@@ -1373,8 +1432,8 @@ export default function HomePage() {
                   {rowsToReview.length > 0 && (
                     <section className="rounded-xl border border-[#f3d9a7] bg-[#fffbeb] p-3 space-y-2">
                       <div>
-                        <h3 className="text-sm font-semibold text-[var(--foreground)]">Nên hỏi bác sĩ</h3>
-                        <p className="text-xs text-[var(--muted)]">Anh/chị có thể ghi lại các dòng này để trao đổi trong buổi khám.</p>
+                        <h3 className="text-sm font-semibold text-[var(--foreground)]">Các dòng nên trao đổi thêm</h3>
+                        <p className="text-xs text-[var(--muted)]">Đây là gợi ý để bạn hỏi bác sĩ, không phải dấu hiệu đã được chẩn đoán bất thường.</p>
                       </div>
                       <ul className="space-y-2">
                         {rowsToReview.map((row) => {
@@ -1651,26 +1710,26 @@ export default function HomePage() {
                 </div>
 
                 {/* Q&A + Voice */}
-                <div className="soft-card p-4 sm:p-5 space-y-3.5">
+                <div ref={assistantRef} id="cbc-assistant" className="soft-card p-4 sm:p-5 space-y-3.5 scroll-mt-4">
                   <div className="flex items-center justify-between">
                     <h2 className="font-semibold text-[15px]">
-                      Hỏi đáp & Gợi ý cho buổi khám
+                      Hỏi về kết quả CBC
                     </h2>
                     <span className="text-[11px] text-[var(--muted)]">
                       Zipformer STT · VieNeu TTS
                     </span>
                   </div>
 
+                  <p className="text-xs text-[var(--muted)]">Câu trả lời dựa trên phiếu CBC đã xác nhận. Trợ lý giúp bạn hiểu cách đối chiếu và chuẩn bị trao đổi với bác sĩ; không đưa ra chẩn đoán.</p>
                   <div className="flex flex-wrap gap-1.5">
                     {[
-                      "Vì sao HGB của mình có dấu thấp?",
-                      "Chỉ số WBC này có ý nghĩa gì?",
-                      "Tóm tắt các điểm cần hỏi bác sĩ",
+                      ...suggestedQuestions,
+                      "Tóm tắt những điểm tôi nên hỏi bác sĩ",
                     ].map((sampleQ) => (
                       <button
                         key={sampleQ}
                         type="button"
-                        onClick={() => setQuestion(sampleQ)}
+                        onClick={() => { setQuestion(sampleQ); assistantRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}
                         className="text-[11px] px-2.5 py-1 rounded-full bg-[#f4f6f7] hover:bg-[#e7ecee] text-[var(--foreground)] transition"
                       >
                         {sampleQ}
@@ -1681,7 +1740,8 @@ export default function HomePage() {
                   <form onSubmit={handleAskAI} className="flex gap-2">
                     <input
                       className="wf-input flex-1"
-                      placeholder="Nhập hoặc ghi âm câu hỏi về chỉ số..."
+                      placeholder="Ví dụ: HGB của tôi có ổn không?"
+                      aria-label="Nhập câu hỏi về phiếu CBC đã xác nhận"
                       value={question}
                       onChange={(e) => setQuestion(e.target.value)}
                     />
@@ -1710,7 +1770,7 @@ export default function HomePage() {
                       className="btn-primary shrink-0"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      {loadingAction === "chat" ? "Đang trả lời..." : "Hỏi AI"}
+                      {loadingAction === "chat" ? "Đang trả lời..." : "Gửi câu hỏi"}
                     </button>
                   </form>
 
@@ -1744,7 +1804,7 @@ export default function HomePage() {
                   )}
 
                   {history.length > 0 && (
-                    <details open className="pt-1">
+                    <details className="pt-1">
                       <summary className="text-xs font-medium text-[var(--muted)] cursor-pointer select-none">
                         Lịch sử hỏi đáp của phiếu ({history.length})
                       </summary>
@@ -1766,9 +1826,8 @@ export default function HomePage() {
                     </details>
                   )}
                 </div>
-              </>
-            )}
-          </section>
+            </section>
+          )}
         </div>
 
         <section className="soft-card p-4 sm:p-5 space-y-3">
