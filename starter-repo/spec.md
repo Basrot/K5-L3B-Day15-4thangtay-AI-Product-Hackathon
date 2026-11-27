@@ -85,15 +85,15 @@ flowchart LR
 - Bị đòi ngoài phạm vi (lớp 3): · Trường hợp đặc thù lĩnh vực (lớp 4):
 
 ## §7. Đánh giá & chuẩn "đạt" *(guide 2.4, 4.1)*
-- Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — __ câu (thuong __ · kho __ · tu_choi __) · metric: `eval/metric_spec.yaml` (__ metric)
-- **Chuẩn "đạt"** (chốt **trước 19:30 Thứ Sáu 27/11**, giữ nguyên đến 23:59 Thứ Bảy 28/11): "Đạt khi ≥ __% câu qua, và __"
-- Kết quả: lượt 1 __/__ (__%) · lượt 2 __/__ (__%) — run ID: __ / __ → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
+- Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — **24 câu** (thường 8 · khó 14 · từ chối 2) · metric: `eval/metric_spec.yaml` (**3 metric**)
+- **Chuẩn "đạt"** (tiêu chí N3 đề xuất trong plan để chốt trước CP2; giữ nguyên sau CP2): "100% ca thiếu dữ kiện hoặc ngoài phạm vi đi đúng nhánh, 100% ca có giá trị và đơn vị hợp lệ được đối chiếu đúng theo đáp án, ít nhất 90% ca giải thích bám đúng dòng và dữ kiện trên phiếu."
+- Kết quả: lượt 1 **19/24 (79%)** · lượt 2 **chưa chạy** — run ID: `run-1@20261127-163814` / chưa có → chi tiết `eval/report.md`, hồ sơ `eval/README.md`. Lượt 1 chưa đạt tiêu chí tổng hợp và ngưỡng 100% cho ca thiếu/sai ngữ cảnh.
 
 ## §8. Chi phí khi dùng thật *(guide 4.2)*
-- Persona + giá: `cost/personas.yaml` · lượt mô phỏng: `cost/simulate-__.csv` (__ phiên)
-- Chi phí / task thành công: __ (model __) · __ (model __)
-- Chi phí / tháng ở quy mô thật: thấp __ · cơ sở __ · cao __ → chi tiết `cost/cost-estimate.md`
-- So với impact / người / tháng (§2): đáng làm không, vì sao:
+- Persona + giá: `cost/personas.yaml` · lượt mô phỏng: `cost/simulate-1.csv` (**50 phiên**, seed 42)
+- Chi phí / task thành công: **$0.00012** (Gemini 3.1 Flash-Lite) · **$0.00068** (Gemini 4 Hydrogen)
+- Chi phí / tháng ở quy mô giả định 100/500/1.500 người: thấp **$0.0197 / $0.1126** · cơ sở **$0.0984 / $0.5628** · cao **$0.2953 / $1.69** (Flash-Lite / Hydrogen) → chi tiết `cost/cost-estimate.md`
+- So với impact / người / tháng (§2): **chưa thể kết luận** do §2 chưa có số impact từ phỏng vấn; chi phí trên chỉ tính token của luồng đã xác nhận.
 
 ## §9. Rủi ro & an toàn
 - Dữ liệu: đã ẩn danh gì, không thu gì, không đưa gì vào model gói miễn phí:
@@ -109,7 +109,6 @@ flowchart LR
 
 | Thời điểm | Đổi gì | Vì sao (trỏ về câu thử / lỗi / bằng chứng nào) |
 |---|---|---|
-|  |  |  |
 
 **Sau CP4 (đến 23:59 Thứ Bảy 28/11)** (sửa theo góp ý — không sửa chuẩn "đạt", câu thử, số bằng chứng, kết quả các lượt đã chạy)
 
