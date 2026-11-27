@@ -10,6 +10,19 @@ from catalog import ANALYTES, DEFAULT_UNITS
 
 
 class PublishedReferenceDataTest(unittest.TestCase):
+    def test_demo_widget_defaults_only_include_supported_analytes(self):
+        import json
+        from pathlib import Path
+        from references import SUPPORTED_ANALYTES, supported_analyte_codes
+
+        demo_path = Path(__file__).resolve().parents[1] / "data" / "full-panel-demo.json"
+        demo = json.loads(demo_path.read_text(encoding="utf-8"))
+
+        defaults = supported_analyte_codes(demo["rows"])
+
+        self.assertEqual(defaults, list(SUPPORTED_ANALYTES))
+        self.assertNotIn("RDW", defaults)
+
     def test_has_three_ordered_decimal_intervals_for_exactly_the_catalog(self):
         from reference_data import REFERENCE_INTERVALS
 
