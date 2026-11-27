@@ -24,7 +24,12 @@ Với mọi intent khác "explain", đặt analyte bằng chuỗi rỗng.
 Ưu tiên nhận ra câu hỏi về sức khỏe hoặc tình huống khẩn, kể cả khi kèm câu hỏi về một chỉ số.
 Không tạo số, ngưỡng, chẩn đoán, lời khuyên điều trị hoặc trường ngoài cấu trúc JSON."""
 
-POSITIONS = {"below": "thấp hơn giới hạn dưới", "above": "cao hơn giới hạn trên", "within": "nằm trong khoảng"}
+POSITIONS = {"below": "thấp hơn mức thấp nhất", "above": "cao hơn mức cao nhất", "within": "nằm giữa hai mức"}
+STAGE_LABELS = {
+    1: "giai đoạn 1 (từ 1 tuần 0 ngày đến hết 13 tuần 6 ngày)",
+    2: "giai đoạn 2 (từ 14 tuần 0 ngày đến hết 28 tuần 6 ngày)",
+    3: "giai đoạn 3 (từ 29 tuần 0 ngày trở đi)",
+}
 ANALYTE_EXPLANATIONS = {
     "RBC": "RBC là số lượng hồng cầu; hồng cầu chứa hemoglobin giúp vận chuyển oxy.",
     "HGB": "HGB đo nồng độ hemoglobin, protein trong hồng cầu giúp vận chuyển oxy.",
@@ -43,11 +48,11 @@ CBC_SOURCE = {
     "title": "MedlinePlus — CBC blood test",
     "url": "https://medlineplus.gov/ency/article/003642.htm",
 }
-CLARIFY = "Bạn muốn hỏi về chỉ số nào trên phiếu đã xác nhận? Bạn cũng có thể yêu cầu tóm tắt cả phiếu."
+CLARIFY = "Anh/chị muốn hỏi về chỉ số nào trên phiếu đã xác nhận ạ? Anh/chị cũng có thể nhờ em tóm tắt cả phiếu."
 ROUTES = {
     "clarify_question": CLARIFY,
-    "medical_advice": "Bản thử nghiệm giải thích phiếu CBC. Hãy trao đổi câu hỏi sức khỏe này với bác sĩ theo dõi thai kỳ.",
-    "urgent": "Nếu bạn đang gặp tình huống khẩn, hãy liên hệ ngay với cơ sở y tế hoặc dịch vụ cấp cứu tại nơi bạn ở.",
+    "medical_advice": "Em chưa thể chẩn đoán hoặc hướng dẫn điều trị từ phiếu CBC. Anh/chị hãy trao đổi câu hỏi sức khỏe này với bác sĩ theo dõi thai kỳ ạ.",
+    "urgent": "Nếu anh/chị đang gặp tình huống khẩn cấp, hãy liên hệ ngay với cơ sở y tế hoặc dịch vụ cấp cứu tại nơi anh/chị đang ở ạ.",
 }
 EXPLICIT_URGENCY = re.compile(r"\b(cấp cứu|khẩn cấp|gọi 115)\b", re.IGNORECASE)
 DEMO_MEDICAL_REQUEST = re.compile(
@@ -60,7 +65,8 @@ def _reference_details(comparison):
     metadata = {key: comparison[key] for key in
                 ("reference_mode", "reference_version", "trimester", "gestational_age", "reference_source", "reference_note")}
     if comparison["reference_mode"] == "study":
-        label = f"của nghiên cứu Pham et al. (2023), tam cá nguyệt {comparison['trimester']}"
+        stage = STAGE_LABELS.get(comparison["trimester"], f"giai đoạn {comparison['trimester']}")
+        label = f"của nghiên cứu Pham et al. (2023), {stage}"
         sources = [dict(comparison["reference_source"]), dict(CBC_SOURCE)]
     else:
         label, sources = "ghi trên phiếu", [dict(LAB_SOURCE), dict(CBC_SOURCE)]
@@ -76,16 +82,18 @@ def analyze_report(report: dict) -> dict:
     metadata, reference_label, sources = _reference_details(comparison)
     counts = {status: sum(row["status"] == status for row in rows) for status in POSITIONS}
     lines = [
-        f"Đã đối chiếu {len(rows)} chỉ số với khoảng tham chiếu {reference_label}.",
-        f"Có {counts['within']} chỉ số trong khoảng, {counts['below']} chỉ số thấp hơn "
-        f"và {counts['above']} chỉ số cao hơn khoảng đang dùng để đối chiếu.",
+        f"Em đã so sánh {len(rows)} chỉ số với khoảng {reference_label}.",
+        f"Trong đó, {counts['within']} chỉ số nằm trong khoảng; {counts['below']} thấp hơn mức thấp nhất "
+        f"và {counts['above']} cao hơn mức cao nhất của khoảng đang chọn.",
     ]
     for status, label in (("below", "Thấp hơn khoảng"), ("above", "Cao hơn khoảng")):
         codes = [row["analyte"] for row in rows if row["status"] == status]
         if codes:
             lines.append(label + ": " + ", ".join(codes) + ".")
-    lines.append("Bác sĩ sẽ xem thêm tuổi thai, triệu chứng và các thông tin sức khỏe "
-                 "để đánh giá ý nghĩa của kết quả. Bạn có thể hỏi AI về từng dòng bên dưới.")
+    lines.append("Các trạng thái này chỉ cho biết vị trí của con số so với khoảng tham chiếu, "
+                 "không tự kết luận có hay không có bệnh; kể cả nằm trong khoảng cũng không loại trừ bệnh.")
+    lines.append("Anh/chị có thể dùng những dòng thấp hơn hoặc cao hơn khoảng để hỏi bác sĩ theo dõi thai kỳ; "
+                 "bác sĩ sẽ xem thêm tuổi thai, triệu chứng và các thông tin sức khỏe ạ.")
     return {"status": "analyzed", "rows": rows, "counts": counts,
             "output": " ".join(lines), "sources": sources, **metadata}
 
@@ -158,11 +166,11 @@ def answer(text: str) -> dict:
         row = rows[analyte]
         metadata, reference_label, sources = _reference_details(comparison)
         output = (
-            f"{ANALYTE_EXPLANATIONS[analyte]} Kết quả của em là {row['value']} {row['unit']}, "
+            f"{ANALYTE_EXPLANATIONS[analyte]} Em đọc được kết quả {row['value']} {row['unit']}, "
             f"{POSITIONS[row['status']]} {reference_label} "
             f"({row['ref_low']}–{row['ref_high']} {row['unit']}). "
-            "Khoảng tham chiếu giúp đối chiếu kết quả, không tự xác lập chẩn đoán; "
-            "bác sĩ cần xem cùng các chỉ số khác và bối cảnh sức khỏe."
+            "Điều này chỉ cho biết con số đang ở đâu so với khoảng đã chọn, không tự xác định có bất thường hay không. "
+            "Anh/chị có thể hỏi bác sĩ theo dõi thai kỳ để hiểu kết quả trong tình trạng cụ thể của mình ạ."
         )
         return {"status": "explained", "analyte": analyte, "output": prefix + output,
                 "comparison": row, "sources": sources, **metadata}

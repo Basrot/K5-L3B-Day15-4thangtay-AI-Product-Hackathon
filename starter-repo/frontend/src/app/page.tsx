@@ -62,20 +62,29 @@ const ANALYTE_LIST = [
   { code: "PLT", name: "Số lượng tiểu cầu", defaultUnit: "10^9/L" },
 ] as const;
 
-const STATUS_META: Record<RowStatus, { label: string; cls: string }> = {
+const STATUS_META: Record<RowStatus, { label: string; meaning: string; cls: string }> = {
   below: {
-    label: "Thấp hơn khoảng",
+    label: "Thấp hơn khoảng tham chiếu",
+    meaning: "Giá trị thấp hơn mức thấp nhất của khoảng đang dùng.",
     cls: "bg-[#fff1f2] text-[#be123c]",
   },
   within: {
-    label: "Trong khoảng",
+    label: "Trong khoảng tham chiếu",
+    meaning: "Giá trị từ mức thấp nhất đến mức cao nhất của khoảng đang dùng.",
     cls: "bg-[#f0fdf4] text-[#15803d]",
   },
   above: {
-    label: "Cao hơn khoảng",
+    label: "Cao hơn khoảng tham chiếu",
+    meaning: "Giá trị cao hơn mức cao nhất của khoảng đang dùng.",
     cls: "bg-[#fffbeb] text-[#b45309]",
   },
 };
+
+const PREGNANCY_STAGE = {
+  1: { title: "Giai đoạn 1", weeks: "từ 1 tuần 0 ngày đến hết 13 tuần 6 ngày", shortWeeks: "tuần 1–13" },
+  2: { title: "Giai đoạn 2", weeks: "từ 14 tuần 0 ngày đến hết 28 tuần 6 ngày", shortWeeks: "tuần 14–28" },
+  3: { title: "Giai đoạn 3", weeks: "từ 29 tuần 0 ngày trở đi", shortWeeks: "từ tuần 29" },
+} as const;
 
 function makeEmptyReport(mode: ReferenceMode = "study"): CBCReport {
   return {
@@ -92,6 +101,11 @@ function makeEmptyReport(mode: ReferenceMode = "study"): CBCReport {
       ref_unit: item.defaultUnit,
     })),
   };
+}
+
+function pregnancyStageInfo(trimester?: number) {
+  if (trimester === 1 || trimester === 2 || trimester === 3) return PREGNANCY_STAGE[trimester];
+  return null;
 }
 
 function makeMockTCN2Report(): CBCReport {
@@ -609,7 +623,7 @@ export default function HomePage() {
       "",
       ...(analysis.rows || []).map(
         (r) =>
-          `- ${r.analyte}: ${r.value} ${r.unit} | Khoảng: ${r.ref_low}–${r.ref_high} ${r.unit} | ${STATUS_META[r.status].label}`
+          `- ${r.analyte}: ${r.value} ${r.unit} | Khoảng: ${r.ref_low}–${r.ref_high} ${r.unit} | ${STATUS_META[r.status].label}: ${STATUS_META[r.status].meaning}`
       ),
       "",
       analysis.reference_note || "",
@@ -643,6 +657,8 @@ export default function HomePage() {
       ),
     }));
   }
+
+  const resultStage = pregnancyStageInfo(analysis?.trimester);
 
   if (!token) {
     return (
@@ -841,7 +857,7 @@ export default function HomePage() {
               </h2>
               <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-[var(--primary-light)] text-[var(--primary)]">
                 {draft.reference_mode === "study"
-                  ? "Theo tam cá nguyệt"
+                  ? "Theo giai đoạn thai kỳ"
                   : "Theo khoảng trên phiếu"}
               </span>
             </div>
@@ -857,7 +873,7 @@ export default function HomePage() {
                     : "border-[var(--border-strong)] bg-white text-[var(--foreground)]"
                 }`}
               >
-                Nghiên cứu tam cá nguyệt
+                Khoảng nghiên cứu theo tuần thai
                 <span className="block text-[11px] font-normal text-[var(--muted)] mt-0.5">
                   Tự chọn khoảng theo tuần thai
                 </span>
@@ -877,6 +893,16 @@ export default function HomePage() {
                 </span>
               </button>
             </div>
+
+            {draft.reference_mode === "study" && (
+              <div className="rounded-xl bg-[#f8fafa] border border-[var(--border-strong)] p-3 text-[11px] text-[var(--muted)] space-y-1">
+                <p className="font-medium text-[var(--foreground)]">
+                  Thai kỳ được chia thành ba giai đoạn theo số tuần như sau:
+                </p>
+                <p>Giai đoạn 1: từ 1 tuần 0 ngày đến hết 13 tuần 6 ngày · Giai đoạn 2: từ 14 tuần 0 ngày đến hết 28 tuần 6 ngày · Giai đoạn 3: từ 29 tuần 0 ngày trở đi.</p>
+                <p>Tuổi thai được ghi theo dạng 24w2d, nghĩa là 24 tuần 2 ngày. Khoảng nghiên cứu được chọn theo tuổi thai lúc xét nghiệm.</p>
+              </div>
+            )}
 
             {/* OCR Upload */}
             <div className="border border-dashed border-[var(--border-strong)] rounded-xl p-3 bg-[#f9fbfb] flex items-center justify-between gap-3">
@@ -920,7 +946,7 @@ export default function HomePage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs text-[var(--muted)] mb-1">
-                  Tuổi thai (vd 24w2d)
+                  Tuổi thai lúc xét nghiệm (tuần + ngày)
                 </label>
                 <input
                   className="wf-input"
@@ -928,7 +954,7 @@ export default function HomePage() {
                   onChange={(e) =>
                     updateField("gestational_age", e.target.value)
                   }
-                  placeholder="24w2d"
+                  placeholder="24w2d (24 tuần 2 ngày)"
                 />
               </div>
               <div>
@@ -1085,7 +1111,7 @@ export default function HomePage() {
                   className="btn-outline text-xs"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
-                  Nạp phiếu mẫu TCN2 (24w2d)
+                  Nạp phiếu mẫu giai đoạn 2 (24 tuần 2 ngày)
                 </button>
               </div>
             ) : (
@@ -1096,8 +1122,8 @@ export default function HomePage() {
                     <div>
                       <h2 className="font-semibold text-[15px]">
                         Kết quả đối chiếu
-                        {analysis.trimester
-                          ? ` · Tam cá nguyệt ${analysis.trimester}`
+                        {resultStage
+                          ? ` · ${resultStage.title} (${resultStage.shortWeeks}, ${resultStage.weeks})`
                           : ""}
                       </h2>
                       <p className="text-xs text-[var(--muted)] mt-0.5">
@@ -1114,6 +1140,15 @@ export default function HomePage() {
                     </button>
                   </div>
 
+                  <div className="rounded-xl bg-[#f8fafa] border border-[var(--border-strong)] p-3 text-xs text-[var(--muted)] space-y-1">
+                    <p className="font-medium text-[var(--foreground)]">Trạng thái cho biết gì?</p>
+                    <p>“Thấp hơn” là dưới mức thấp nhất; “trong khoảng” là nằm giữa mức thấp nhất và cao nhất; “cao hơn” là vượt mức cao nhất của khoảng đang chọn.</p>
+                    <p>Đây chỉ là phép so sánh, không tự kết luận kết quả bình thường hay bất thường. Kết quả giúp anh/chị nhận ra dòng nào cần hỏi bác sĩ; kể cả “trong khoảng” cũng không loại trừ bệnh.</p>
+                    {analysis.reference_mode === "study" && (
+                      <p className="font-medium text-[#7c3aed]">Riêng HGB: mức thấp nhất của khoảng nghiên cứu không dùng một mình để kết luận có hay không thiếu máu.</p>
+                    )}
+                  </div>
+
                   <div className="overflow-x-auto border border-[var(--border-strong)] rounded-xl">
                     <table className="w-full text-xs text-left border-collapse">
                       <thead className="bg-[#f8fafa] text-[var(--muted)]">
@@ -1122,7 +1157,7 @@ export default function HomePage() {
                           <th className="py-2.5 px-3 font-medium">Kết quả</th>
                           <th className="py-2.5 px-3 font-medium">
                             {analysis.reference_mode === "study"
-                              ? "Khoảng nghiên cứu theo TCN"
+                              ? "Khoảng nghiên cứu theo giai đoạn"
                               : "Khoảng trên phiếu"}
                           </th>
                           <th className="py-2.5 px-3 font-medium">Trạng thái</th>
@@ -1148,6 +1183,9 @@ export default function HomePage() {
                               >
                                 {STATUS_META[row.status].label}
                               </span>
+                              <p className="mt-1 text-[10px] leading-snug text-[var(--muted)]">
+                                {STATUS_META[row.status].meaning}
+                              </p>
                             </td>
                           </tr>
                         ))}
