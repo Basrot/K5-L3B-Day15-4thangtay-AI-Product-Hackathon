@@ -1,6 +1,6 @@
 # Bàn giao frontend Vercel
 
-Backend FastAPI dùng lại luồng 24 chỉ số, SQLite, Zipformer và VieNeu API. Frontend React/Next.js gọi URL Railway bằng HTTPS. Toàn bộ đường dẫn dưới đây tính từ gốc URL backend.
+Backend FastAPI hỗ trợ 8 chỉ số CBC đề xuất (HGB, RBC, HCT, MCV, MCH, MCHC, WBC, PLT), SQLite, Zipformer và VieNeu API. Frontend React/Next.js gọi URL Railway bằng HTTPS. Toàn bộ đường dẫn dưới đây tính từ gốc URL backend.
 
 ## Chạy và kết nối
 
@@ -30,7 +30,8 @@ Ngoài health, login và OpenAPI, mỗi yêu cầu gửi header `Authorization: 
 |---|---|---|---|
 | GET | /health | — | status |
 | POST | /v1/auth/login | username, password | access_token, token_type, expires_in |
-| GET | /v1/catalog | — | Mảng 24 mục code, name, unit, group |
+| GET | /v1/catalog | — | Mảng 8 mục code, name, unit, group |
+| GET | /v1/references?gestational_age=21w3d | Tuổi thai | reference_mode, trimester, gestational_age, source, note, rows khoảng nghiên cứu |
 | POST | /v1/reports/validate | Report | status, rows hoặc issues |
 | POST | /v1/reports/extract | Multipart field file, JPG/PNG | rows, warnings của bản nháp |
 | POST | /v1/sessions | — | session_id, revision=0, report=null |
@@ -44,27 +45,31 @@ Ngoài health, login và OpenAPI, mỗi yêu cầu gửi header `Authorization: 
 | POST | /v1/speech/transcribe | Multipart field file, WAV | text |
 | POST | /v1/speech/synthesize | text | WAV binary, Content-Type audio/wav |
 
-Report dùng chung định dạng cho nhập tay và dữ liệu đọc ảnh:
+Luồng mới mặc định dùng `reference_mode: "study"`: người dùng nhập kết quả và đơn vị, backend chọn khoảng nghiên cứu theo tuổi thai. Payload tối thiểu dùng chung cho nhập tay và dữ liệu đọc ảnh:
 
 ```json
 {
   "adult_confirmed": true,
   "pregnancy_status": "pregnant",
   "gestational_age": "21w3d",
+  "reference_mode": "study",
   "rows": [
     {
       "analyte": "HGB",
       "value": "108",
-      "unit": "g/L",
-      "ref_low": "110",
-      "ref_high": "140",
-      "ref_unit": "g/L"
+      "unit": "g/L"
     }
   ]
 }
 ```
 
-Lấy danh mục và đơn vị gợi ý từ /v1/catalog. Chỉ gửi các chỉ số có trên phiếu, từ 1 đến 24 dòng. Đơn vị và khoảng tham chiếu được nhập theo phiếu, còn giá trị để null nếu chưa đọc được. Gửi validate để hiện những trường cần sửa. Mẫu đủ 24 chỉ số nằm ở [full-panel-demo.json](../data/full-panel-demo.json), các số và khoảng trong mẫu được dựng để thử phần mềm.
+Lấy danh mục và đơn vị gợi ý từ /v1/catalog. Chỉ gửi các chỉ số trong 8 mã hỗ trợ, từ 1 đến 8 dòng. Giá trị và đơn vị phải được người dùng kiểm lại; giữ null hoặc trống nếu chưa đọc được, không tự điền đơn vị bị thiếu từ OCR. Tuổi thai lúc xét nghiệm, xác nhận từ 18 tuổi và tình trạng đang mang thai vẫn bắt buộc để đối chiếu. Gửi validate để hiện những trường cần sửa. Mẫu đủ 24 chỉ số nằm ở [full-panel-demo.json](../data/full-panel-demo.json); lấy các dòng trong 8 mã hỗ trợ, số và khoảng là dữ liệu dựng.
+
+Frontend có thể gọi `/v1/references?gestational_age=21w3d` để xem trước khoảng theo tuổi thai. Phản hồi gồm `reference_mode: "study"`, `trimester` (1/2/3), `gestational_age`, `source` (title/url), `note` và `rows` chứa analyte/unit/ref_low/ref_high. Không dùng dữ liệu xem trước để tự tính trạng thái; bảng và kết luận hiển thị lấy từ validate/analysis. Quy ước của demo giữ 28w6d trong tam cá nguyệt 2, từ 29w0d sang tam cá nguyệt 3.
+
+Chế độ `reference_mode: "lab"` vẫn dùng các khoảng do người dùng xác nhận trên phiếu: mỗi dòng thêm `ref_low`, `ref_high`, `ref_unit`, ví dụ `"ref_low": "110", "ref_high": "140", "ref_unit": "g/L"` cho dòng HGB trên. Chọn một nguồn cho toàn phiếu. Explicit study bỏ qua mọi khoảng gửi kèm, kể cả khoảng OCR. Để tương thích dữ liệu cũ, khi thiếu reference_mode: không có khoảng nào thì dùng study, có bất kỳ khoảng nào thì giữ lab và yêu cầu bổ sung đủ; không tự trộn nguồn hay đổi phiếu cũ sang study.
+
+Kết quả đối chiếu và analysis thêm `reference_mode`, `trimester`, `reference_source` và `reference_note`. Nguồn có `title`; `url` là tùy chọn và có thể vắng trong lab vì nguồn là phiếu của người dùng. Hiện note và tên nguồn cùng bảng kết quả, kể cả bản tải xuống; chỉ tạo liên kết khi có url. Ở study, tiêu đề cột là “Khoảng nghiên cứu theo tam cá nguyệt”; ở lab là “Khoảng trên phiếu”. Khoảng công bố từ Pham et al. (2023) phục vụ đối chiếu nghiên cứu, không phải ngưỡng chẩn đoán hoặc khoảng đã được xác nhận cho phòng xét nghiệm của người dùng. Hiện nguyên reference_note để người dùng thấy giới hạn quần thể, tiêu chí tuyển chọn và khác biệt phương pháp/thiết bị áp dụng.
 
 Mẫu có trường `notice` chỉ để hiển thị. Trước khi gửi API, lấy đúng các trường Report, ví dụ `const { notice, ...report } = sample;`. API từ chối khóa ngoài schema để phát hiện lỗi tích hợp.
 
@@ -72,9 +77,9 @@ Mẫu có trường `notice` chỉ để hiển thị. Trước khi gửi API, l
 
 1. Login lấy bearer token, có hạn một giờ. Giữ token trong bộ nhớ phiên frontend và xóa khi logout hoặc nhận 401. Đây là tài khoản demo chung của nhóm; các phiên được nhận diện bằng mã ngẫu nhiên.
 2. Tạo session và giữ session_id cùng revision. Có thể cho người dùng giữ mã phiên để mở lại qua GET sau khi login.
-3. Nhập từng dòng hoặc đọc ảnh qua extract. Ảnh gửi đến dịch vụ AI đã cấu hình, vì vậy giao diện cho biết thao tác này trước nút đọc ảnh. Kết quả extract là bản nháp cần kiểm lại.
-4. Khi người dùng xác nhận các trường, PUT report kèm revision đang xem. Hiện analysis ngay, gồm rows, counts, output, sources. rows có trạng thái below/within/above theo khoảng trên phiếu.
-5. Khi sửa hoặc thay phiếu, dừng cho hỏi trên kết quả cũ và gọi invalidate với revision hiện tại. Cập nhật revision từ phản hồi, xóa kết quả/câu hỏi/bản ghi âm cũ ở frontend. Xác nhận lại trước khi hỏi tiếp.
+3. Chọn study mặc định, nhập từng kết quả/đơn vị và tuổi thai, hoặc đọc ảnh qua extract. Ảnh gửi đến dịch vụ AI đã cấu hình, vì vậy giao diện cho biết thao tác này trước nút đọc ảnh. Kết quả extract vẫn có ref_low/ref_high/ref_unit/warnings nhưng là bản nháp cần kiểm lại; study chỉ dùng analyte/value/unit và bỏ các khoảng OCR. Người dùng muốn khoảng trên phiếu chọn lab rõ ràng và kiểm cả khoảng.
+4. Khi người dùng xác nhận các trường, PUT report kèm revision đang xem. Hiện analysis ngay, gồm rows, counts, output, sources và metadata nguồn khoảng. rows có trạng thái below/within/above theo nguồn đã chọn; dùng nhãn khoảng nghiên cứu hoặc khoảng trên phiếu tương ứng, không diễn đạt thành chẩn đoán.
+5. Khi sửa kết quả, đơn vị, tuổi thai, nguồn khoảng hoặc thay phiếu, dừng cho hỏi trên kết quả cũ và gọi invalidate với revision hiện tại. Cập nhật revision từ phản hồi, xóa kết quả/câu hỏi/bản ghi âm cũ ở frontend. Xác nhận lại trước khi hỏi tiếp.
 6. Gửi câu hỏi qua chat. Mỗi lần bấm gửi tạo request_id bằng crypto.randomUUID(), giữ cùng ID và revision khi thử lại cùng yêu cầu. Khi đổi câu hỏi dùng ID mới.
 7. Hiện output trước, sau đó nếu người dùng bật giọng đọc thì gửi output tới synthesize và phát WAV nhận về. Tổng hợp giọng đọc là một lời gọi API có thể phát sinh phí, nên chỉ gọi khi người dùng yêu cầu.
 
@@ -138,6 +143,10 @@ Upload dùng FormData và để trình duyệt tự đặt Content-Type cùng mu
 const form = new FormData();
 form.append("file", imageFile);
 const draft = await api("/v1/reports/extract", { method: "POST", body: form });
+// Giữ trường thiếu ở trạng thái trống, cho người dùng sửa trước khi xác nhận.
+const studyRows = draft.rows.map(({ analyte, value, unit }) => ({ analyte, value, unit }));
+// Report mới: { adult_confirmed, pregnancy_status, gestational_age,
+//              reference_mode: "study", rows: studyRows }.
 ```
 
 ## Ghi âm WAV 16 kHz trên trình duyệt

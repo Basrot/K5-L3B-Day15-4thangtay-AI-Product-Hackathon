@@ -46,17 +46,29 @@ DEMO_MEDICAL_REQUEST = re.compile(
 )
 
 
+def _reference_details(comparison):
+    metadata = {key: comparison[key] for key in
+                ("reference_mode", "reference_version", "trimester", "gestational_age", "reference_source", "reference_note")}
+    if comparison["reference_mode"] == "study":
+        label = f"của nghiên cứu Pham et al. (2023), tam cá nguyệt {comparison['trimester']}"
+        sources = [dict(comparison["reference_source"]), dict(LAB_SOURCE)]
+    else:
+        label, sources = "ghi trên phiếu", [dict(LAB_SOURCE)]
+    return metadata, label, sources
+
+
 def analyze_report(report: dict) -> dict:
     """Trả bảng đối chiếu toàn bộ chỉ số và tóm tắt sau khi người dùng xác nhận."""
     comparison = compare_cbc(report)
     if comparison["status"] != "ok":
         return {"status": comparison["status"], "output": " ".join(comparison["issues"])}
     rows = comparison["rows"]
+    metadata, reference_label, sources = _reference_details(comparison)
     counts = {status: sum(row["status"] == status for row in rows) for status in POSITIONS}
     lines = [
-        f"Đã đối chiếu {len(rows)} chỉ số với khoảng tham chiếu ghi trên phiếu.",
+        f"Đã đối chiếu {len(rows)} chỉ số với khoảng tham chiếu {reference_label}.",
         f"Có {counts['within']} chỉ số trong khoảng, {counts['below']} chỉ số thấp hơn "
-        f"và {counts['above']} chỉ số cao hơn khoảng trên phiếu.",
+        f"và {counts['above']} chỉ số cao hơn khoảng đang dùng để đối chiếu.",
     ]
     for status, label in (("below", "Thấp hơn khoảng"), ("above", "Cao hơn khoảng")):
         codes = [row["analyte"] for row in rows if row["status"] == status]
@@ -64,8 +76,10 @@ def analyze_report(report: dict) -> dict:
             lines.append(label + ": " + ", ".join(codes) + ".")
     lines.append("Bác sĩ sẽ xem thêm tuổi thai, triệu chứng và các thông tin sức khỏe "
                  "để đánh giá ý nghĩa của kết quả. Bạn có thể hỏi AI về từng dòng bên dưới.")
+    if metadata["reference_note"]:
+        lines.append(metadata["reference_note"])
     return {"status": "analyzed", "rows": rows, "counts": counts,
-            "output": " ".join(lines), "sources": [dict(LAB_SOURCE)]}
+            "output": " ".join(lines), "sources": sources, **metadata}
 
 
 def answer(text: str) -> dict:
@@ -137,14 +151,17 @@ def answer(text: str) -> dict:
         isinstance(follow_up, str) and follow_up in FOLLOW_UPS
     ):
         row = rows[analyte]
+        metadata, reference_label, sources = _reference_details(comparison)
         output = (
             f"{analyte} ({ANALYTES[analyte]}) là {row['value']} {row['unit']} sau khi đưa về đơn vị đối chiếu, "
-            f"{POSITIONS[row['status']]} ghi trên phiếu ({row['ref_low']}–{row['ref_high']} {row['unit']}). "
+            f"{POSITIONS[row['status']]} {reference_label} ({row['ref_low']}–{row['ref_high']} {row['unit']}). "
             f"Bạn có thể hỏi bác sĩ: {FOLLOW_UPS[follow_up]}"
         )
         output += " Bác sĩ sẽ xem thêm bối cảnh sức khỏe để đánh giá ý nghĩa của kết quả."
+        if metadata["reference_note"]:
+            output += " " + metadata["reference_note"]
         return {"status": "explained", "analyte": analyte, "output": prefix + output,
-                "comparison": row, "sources": [dict(LAB_SOURCE)]}
+                "comparison": row, "sources": sources, **metadata}
 
     route = intent if isinstance(intent, str) and intent in ROUTES else "clarify_question"
     note("nhánh câu hỏi: " + route)
