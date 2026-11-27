@@ -33,28 +33,42 @@ Data BTC cấp đã dùng (nếu có — không commit nguyên file): __
 - [sản phẩm / tính năng gần giống]: một điều đáng học · một điều đáng né · mình khác gì
 
 ## §4. Thiết kế *(guide 2.2, 3.2)*
-- **Lát cắt MỘT CÂU** (1 người dùng · 1 việc · 1 quyết định AI · 1 kết quả):
-- Không làm (≥3 điều):
-- **Sơ đồ** (ảnh / Mermaid / draw.io): [chèn ở đây]
-- **Hình dạng:** [ ] workflow cố định · [ ] một agent · [ ] nhiều agent — 2 dòng lý do, và vì sao **không** chọn hình dạng phức tạp hơn:
-- **AI dựa vào đâu** — mỗi công cụ (khớp `codebase/tools.py`):
 
-  | Công cụ | Input | Output | Tác động ra ngoài? |
-  |---|---|---|---|
-  |  |  |  |  |
+Một thai phụ trưởng thành muốn hiểu dấu cao hoặc thấp trên phiếu CBC, AI chọn dòng liên quan để giải thích dựa trên dữ liệu đã xác nhận và gợi ý một câu hỏi cho buổi khám.
 
-- **Mức tự động:** [ ] AI gợi ý, người quyết · [ ] AI tự làm khi chắc, chuyển người khi không · [ ] AI tự làm — lý do (sai thì ai chịu gì, sửa đắt hay rẻ):
-- **Chỗ chặn rủi ro** (rủi ro lớn nhất của lát cắt bị chặn ở đâu, bằng gì):
-- **Chỗ người duyệt** (việc AI không được tự làm):
-- **Nguyên tắc thiết kế** (≥3, bắt buộc G10):
+**Phạm vi** gồm HGB, WBC và PLT. Các yêu cầu chẩn đoán, điều trị hoặc kê thuốc được chuyển về nhân viên y tế. Khoảng tham chiếu lấy từ phiếu đã xác nhận, còn dữ liệu nghiên cứu dùng làm tài liệu tham khảo.
 
-  | Nguyên tắc | Chỗ cụ thể trên sơ đồ / trong bản chạy thử |
-  |---|---|
-  | G10 — thu hẹp phạm vi khi không chắc |  |
-  |  |  |
-  |  |  |
+```mermaid
+flowchart LR
+    A["Nhập tay hoặc tải ảnh giả lập"] --> B["Phiếu nháp để kiểm và xác nhận"]
+    C["Nói tiếng Việt"] --> D["Zipformer chuyển thành chữ"]
+    D --> E["Sửa bản chép hoặc gõ câu hỏi"]
+    E --> F["Kiểm đầu vào và đối chiếu CBC"]
+    B --> F
+    F -->|Thiếu hoặc sai dữ liệu| G["Hỏi bổ sung"]
+    F -->|Đã đối chiếu| H["LLM chọn dòng và dạng câu hỏi gợi ý"]
+    H --> I["Kiểm quyết định và diễn giải từ phiếu"]
+    E -->|Yêu cầu khẩn rõ ràng| J["Hướng người dùng liên hệ y tế"]
+```
 
-- Phần nào còn giả (công cụ trả dữ liệu giả, model chế độ giả…) — ghi rõ, không giả làm thật:
+**Hình dạng.** Workflow cố định. Quy tắc đối chiếu và định dạng kết quả có các bước xác định, do đó một lời gọi model để chọn cách trả lời là đủ.
+
+| Công cụ | Input | Output | Tác động ra ngoài |
+|---|---|---|---|
+| `compare_cbc` | Phiếu CBC đã xác nhận | Trạng thái từng dòng, hoặc trường cần sửa | Chỉ đọc |
+| `transcribe_wav` | WAV PCM mono 16-bit | Câu hỏi dạng văn bản có thể sửa | Xử lý cục bộ |
+
+**Mức tự động.** AI gợi ý, người dùng quyết định dùng thông tin nào để trao đổi với bác sĩ. Giao diện cho sửa số, đơn vị, khoảng và bản chép trước khi gửi.
+
+**Chặn rủi ro.** Quy tắc yêu cầu đúng ngữ cảnh thai kỳ, định dạng số và đơn vị. Khi model chọn một dòng, hệ thống kiểm dòng đó có trên phiếu và chỉ hiển thị số đã đối chiếu. Yêu cầu khẩn rõ ràng được xử lý trước bước kiểm phiếu.
+
+| Nguyên tắc | Chỗ áp dụng |
+|---|---|
+| G9 · Sửa dễ dàng | Sửa dữ liệu đọc từ ảnh và bản chép lời nói trước khi gửi |
+| G10 · Thu hẹp phạm vi khi nghi ngờ | Hỏi lại khi thiếu dữ liệu, sai đơn vị hoặc model trả lựa chọn không hợp lệ |
+| G11 · Giải thích vì sao | Hiển thị giá trị đối chiếu và hai giới hạn lấy từ phiếu |
+
+**CP2.** Phiếu mẫu là giả lập. CLI có chế độ AI giả ghi nhãn rõ và có đường gọi Ollama. Giao diện đọc ảnh và ghi âm thuộc phần tích hợp.
 
 ## §5. Chỗ khó — 4 lớp + ≥6 kịch bản + 2 tấn công *(guide 2.3)*
 

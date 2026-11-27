@@ -17,9 +17,15 @@ Chế độ giả (mặc định khi .env chưa có MODEL_PROVIDER, hoặc MODEL
 Nối model thật: điền .env (chép từ .env.example), rồi viết nhánh gọi API ở dưới theo docs/connect-model.md
 (có ví dụ OpenAI, Claude, model chạy trên máy, và cách nối nhà cung cấp khác). Không dán API key vào file này.
 """
+import json
 import os
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
-from tracing import model_call
+if __package__:
+    from .tracing import model_call
+else:
+    from tracing import model_call
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -40,17 +46,46 @@ def load_env(path=os.path.join(ROOT, ".env")):
 load_env()
 MODEL_PROVIDER = (os.environ.get("MODEL_PROVIDER") or "fake").strip().lower()
 MODEL_NAME = (os.environ.get("MODEL_NAME") or "").strip()
-API_KEY = (os.environ.get("API_KEY") or "").strip()
 
 
 @model_call
-def call_model(system: str, user: str) -> dict:
+def call_model(system: str, user: str, *, output_schema: dict | None = None) -> dict:
     if MODEL_PROVIDER == "fake":
         last = (user.strip().splitlines() or [""])[-1]
         return {"text": "[câu trả lời giả — chưa nối model] " + last[:60], "model": "fake", "tokens_in": 0, "tokens_out": 0}
 
-    # NHÓM VIẾT: gọi model thật ở đây (theo MODEL_PROVIDER, MODEL_NAME, API_KEY) rồi trả đúng 4 khoá.
-    # Ví dụ chép được cho từng nhà cung cấp: docs/connect-model.md mục 2.
-    raise NotImplementedError(
-        "chưa viết phần gọi model thật cho MODEL_PROVIDER=%s trong codebase/ai.py — xem docs/connect-model.md"
-        % MODEL_PROVIDER)
+    if MODEL_PROVIDER != "ollama" or not MODEL_NAME:
+        raise ValueError("Cấu hình MODEL_PROVIDER=ollama và MODEL_NAME, hoặc dùng MODEL_PROVIDER=fake.")
+
+    body = {
+        "model": MODEL_NAME,
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        "stream": False,
+        "format": output_schema or "json",
+        "think": False,
+        "options": {"temperature": 0, "num_predict": 180},
+    }
+    request = Request(
+        "http://127.0.0.1:11434/api/chat",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=90) as response:
+            data = json.load(response)
+    except HTTPError as exc:
+        raise RuntimeError(f"Ollama trả HTTP {exc.code}. Kiểm tra model đã tải và cấu hình.") from exc
+    except (URLError, TimeoutError) as exc:
+        raise RuntimeError("Không kết nối được Ollama cục bộ hoặc model phản hồi quá thời gian.") from exc
+
+    try:
+        reply = data["message"]["content"]
+        tokens_in = data["prompt_eval_count"]
+        tokens_out = data["eval_count"]
+    except (KeyError, TypeError) as exc:
+        raise RuntimeError("Phản hồi Ollama thiếu nội dung hoặc số token.") from exc
+    if not isinstance(reply, str) or not reply.strip():
+        raise RuntimeError("Ollama trả lời rỗng.")
+    return {"text": reply, "model": data.get("model") or MODEL_NAME,
+            "tokens_in": tokens_in, "tokens_out": tokens_out}

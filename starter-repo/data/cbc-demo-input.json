@@ -1,0 +1,13 @@
+{
+  "report": {
+    "pregnancy_status": "pregnant",
+    "adult_confirmed": true,
+    "gestational_age": "21w3d",
+    "rows": [
+      {"analyte": "HGB", "value": "108", "unit": "g/L", "ref_low": "11", "ref_high": "14", "ref_unit": "g/dL"},
+      {"analyte": "WBC", "value": "8", "unit": "10^9/L", "ref_low": "6", "ref_high": "15", "ref_unit": "10^9/L"},
+      {"analyte": "PLT", "value": "245", "unit": "10^9/L", "ref_low": "150", "ref_high": "400", "ref_unit": "10^9/L"}
+    ]
+  },
+  "question": "Vì sao HGB có dấu L?"
+}
