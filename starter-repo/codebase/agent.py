@@ -59,6 +59,10 @@ DEMO_MEDICAL_REQUEST = re.compile(
     r"\b(chẩn đoán|bị bệnh gì|bị thiếu máu|uống gì|uống thuốc|dùng thuốc|liều thuốc|điều trị|kê đơn)\b",
     re.IGNORECASE,
 )
+RANGE_STATUS_QUESTION = re.compile(
+    r"\b(ổn|bình thường|bất thường|trong khoảng|ngoài khoảng|nằm trong|cao hơn|thấp hơn|cao|thấp|vượt khoảng|ý nghĩa|là sao)\b",
+    re.IGNORECASE,
+)
 
 
 def _explicit_analyte(question: str, available_codes) -> str | None:
@@ -138,6 +142,14 @@ def answer(text: str, *, confirmed=False) -> dict:
         return {"status": "clarify_question", "output": "Nhập câu hỏi về phiếu CBC, tối đa 1000 ký tự."}
 
     rows = {row["analyte"]: row for row in comparison["rows"]}
+    explicit_analyte = _explicit_analyte(question, rows)
+    if (explicit_analyte and RANGE_STATUS_QUESTION.search(question)
+            and not DEMO_MEDICAL_REQUEST.search(question)):
+        # A direct question about one analyte's saved range status is answered
+        # from the deterministic comparison, not left to the LLM's medical-advice classifier.
+        note("trả lời trạng thái khoảng theo dữ liệu đã đối chiếu: " + explicit_analyte)
+        return _explain_analyte(explicit_analyte, rows[explicit_analyte], comparison)
+
     context = {
         "indicators": {code: ANALYTES[code] for code in rows},
         "question": question.strip(),
@@ -183,17 +195,7 @@ def answer(text: str, *, confirmed=False) -> dict:
         return result
     if (intent == "explain" and set(decision) == {"intent", "analyte"}
             and isinstance(analyte, str) and analyte in rows):
-        row = rows[analyte]
-        metadata, reference_label, sources = _reference_details(comparison)
-        output = (
-            f"{ANALYTE_EXPLANATIONS[analyte]} Em đọc được kết quả {row['value']} {row['unit']}, "
-            f"{POSITIONS[row['status']]} {reference_label} "
-            f"({row['ref_low']}–{row['ref_high']} {row['unit']}). "
-            "Điều này chỉ cho biết con số đang ở đâu so với khoảng đã chọn, không tự xác định có bất thường hay không. "
-            "Anh/chị có thể hỏi bác sĩ theo dõi thai kỳ để hiểu kết quả trong tình trạng cụ thể của mình ạ."
-        )
-        return {"status": "explained", "analyte": analyte, "output": prefix + output,
-                "comparison": row, "sources": sources, **metadata}
+        return _explain_analyte(analyte, rows[analyte], comparison, prefix=prefix)
 
     route = intent if isinstance(intent, str) and intent in ROUTES else "clarify_question"
     note("nhánh câu hỏi: " + route)
@@ -204,3 +206,23 @@ def answer(text: str, *, confirmed=False) -> dict:
             "output": f"Em chưa thấy dòng {missing_analyte} trong phiếu đã xác nhận. Anh/chị kiểm tra phiếu hoặc bổ sung chỉ số này rồi xác nhận lại nhé ạ.",
         }
     return {"status": route, "output": prefix + ROUTES[route]}
+
+
+def _explain_analyte(analyte, row, comparison, *, prefix=""):
+    metadata, reference_label, sources = _reference_details(comparison)
+    explanation = ANALYTE_EXPLANATIONS.get(
+        analyte, f"{ANALYTES[analyte].capitalize()} là một chỉ số trong công thức máu CBC."
+    )
+    status = {
+        "below": "thấp hơn khoảng tham chiếu",
+        "within": "nằm trong khoảng tham chiếu",
+        "above": "cao hơn khoảng tham chiếu",
+    }[row["status"]]
+    output = (
+        f"{explanation} Kết quả {analyte} của anh/chị là {row['value']} {row['unit']}, {status} "
+        f"{reference_label} ({row['ref_low']}–{row['ref_high']} {row['unit']}). "
+        "Trạng thái này chỉ mô tả vị trí của con số so với khoảng đang dùng; không tự kết luận có hay không có bệnh. "
+        "Bác sĩ sẽ xem thêm tuổi thai, triệu chứng và thông tin sức khỏe để đánh giá trong bối cảnh cụ thể ạ."
+    )
+    return {"status": "explained", "analyte": analyte, "output": prefix + output,
+            "comparison": row, "sources": sources, **metadata}
