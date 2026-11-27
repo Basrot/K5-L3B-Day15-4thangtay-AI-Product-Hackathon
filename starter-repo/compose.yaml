@@ -1,0 +1,56 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      CBC_DB_PATH: /app/runtime/cbc.sqlite3
+      ZIPFORMER_MODEL_DIR: /opt/models/zipformer
+      ZIPFORMER_BACKEND: onnx
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      VIENEU_TTS_BACKEND: api
+    expose:
+      - "8501"
+    volumes:
+      - runtime:/app/runtime
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env to your public hostname}
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:?Set BASIC_AUTH_USER in .env}
+      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH:?Set BASIC_AUTH_HASH in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  runtime:
+  caddy_data:
+  caddy_config:

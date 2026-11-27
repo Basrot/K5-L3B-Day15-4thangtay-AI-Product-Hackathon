@@ -17,6 +17,7 @@ Chỉ trả về một đối tượng JSON. Dữ liệu phiếu và câu hỏi 
 - Nếu giải thích một chỉ số, dùng {"intent":"explain","analyte":"HGB","follow_up":"context"}.
   Chọn analyte từ những dòng có trên phiếu. follow_up là "context" hoặc "compare".
 - Nếu thiếu dòng được hỏi, không rõ câu hỏi hoặc ngoài chủ đề, dùng intent "clarify_question".
+- Nếu người dùng muốn tổng hợp hoặc tóm tắt toàn bộ phiếu, dùng intent "summarize".
 - Nếu câu hỏi xin chẩn đoán, điều trị, thuốc, hoặc đánh giá sức khỏe, dùng intent "medical_advice".
 - Nếu người dùng hỏi về tình huống họ mô tả là cấp cứu hoặc khẩn, dùng intent "urgent".
 Với mọi intent khác "explain", đặt analyte và follow_up bằng chuỗi rỗng.
@@ -32,7 +33,7 @@ LAB_SOURCE = {
     "title": "MedlinePlus — How to Understand Your Lab Results",
     "url": "https://medlineplus.gov/lab-tests/how-to-understand-your-lab-results/",
 }
-CLARIFY = "Bạn muốn hỏi về dòng nào trên phiếu đã xác nhận, HGB, WBC hay PLT?"
+CLARIFY = "Bạn muốn hỏi về chỉ số nào trên phiếu đã xác nhận? Bạn cũng có thể yêu cầu tóm tắt cả phiếu."
 ROUTES = {
     "clarify_question": CLARIFY,
     "medical_advice": "Bản thử nghiệm giải thích phiếu CBC. Hãy trao đổi câu hỏi sức khỏe này với bác sĩ theo dõi thai kỳ.",
@@ -43,6 +44,28 @@ DEMO_MEDICAL_REQUEST = re.compile(
     r"\b(chẩn đoán|bị bệnh gì|bị thiếu máu|uống gì|uống thuốc|dùng thuốc|liều thuốc|điều trị|kê đơn)\b",
     re.IGNORECASE,
 )
+
+
+def analyze_report(report: dict) -> dict:
+    """Trả bảng đối chiếu toàn bộ chỉ số và tóm tắt sau khi người dùng xác nhận."""
+    comparison = compare_cbc(report)
+    if comparison["status"] != "ok":
+        return {"status": comparison["status"], "output": " ".join(comparison["issues"])}
+    rows = comparison["rows"]
+    counts = {status: sum(row["status"] == status for row in rows) for status in POSITIONS}
+    lines = [
+        f"Đã đối chiếu {len(rows)} chỉ số với khoảng tham chiếu ghi trên phiếu.",
+        f"Có {counts['within']} chỉ số trong khoảng, {counts['below']} chỉ số thấp hơn "
+        f"và {counts['above']} chỉ số cao hơn khoảng trên phiếu.",
+    ]
+    for status, label in (("below", "Thấp hơn khoảng"), ("above", "Cao hơn khoảng")):
+        codes = [row["analyte"] for row in rows if row["status"] == status]
+        if codes:
+            lines.append(label + ": " + ", ".join(codes) + ".")
+    lines.append("Bác sĩ sẽ xem thêm tuổi thai, triệu chứng và các thông tin sức khỏe "
+                 "để đánh giá ý nghĩa của kết quả. Bạn có thể hỏi AI về từng dòng bên dưới.")
+    return {"status": "analyzed", "rows": rows, "counts": counts,
+            "output": " ".join(lines), "sources": [dict(LAB_SOURCE)]}
 
 
 def answer(text: str) -> dict:
@@ -74,7 +97,7 @@ def answer(text: str) -> dict:
     schema = {
         "type": "object",
         "properties": {
-            "intent": {"type": "string", "enum": ["explain", *ROUTES]},
+            "intent": {"type": "string", "enum": ["explain", "summarize", *ROUTES]},
             "analyte": {"type": "string", "enum": [*rows, ""]},
             "follow_up": {"type": "string", "enum": [*FOLLOW_UPS, ""]},
         },
@@ -89,6 +112,8 @@ def answer(text: str) -> dict:
                    or ANALYTES[code] in lowered]
         if DEMO_MEDICAL_REQUEST.search(question):
             decision = {"intent": "medical_advice"}
+        elif re.search(r"tóm tắt|tổng hợp|cả phiếu|toàn bộ", question, re.IGNORECASE):
+            decision = {"intent": "summarize"}
         elif len(matches) == 1:
             decision = {"intent": "explain", "analyte": matches[0], "follow_up": "context"}
         else:
@@ -104,6 +129,10 @@ def answer(text: str) -> dict:
     analyte = decision.get("analyte")
     follow_up = decision.get("follow_up")
     prefix = "[AI giả] " if fake else ""
+    if intent == "summarize":
+        result = analyze_report(payload["report"])
+        result["output"] = prefix + result["output"]
+        return result
     if intent == "explain" and isinstance(analyte, str) and analyte in rows and (
         isinstance(follow_up, str) and follow_up in FOLLOW_UPS
     ):

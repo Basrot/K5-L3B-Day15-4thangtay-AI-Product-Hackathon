@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+import os
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
@@ -14,7 +15,8 @@ class CBCService:
     """Mỗi trình duyệt giữ session_id riêng. Phiếu mẫu được xác nhận trước khi lưu."""
 
     def __init__(self, db_path=None):
-        self.path = Path(db_path or Path(__file__).resolve().parents[1] / "runtime" / "cbc.sqlite3")
+        self.path = Path(db_path or os.environ.get("CBC_DB_PATH") or
+                         Path(__file__).resolve().parents[1] / "runtime" / "cbc.sqlite3")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connection() as db:
             db.executescript("""
@@ -41,6 +43,7 @@ class CBCService:
         db = sqlite3.connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
+        db.execute("PRAGMA secure_delete = ON")
         try:
             with db:
                 yield db

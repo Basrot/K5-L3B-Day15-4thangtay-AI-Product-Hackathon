@@ -149,7 +149,7 @@ class SpeechTest(unittest.TestCase):
         with wave.open(out, "wb") as recording:
             recording.setparams((1, 2, 16000, 0, "NONE", ""))
             recording.writeframes(bytes.fromhex("0080 0000 0040"))
-        with patch.dict("os.environ", {"ZIPFORMER_MODEL_DIR": "unused-model"}):
+        with patch.dict("os.environ", {"ZIPFORMER_MODEL_DIR": "unused-model", "ZIPFORMER_BACKEND": "sherpa"}):
             with patch.object(speech, "_recognizer", return_value=recognizer):
                 self.assertEqual(speech.transcribe_wav(out.getvalue()), "huyết sắc tố")
         self.assertEqual(recognizer.input, (16000, [-1.0, 0.0, 0.5]))

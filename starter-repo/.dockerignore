@@ -1,0 +1,9 @@
+# Allowlist build inputs; real reports, credentials, local models and DB stay out.
+**
+!Dockerfile
+!requirements-server.txt
+!voice_demo.py
+!codebase/
+!codebase/*.py
+!data/
+!data/full-panel-demo.json

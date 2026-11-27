@@ -6,10 +6,12 @@ from decimal import Decimal
 
 if __package__:
     from .tracing import tool
+    from .catalog import ANALYTES, normalize_analyte
 else:
     from tracing import tool
+    from catalog import ANALYTES, normalize_analyte
 
-ANALYTES = {"HGB": "huyết sắc tố", "WBC": "bạch cầu", "PLT": "tiểu cầu"}
+# Each exponent converts a value to the same dimension-specific base unit.
 UNITS = {
     "HGB": {"g/l": ("g/L", -1), "g/dl": ("g/dL", 0)},
     "WBC": {
@@ -18,6 +20,20 @@ UNITS = {
     },
 }
 UNITS["PLT"] = UNITS["WBC"]
+UNITS["RBC"] = {"10^12/l": ("10¹²/L", 0), "10^6/μl": ("10⁶/µL", 0),
+                "m/μl": ("M/µL", 0)}
+UNITS["HCT"] = {"%": ("%", 0), "l/l": ("L/L", 2)}
+UNITS["MCHC"] = UNITS["HGB"]
+UNITS["FIB"] = {"g/l": ("g/L", 0), "mg/dl": ("mg/dL", -2)}
+for _code in ("NEUT", "LYMPH", "MONO", "EOS", "BASO"):
+    UNITS[_code + "_ABS"] = UNITS["WBC"]
+    UNITS[_code + "_PCT"] = {"%": ("%", 0)}
+for _code in ("MCV", "RDW_SD", "MPV"):
+    UNITS[_code] = {"fl": ("fL", 0)}
+UNITS["MCH"] = {"pg": ("pg", 0)}
+UNITS["RDW"] = {"%": ("%", 0)}
+for _code in ("PT", "APTT"):
+    UNITS[_code] = {"s": ("s", 0), "sec": ("s", 0)}
 NUMBER = re.compile(r"[0-9]{1,12}(?:[.,][0-9]{1,8})?")
 GESTATIONAL_AGE = re.compile(r"([0-9]{1,2})w([0-6])d", re.IGNORECASE)
 
@@ -32,9 +48,12 @@ def _decimal(raw):
 
 
 def _unit(analyte, raw):
-    text = str(raw).replace("⁹", "^9").replace("³", "^3")
+    text = str(raw)
+    for superscript, exponent in (("¹²", "^12"), ("⁹", "^9"), ("⁶", "^6"), ("³", "^3")):
+        text = text.replace(superscript, exponent)
     key = unicodedata.normalize("NFKC", text).lower()
     key = "".join(key.split()).removeprefix("×").removeprefix("x")
+    key = key.replace("ul", "μl")
     return UNITS[analyte].get(key)
 
 
@@ -63,13 +82,13 @@ def compare_cbc(report: dict) -> dict:
 
     raw_rows = report.get("rows")
     if not isinstance(raw_rows, list) or not 1 <= len(raw_rows) <= len(ANALYTES):
-        return {"status": "needs_input", "issues": ["Nhập từ một đến ba dòng HGB, WBC hoặc PLT."]}
+        return {"status": "needs_input", "issues": ["Nhập từ 1 đến 24 chỉ số trong danh mục xét nghiệm."]}
 
     rows, issues, seen = [], [], set()
     for index, raw in enumerate(raw_rows, start=1):
-        analyte = str(raw.get("analyte", "")).upper().strip() if isinstance(raw, dict) else ""
+        analyte = normalize_analyte(raw.get("analyte", "")) if isinstance(raw, dict) else ""
         if analyte not in ANALYTES:
-            issues.append(f"Dòng {index}: chọn HGB, WBC hoặc PLT.")
+            issues.append(f"Dòng {index}: chọn chỉ số trong danh mục; bạch cầu thành phần cần ghi rõ số lượng (#/ABS) hoặc tỷ lệ (%/PCT).")
             continue
         if analyte in seen:
             issues.append(f"{analyte}: chỉ giữ một dòng từ phiếu hiện tại.")

@@ -17,15 +17,19 @@ Chế độ giả (mặc định khi .env chưa có MODEL_PROVIDER, hoặc MODEL
 Nối model thật: điền .env (chép từ .env.example), rồi viết nhánh gọi API ở dưới theo docs/connect-model.md
 (có ví dụ OpenAI, Claude, model chạy trên máy, và cách nối nhà cung cấp khác). Không dán API key vào file này.
 """
+import base64
 import json
 import os
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
+from urllib.parse import urlsplit
 
 if __package__:
     from .tracing import model_call
+    from .http_client import urlopen
 else:
     from tracing import model_call
+    from http_client import urlopen
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -49,43 +53,98 @@ MODEL_NAME = (os.environ.get("MODEL_NAME") or "").strip()
 
 
 @model_call
-def call_model(system: str, user: str, *, output_schema: dict | None = None) -> dict:
+def call_model(system: str, user: str, *, output_schema: dict | None = None,
+               images: list[bytes] | None = None, model_name: str | None = None,
+               max_tokens: int | None = None) -> dict:
     if MODEL_PROVIDER == "fake":
         last = (user.strip().splitlines() or [""])[-1]
         return {"text": "[câu trả lời giả — chưa nối model] " + last[:60], "model": "fake", "tokens_in": 0, "tokens_out": 0}
 
-    if MODEL_PROVIDER != "ollama" or not MODEL_NAME:
-        raise ValueError("Cấu hình MODEL_PROVIDER=ollama và MODEL_NAME, hoặc dùng MODEL_PROVIDER=fake.")
+    selected_model = model_name or MODEL_NAME
+    if MODEL_PROVIDER not in ("ollama", "openai_compatible") or not selected_model:
+        raise ValueError("Cấu hình MODEL_PROVIDER=ollama hoặc openai_compatible và MODEL_NAME.")
+
+    if max_tokens is not None and (type(max_tokens) is not int or max_tokens <= 0):
+        raise ValueError("max_tokens phải là số nguyên dương.")
+    user_message = {"role": "user", "content": user}
+    if images is not None:
+        if not isinstance(images, list) or any(not isinstance(item, bytes) or not item for item in images):
+            raise ValueError("images phải là danh sách dữ liệu ảnh bytes không rỗng.")
+        user_message["images"] = [base64.b64encode(item).decode("ascii") for item in images]
 
     body = {
-        "model": MODEL_NAME,
-        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        "model": selected_model,
+        "messages": [{"role": "system", "content": system}, user_message],
         "stream": False,
         "format": output_schema or "json",
         "think": False,
-        "options": {"temperature": 0, "num_predict": 180},
+        "options": {"temperature": 0, "num_predict": max_tokens or 180},
     }
+    endpoint = "http://127.0.0.1:11434/api/chat"
+    headers = {"Content-Type": "application/json"}
+    if MODEL_PROVIDER == "openai_compatible":
+        base = os.environ.get("LLM_API_BASE", "https://api.openai.com/v1").rstrip("/")
+        api_key = os.environ.get("API_KEY", "").strip()
+        if images:
+            base = os.environ.get("VISION_API_BASE", "").strip().rstrip("/") or base
+            vision_key = os.environ.get("VISION_API_KEY", "").strip()
+            text_origin = urlsplit(os.environ.get("LLM_API_BASE", "https://api.openai.com/v1"))
+            vision_origin = urlsplit(base)
+            if (vision_origin.hostname, vision_origin.port, vision_origin.scheme) != (
+                text_origin.hostname, text_origin.port, text_origin.scheme
+            ) and not vision_key:
+                raise ValueError("Điền VISION_API_KEY riêng khi dùng nhà cung cấp đọc ảnh khác.")
+            api_key = vision_key or api_key
+        parsed = urlsplit(base)
+        if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+            raise ValueError("LLM_API_BASE và VISION_API_BASE phải là URL HTTPS.")
+        if not api_key:
+            raise ValueError("Điền API_KEY trong .env để gọi model qua API.")
+        endpoint = base + "/chat/completions"
+        headers["Authorization"] = "Bearer " + api_key
+        if images:
+            user_message["content"] = [{"type": "text", "text": user}] + [
+                {"type": "image_url", "image_url": {
+                    "url": "data:" + ("image/png" if image.startswith(b"\x89PNG") else "image/jpeg")
+                    + ";base64," + base64.b64encode(image).decode("ascii")
+                }} for image in images
+            ]
+            user_message.pop("images", None)
+        body = {
+            "model": selected_model, "messages": body["messages"],
+            "max_tokens": max_tokens or 180,
+            "temperature": 0,
+        }
+        if output_schema:
+            body["response_format"] = {"type": "json_schema", "json_schema": {
+                "name": "cbc_result", "schema": output_schema, "strict": False,
+            }}
     request = Request(
-        "http://127.0.0.1:11434/api/chat",
+        endpoint,
         data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
-        with urlopen(request, timeout=90) as response:
+        with urlopen(request, timeout=300 if images else 90) as response:
             data = json.load(response)
     except HTTPError as exc:
-        raise RuntimeError(f"Ollama trả HTTP {exc.code}. Kiểm tra model đã tải và cấu hình.") from exc
+        raise RuntimeError(f"Dịch vụ AI trả HTTP {exc.code}. Kiểm tra model, khóa API và hạn mức.") from exc
     except (URLError, TimeoutError) as exc:
-        raise RuntimeError("Không kết nối được Ollama cục bộ hoặc model phản hồi quá thời gian.") from exc
+        raise RuntimeError("Không kết nối được dịch vụ AI hoặc model phản hồi quá thời gian.") from exc
 
     try:
-        reply = data["message"]["content"]
-        tokens_in = data["prompt_eval_count"]
-        tokens_out = data["eval_count"]
-    except (KeyError, TypeError) as exc:
-        raise RuntimeError("Phản hồi Ollama thiếu nội dung hoặc số token.") from exc
+        if MODEL_PROVIDER == "openai_compatible":
+            reply = data["choices"][0]["message"]["content"]
+            tokens_in = data["usage"]["prompt_tokens"]
+            tokens_out = data["usage"]["completion_tokens"]
+        else:
+            reply = data["message"]["content"]
+            tokens_in = data["prompt_eval_count"]
+            tokens_out = data["eval_count"]
+    except (KeyError, TypeError, IndexError) as exc:
+        raise RuntimeError("Phản hồi dịch vụ AI thiếu nội dung hoặc số token.") from exc
     if not isinstance(reply, str) or not reply.strip():
         raise RuntimeError("Ollama trả lời rỗng.")
-    return {"text": reply, "model": data.get("model") or MODEL_NAME,
+    return {"text": reply, "model": data.get("model") or selected_model,
             "tokens_in": tokens_in, "tokens_out": tokens_out}

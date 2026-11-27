@@ -1,5 +1,15 @@
 # Bàn giao phần AI cho CP2
 
+## Phạm vi mở rộng
+
+Ứng dụng nhận tối đa 24 dòng từ cùng một phiếu, gồm 21 chỉ số CBC và PT, APTT, FIB. Danh mục, cách gọi và đơn vị hỗ trợ nằm trong `codebase/catalog.py`. Các dòng tỷ lệ bạch cầu có hậu tố `_PCT`, số lượng tuyệt đối có hậu tố `_ABS`.
+
+Mở trang bằng `./start-voice-demo.ps1`. Có thể dùng phiếu giả lập 24 chỉ số, nhập phiếu mới, hoặc tải JPG/PNG rồi đọc vào các ô. Điền tuổi thai lúc xét nghiệm và kiểm từng trường trước khi bấm “Xác nhận và nhận kết quả”. App trả bảng đối chiếu từng dòng, tóm tắt số dòng dưới/trong/trên khoảng và bản kết quả tải về. Khi sửa dữ liệu, kết quả và xác nhận cũ được xóa, cần xác nhận lại.
+
+Đọc ảnh dùng `extract_report(image_bytes, mime_type)` qua model thị giác Ollama cục bộ `gemma3:4b`. Cài model bằng `ollama pull gemma3:4b`. Có thể đổi `VISION_MODEL`. Trường không đọc được hoặc không có trên ảnh để trống để người dùng bổ sung. Dùng `analyze_report(report)` để lấy bảng đối chiếu toàn phiếu sau xác nhận. Gọi `answer()` cho câu hỏi từng chỉ số hoặc yêu cầu tóm tắt.
+
+File `data/full-panel-demo.json` là số dựng để kiểm phần mềm, gồm các khoảng dựng. Dữ liệu nghiên cứu gốc vẫn nằm ngoài repo. Mọi phép đối chiếu dựa trên khoảng ghi trên phiếu được người dùng kiểm lại.
+
 ## Hai hàm dùng từ giao diện
 
 Chạy từ thư mục chứa `run.py`. Truyền phiếu **sau khi người dùng đã xác nhận**. Dùng cùng định dạng [JSON mẫu](../data/cbc-demo-input.json) cho nhập tay, kết quả đọc ảnh và cột `input` của benchmark. Phiếu và khoảng tham chiếu trong JSON là dữ liệu giả lập.
@@ -55,7 +65,7 @@ Trên máy khác, tạo `.venv` bằng Python 3.12, cài `pip install -r require
 
 ### Đọc câu trả lời bằng VieNeu
 
-`codebase.tts.synthesize_wav(text) -> bytes` tạo WAV từ câu trả lời đã hiển thị, dùng VieNeu 3.8.5 qua ONNX Runtime và giọng dựng sẵn Hải Đăng. Model và giọng được tải vào cache Hugging Face lần đầu, các lần sau dùng lại. Giao diện thử có ô “Đọc câu trả lời bằng giọng nói”, được bật sẵn. Khi tổng hợp thành công, trình phát xuất hiện bên dưới câu trả lời, có thể bấm nghe lại. Tắt ô này để chỉ nhận chữ.
+`codebase.tts.synthesize_wav(text) -> bytes` mặc định gọi API VieNeu chính thức qua HTTPS. Điền `VIENEU_API_KEY` trong `.env`, giữ `VIENEU_TTS_BACKEND=api`, `VIENEU_MODEL=vieneu-v4` và `VIENEU_VOICE=Minh Quân Pro`. Giọng này có tên hiển thị Hải Đăng trong danh mục API v4. Giao diện có ô “Đọc câu trả lời bằng giọng nói”. Khi tổng hợp thành công, trình phát xuất hiện bên dưới câu trả lời, có thể bấm nghe lại.
 
 ```python
 from codebase.tts import synthesize_wav
@@ -64,11 +74,11 @@ wav_bytes = synthesize_wav(result["output"])
 st.audio(wav_bytes, format="audio/wav", autoplay=True)
 ```
 
-Hàm đổi HGB/WBC/PLT, số thập phân và đơn vị HGB sang cách đọc tiếng Việt. Khi tạo giọng gặp lỗi, giao diện vẫn hiện nội dung trả lời và thông báo lỗi âm thanh. Giữ model trong cache và WAV sinh ra ngoài repo công khai.
+Hàm đổi tên 24 chỉ số, số thập phân và đơn vị sang cách đọc tiếng Việt. Khi tạo giọng gặp lỗi, giao diện vẫn hiện nội dung trả lời và thông báo lỗi âm thanh. API nhận phần giải thích cần đọc. Khóa được đọc ở phía server, còn trình duyệt nhận WAV.
 
-Môi trường Windows này dùng NumPy 2.2.6 theo `requirements-voice.txt` để tương thích các mô-đun native khi tổng hợp. Đã tạo WAV 48 kHz bằng VieNeu thật. Lần nạp model đầu lâu hơn các câu tiếp theo. Trình duyệt có thể yêu cầu bấm Play để phát âm thanh.
+Đường SDK cục bộ còn dùng được khi đặt `VIENEU_TTS_BACKEND=local` và cài `requirements-voice.txt`. Bản VPS dùng `requirements-server.txt`, cài các thư viện cần cho web và Zipformer. Trình duyệt có thể yêu cầu bấm Play để phát âm thanh. Các kiểm thử API dùng phản hồi WAV giả lập; cần khóa thật để xác minh tài khoản và hạn mức.
 
-Tài liệu SDK được đối chiếu tại [VieNeu-TTS](https://github.com/pnnbao97/VieNeu-TTS#sdk).
+Giao thức được đối chiếu tại [OpenAPI VieNeu](https://docs.vieneu.io/openapi.json). Xem [cấu hình VPS](vps-deployment.md) để chạy LLM, đọc ảnh và giọng đọc qua API.
 
 ## SQLite và lịch sử phiên
 
@@ -99,4 +109,4 @@ Mỗi lần gửi dùng một request_id mới. Khi gửi lại cùng yêu cầu
 
 `confirm_report` kiểm tra phiếu trước khi lưu, kiểm phiên bản, tăng revision và xóa lịch sử của phiếu trước. Xác nhận lại cùng dữ liệu giữ lịch sử hiện tại. `invalidate_report` kiểm phiên bản rồi xóa xác nhận và lịch sử. Các lần gọi model lỗi giữ nguyên dữ liệu đã xác nhận và cho phép thử lại. `delete_session` xóa cả phiếu và các câu hỏi trong một giao dịch. Giao diện có thể hiện `comparison` và `sources` trong kết quả `explained` để làm bảng đối chiếu và liên kết nguồn.
 
-Đây là kho dữ liệu của bản demo cục bộ dùng phiếu giả lập. DB lưu phiếu có cấu trúc và câu hỏi dạng chữ. Các tệp ảnh và WAV được xử lý trong bộ nhớ của bên gọi. Giao diện giữ session_id theo từng người dùng. Nếu triển khai nhiều tài khoản trên mạng, cần lớp xác thực và quyền truy cập tương ứng trước khi dùng lịch sử phiên.
+DB lưu phiếu có cấu trúc và câu hỏi dạng chữ. Các tệp ảnh và WAV được xử lý trong bộ nhớ của bên gọi. Giao diện giữ session_id theo từng người dùng và có mục “Phiên đã lưu” để mở lại bằng mã sau khi tải lại trang. “Nhập phiếu mới” mở phiên mới và xóa câu hỏi/bản ghi âm khỏi trạng thái đang xem. Phiếu trước vẫn nằm trong DB cho đến khi được xóa qua `delete_session`. Trên VPS, DB nằm trong volume Docker và bản demo dùng mật khẩu truy cập qua Caddy.

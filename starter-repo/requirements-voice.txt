@@ -2,3 +2,4 @@ numpy==2.2.6
 onnxruntime==1.32.0
 streamlit==1.67.0
 vieneu==3.8.5
+Pillow==13.0.0

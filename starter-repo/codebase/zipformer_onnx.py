@@ -38,7 +38,7 @@ class ZipformerOnnx:
         import onnxruntime as ort
 
         opts = ort.SessionOptions()
-        opts.intra_op_num_threads = 2
+        opts.intra_op_num_threads = 1
         opts.inter_op_num_threads = 1
         self.encoder = ort.InferenceSession(str(model_dir / "encoder.int8.onnx"), opts,
                                            providers=["CPUExecutionProvider"])

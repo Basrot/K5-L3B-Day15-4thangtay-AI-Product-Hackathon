@@ -22,6 +22,17 @@ class TTSTest(unittest.TestCase):
         self.assertEqual(speech_text("PLT 245 K/µL"),
                          "tiểu cầu 245 nghìn trên mi crô lít")
 
+    def test_expanded_panel_uses_full_names_and_preserves_fibrinogen_unit(self):
+        spoken = speech_text("FIB 450 mg/dL; MCV 83 fL; HCT 34%; NEUT_ABS")
+        self.assertIn("fibrinogen", spoken)
+        self.assertIn("mi li gam trên đề xi lít", spoken)
+        self.assertIn("fem tô lít", spoken)
+        self.assertIn("phần trăm", spoken)
+        self.assertNotIn("NEUT_ABS", spoken)
+        self.assertIn("triệu trên mi crô lít", speech_text("RBC 4.5 10⁶/µL"))
+        self.assertIn("triệu trên mi crô lít", speech_text("RBC 4.5 M/µL"))
+        self.assertIn("lít trên lít", speech_text("HCT 0.34 L/L"))
+
     def test_invalid_input_is_rejected_before_loading_model(self):
         with patch("codebase.tts._engine", side_effect=AssertionError("unexpected engine")):
             for text in ("", " " * 5, None, "a" * 3001):
@@ -38,7 +49,7 @@ class TTSTest(unittest.TestCase):
                     recording.setparams((1, 2, 48000, 0, "NONE", ""))
                     recording.writeframes(b"\x00\x00" * len(audio))
 
-        with patch("codebase.tts._engine", return_value=Engine()):
+        with patch.dict("os.environ", {"VIENEU_TTS_BACKEND": "local"}), patch("codebase.tts._engine", return_value=Engine()):
             result = synthesize_wav("Xin chào.")
         with wave.open(io.BytesIO(result)) as recording:
             self.assertEqual(recording.getframerate(), 48000)

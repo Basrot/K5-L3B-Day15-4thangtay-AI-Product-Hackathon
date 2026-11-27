@@ -5,6 +5,8 @@
 
 Tích hợp phần AI đọc phiếu CBC và Zipformer theo [hướng dẫn bàn giao CP2](docs/cbc-ai-handoff.md).
 
+Chạy bản đầy đủ 24 chỉ số, LLM/Vision/VieNeu qua API và SQLite trên VPS CPU theo [hướng dẫn Docker](docs/vps-deployment.md).
+
 **Thành viên, lớp, track:** xem [TEAMS.md](TEAMS.md). **Điền TEAMS.md đúng format**: khi chấm và đánh giá, BTC quét file này để ghép điểm cho từng người.
 
 *Lát cắt = phần nhỏ nhất làm xong được trong hackathon: một người dùng · một việc · một quyết định AI · một kết quả.*

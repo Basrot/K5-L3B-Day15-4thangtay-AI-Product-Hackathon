@@ -36,7 +36,7 @@ Data BTC cấp đã dùng (nếu có — không commit nguyên file): __
 
 Một thai phụ trưởng thành muốn hiểu dấu cao hoặc thấp trên phiếu CBC, AI chọn dòng liên quan để giải thích dựa trên dữ liệu đã xác nhận và gợi ý một câu hỏi cho buổi khám.
 
-**Phạm vi** gồm HGB, WBC và PLT. Các yêu cầu chẩn đoán, điều trị hoặc kê thuốc được chuyển về nhân viên y tế. Khoảng tham chiếu lấy từ phiếu đã xác nhận, còn dữ liệu nghiên cứu dùng làm tài liệu tham khảo.
+**Phạm vi** gồm đủ 21 chỉ số CBC và 3 chỉ số đông máu PT, APTT, FIB có trong bộ dữ liệu. Danh mục nằm ở `codebase/catalog.py`. Nhập tay hoặc đọc ảnh JPG/PNG vào các ô, người dùng kiểm tra và xác nhận, rồi hệ thống đối chiếu toàn bộ phiếu và trả bảng kết quả. Các yêu cầu chẩn đoán, điều trị hoặc kê thuốc được chuyển về nhân viên y tế. Khoảng tham chiếu lấy từ phiếu đã xác nhận, còn dữ liệu nghiên cứu dùng làm tài liệu tham khảo.
 
 ```mermaid
 flowchart LR
