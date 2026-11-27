@@ -97,6 +97,18 @@ class CBCWorkflowTest(unittest.TestCase):
         self.assertEqual(result["status"], "explained")
         self.assertIn("[AI giả]", result["output"])
 
+    def test_explanation_returns_comparison_and_source_for_ui(self):
+        with patch.object(agent, "call_model", return_value={"text": "", "model": "fake"}):
+            result = agent.answer(question("WBC của em như thế nào?"))
+        self.assertEqual(result["comparison"]["status"], "within")
+        self.assertTrue(result["sources"][0]["url"].startswith("https://medlineplus.gov/"))
+        self.assertIn("bác sĩ", result["output"])
+
+    def test_supported_report_with_missing_optional_reference_unit_is_incomplete(self):
+        row = report()["rows"][0].copy()
+        row.pop("ref_unit")
+        self.assertEqual(tools.compare_cbc(report(rows=[row]))["status"], "needs_input")
+
     def test_urgent_question_takes_priority_over_missing_report(self):
         with patch.object(agent, "call_model", side_effect=AssertionError("unexpected model call")):
             result = agent.answer(json.dumps({"question": "Tôi đang cần cấp cứu."}))

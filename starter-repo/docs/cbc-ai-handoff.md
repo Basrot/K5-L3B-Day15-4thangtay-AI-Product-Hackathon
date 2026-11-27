@@ -44,3 +44,34 @@ print(result["output"])
 Hàm AI nhận dữ liệu có cấu trúc. Phần đọc ảnh và xác nhận kết quả thuộc giao diện của thành viên 4. Model chọn dòng và loại câu hỏi gợi ý. Mọi số, đơn vị, khoảng và trạng thái hiển thị đều lấy từ hàm đối chiếu. Phần giải thích chỉ dùng khoảng tham chiếu do người dùng xác nhận trên phiếu.
 
 **Trạng thái kiểm thử giọng nói.** Các kiểm thử WAV tự động xác nhận đọc mẫu âm thanh, chuẩn hóa và chuyển dữ liệu đến bộ nhận dạng. Trên máy phát triển, Windows Application Control chặn thư viện native của wheel sherpa-onnx. Cần kiểm lại một WAV qua model thật trên máy demo hỗ trợ thư viện này.
+
+## SQLite và lịch sử phiên
+
+Thành viên 4 dùng lớp dưới đây nếu cần lưu phiên khi tải lại giao diện. SQLite tự khởi tạo bảng và dùng thư viện chuẩn Python. Mặc định tạo `runtime/cbc.sqlite3` bên cạnh `run.py`, đã được bỏ qua trong Git. Khi thử tự động, truyền đường dẫn DB riêng.
+
+```python
+from codebase.service import CBCService
+
+service = CBCService()
+# Chỉ tạo một lần và giữ session_id trong trạng thái phiên của giao diện.
+session_id = service.create_session()
+revision = service.get_session(session_id)["revision"]
+service.confirm_report(session_id, report, confirmed=True, expected_revision=revision)
+# Giữ revision cùng phiếu được hiển thị và cùng lần gửi câu hỏi.
+revision = service.get_session(session_id)["revision"]
+result = service.ask(session_id, question, expected_revision=revision,
+                     request_id="id-cua-lan-bam-gui")
+messages = service.history(session_id)
+saved_report = service.get_session(session_id)["report"]
+
+# Gọi ngay khi người dùng sửa trường hoặc chọn ảnh khác.
+service.invalidate_report(session_id, expected_revision=revision)
+# Khi kết thúc hoặc người dùng xóa phiên.
+service.delete_session(session_id)
+```
+
+Mỗi lần gửi dùng một request_id mới. Khi gửi lại cùng yêu cầu do tải lại trang hoặc lỗi mạng, giữ nguyên ID và expected_revision để lấy câu trả lời đã lưu. Tái sử dụng ID với câu hỏi khác báo ValueError. Hai yêu cầu đồng thời có cùng ID có thể cùng chạy model, nhưng chỉ một kết quả được lưu. Khi phiếu đổi trước hoặc trong lúc model trả lời, dịch vụ báo ValueError để giao diện tải lại dữ liệu và yêu cầu gửi lại.
+
+`confirm_report` kiểm tra phiếu trước khi lưu, kiểm phiên bản, tăng revision và xóa lịch sử của phiếu trước. Xác nhận lại cùng dữ liệu giữ lịch sử hiện tại. `invalidate_report` kiểm phiên bản rồi xóa xác nhận và lịch sử. Các lần gọi model lỗi giữ nguyên dữ liệu đã xác nhận và cho phép thử lại. `delete_session` xóa cả phiếu và các câu hỏi trong một giao dịch. Giao diện có thể hiện `comparison` và `sources` trong kết quả `explained` để làm bảng đối chiếu và liên kết nguồn.
+
+Đây là kho dữ liệu của bản demo cục bộ dùng phiếu giả lập. DB lưu phiếu có cấu trúc và câu hỏi dạng chữ. Các tệp ảnh và WAV được xử lý trong bộ nhớ của bên gọi. Giao diện giữ session_id theo từng người dùng. Nếu triển khai nhiều tài khoản trên mạng, cần lớp xác thực và quyền truy cập tương ứng trước khi dùng lịch sử phiên.

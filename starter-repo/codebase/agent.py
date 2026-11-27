@@ -28,6 +28,10 @@ FOLLOW_UPS = {
     "compare": "Khi so sánh với lần xét nghiệm trước, em nên dùng thông tin nào trên hai phiếu?",
 }
 POSITIONS = {"below": "thấp hơn giới hạn dưới", "above": "cao hơn giới hạn trên", "within": "nằm trong khoảng"}
+LAB_SOURCE = {
+    "title": "MedlinePlus — How to Understand Your Lab Results",
+    "url": "https://medlineplus.gov/lab-tests/how-to-understand-your-lab-results/",
+}
 CLARIFY = "Bạn muốn hỏi về dòng nào trên phiếu đã xác nhận, HGB, WBC hay PLT?"
 ROUTES = {
     "clarify_question": CLARIFY,
@@ -109,7 +113,9 @@ def answer(text: str) -> dict:
             f"{POSITIONS[row['status']]} ghi trên phiếu ({row['ref_low']}–{row['ref_high']} {row['unit']}). "
             f"Bạn có thể hỏi bác sĩ: {FOLLOW_UPS[follow_up]}"
         )
-        return {"status": "explained", "analyte": analyte, "output": prefix + output}
+        output += " Bác sĩ sẽ xem thêm bối cảnh sức khỏe để đánh giá ý nghĩa của kết quả."
+        return {"status": "explained", "analyte": analyte, "output": prefix + output,
+                "comparison": row, "sources": [dict(LAB_SOURCE)]}
 
     route = intent if isinstance(intent, str) and intent in ROUTES else "clarify_question"
     note("nhánh câu hỏi: " + route)
