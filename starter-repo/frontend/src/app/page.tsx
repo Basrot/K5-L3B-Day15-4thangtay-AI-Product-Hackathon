@@ -52,14 +52,14 @@ declare global {
 }
 
 const ANALYTE_LIST = [
-  { code: "HGB", name: "Huyết sắc tố (Hemoglobin)", defaultUnit: "g/dL" },
-  { code: "RBC", name: "Số lượng hồng cầu", defaultUnit: "10^12/L" },
-  { code: "HCT", name: "Hematocrit (Tỷ lệ thể tích máu)", defaultUnit: "%" },
-  { code: "MCV", name: "Thể tích trung bình hồng cầu", defaultUnit: "fL" },
-  { code: "MCH", name: "Lượng HGB trung bình hồng cầu", defaultUnit: "pg" },
-  { code: "MCHC", name: "Nồng độ HGB trung bình hồng cầu", defaultUnit: "g/dL" },
-  { code: "WBC", name: "Tổng số bạch cầu", defaultUnit: "10^9/L" },
-  { code: "PLT", name: "Số lượng tiểu cầu", defaultUnit: "10^9/L" },
+  { code: "HGB", name: "Huyết sắc tố (Hemoglobin)", description: "Nồng độ hemoglobin trong máu.", defaultUnit: "g/dL" },
+  { code: "RBC", name: "Số lượng hồng cầu", description: "Số lượng tế bào hồng cầu trong máu.", defaultUnit: "10^12/L" },
+  { code: "HCT", name: "Hematocrit", description: "Tỷ lệ thể tích máu do hồng cầu chiếm.", defaultUnit: "%" },
+  { code: "MCV", name: "Thể tích trung bình hồng cầu", description: "Kích thước trung bình của hồng cầu.", defaultUnit: "fL" },
+  { code: "MCH", name: "Lượng HGB trung bình hồng cầu", description: "Lượng hemoglobin trung bình trong mỗi hồng cầu.", defaultUnit: "pg" },
+  { code: "MCHC", name: "Nồng độ HGB trung bình hồng cầu", description: "Nồng độ hemoglobin bên trong hồng cầu.", defaultUnit: "g/dL" },
+  { code: "WBC", name: "Tổng số bạch cầu", description: "Số lượng tế bào bạch cầu trong máu.", defaultUnit: "10^9/L" },
+  { code: "PLT", name: "Số lượng tiểu cầu", description: "Số lượng tiểu cầu trong máu.", defaultUnit: "10^9/L" },
 ] as const;
 
 const STATUS_META: Record<RowStatus, { label: string; meaning: string; cls: string }> = {
@@ -659,6 +659,8 @@ export default function HomePage() {
   }
 
   const resultStage = pregnancyStageInfo(analysis?.trimester);
+  const resultRows = analysis?.rows || [];
+  const rowsToReview = resultRows.filter((row) => row.status !== "within");
 
   if (!token) {
     return (
@@ -1116,18 +1118,20 @@ export default function HomePage() {
               </div>
             ) : (
               <>
-                {/* Comparison Table */}
+                {/* Results overview and optional details */}
                 <div className="soft-card p-4 sm:p-5 space-y-3.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <h2 className="font-semibold text-[15px]">
-                        Kết quả đối chiếu
+                        Kết quả CBC
                         {resultStage
-                          ? ` · ${resultStage.title} (${resultStage.shortWeeks}, ${resultStage.weeks})`
+                          ? ` · ${resultStage.title} (${resultStage.weeks})`
                           : ""}
                       </h2>
                       <p className="text-xs text-[var(--muted)] mt-0.5">
-                        {analysis.output}
+                        {rowsToReview.length > 0
+                          ? `Có ${rowsToReview.length}/${resultRows.length} chỉ số nằm ngoài khoảng đang chọn.`
+                          : `Cả ${resultRows.length} chỉ số đã nhập đang nằm trong khoảng đang chọn.`}
                       </p>
                     </div>
                     <button
@@ -1140,81 +1144,116 @@ export default function HomePage() {
                     </button>
                   </div>
 
-                  <div className="rounded-xl bg-[#f8fafa] border border-[var(--border-strong)] p-3 text-xs text-[var(--muted)] space-y-1">
-                    <p className="font-medium text-[var(--foreground)]">Trạng thái cho biết gì?</p>
-                    <p>“Thấp hơn” là dưới mức thấp nhất; “trong khoảng” là nằm giữa mức thấp nhất và cao nhất; “cao hơn” là vượt mức cao nhất của khoảng đang chọn.</p>
-                    <p>Đây chỉ là phép so sánh, không tự kết luận kết quả bình thường hay bất thường. Kết quả giúp anh/chị nhận ra dòng nào cần hỏi bác sĩ; kể cả “trong khoảng” cũng không loại trừ bệnh.</p>
-                    {analysis.reference_mode === "study" && (
-                      <p className="font-medium text-[#7c3aed]">Riêng HGB: mức thấp nhất của khoảng nghiên cứu không dùng một mình để kết luận có hay không thiếu máu.</p>
-                    )}
-                  </div>
+                  <p className="text-xs text-[var(--muted)]">
+                    Đây là phép so sánh với khoảng đã chọn, không phải kết luận bệnh. Kết quả trong khoảng cũng không loại trừ bệnh.
+                  </p>
 
-                  <div className="overflow-x-auto border border-[var(--border-strong)] rounded-xl">
-                    <table className="w-full text-xs text-left border-collapse">
-                      <thead className="bg-[#f8fafa] text-[var(--muted)]">
-                        <tr>
-                          <th className="py-2.5 px-3 font-medium">Chỉ số</th>
-                          <th className="py-2.5 px-3 font-medium">Kết quả</th>
-                          <th className="py-2.5 px-3 font-medium">
-                            {analysis.reference_mode === "study"
-                              ? "Khoảng nghiên cứu theo giai đoạn"
-                              : "Khoảng trên phiếu"}
-                          </th>
-                          <th className="py-2.5 px-3 font-medium">Trạng thái</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[var(--border)]">
-                        {(analysis.rows || []).map((row) => (
-                          <tr key={row.analyte} className="hover:bg-[#f8fafa]">
-                            <td className="py-2.5 px-3 font-semibold">
-                              {row.analyte}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              {row.value} {row.unit}
-                            </td>
-                            <td className="py-2.5 px-3 text-[var(--muted)]">
-                              {row.ref_low} – {row.ref_high} {row.unit}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <span
-                                className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                                  STATUS_META[row.status].cls
-                                }`}
-                              >
-                                {STATUS_META[row.status].label}
-                              </span>
-                              <p className="mt-1 text-[10px] leading-snug text-[var(--muted)]">
-                                {STATUS_META[row.status].meaning}
+                  {rowsToReview.length > 0 && (
+                    <section className="rounded-xl border border-[#f3d9a7] bg-[#fffbeb] p-3 space-y-2">
+                      <div>
+                        <h3 className="text-sm font-semibold text-[var(--foreground)]">Nên hỏi bác sĩ</h3>
+                        <p className="text-xs text-[var(--muted)]">Anh/chị có thể ghi lại các dòng này để trao đổi trong buổi khám.</p>
+                      </div>
+                      <ul className="space-y-2">
+                        {rowsToReview.map((row) => {
+                          const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
+                          return (
+                            <li key={row.analyte} className="rounded-lg bg-white/80 p-2.5 text-xs">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="font-semibold">{info?.name || row.analyte} ({row.analyte})</span>
+                                <span>{row.value} {row.unit}</span>
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_META[row.status].cls}`}>
+                                  {STATUS_META[row.status].label}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-[var(--muted)]">
+                                {info?.description} {STATUS_META[row.status].meaning}
                               </p>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  )}
 
-                  {(analysis.reference_note || analysis.reference_source) && (
-                    <div className="p-3 rounded-xl bg-[#f8fafa] text-[11px] text-[var(--muted)] space-y-1">
-                      {analysis.reference_source && (
-                        <div className="font-medium text-[var(--foreground)] flex items-center gap-1.5">
-                          <span>Nguồn: {analysis.reference_source.title}</span>
-                          {analysis.reference_source.url && (
-                            <a
-                              href={analysis.reference_source.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[var(--primary)] inline-flex items-center gap-0.5 underline"
-                            >
-                              Xem bài báo <ExternalLink className="w-3 h-3" />
-                            </a>
+                  <details className="rounded-xl border border-[var(--border-strong)]">
+                    <summary className="cursor-pointer select-none p-3 text-sm font-medium">
+                      Xem và hiểu đủ {resultRows.length} chỉ số
+                    </summary>
+                    <div className="px-3 pb-3 space-y-3">
+                      <div className="overflow-x-auto border border-[var(--border-strong)] rounded-xl">
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead className="bg-[#f8fafa] text-[var(--muted)]">
+                            <tr>
+                              <th className="py-2.5 px-3 font-medium">Chỉ số</th>
+                              <th className="py-2.5 px-3 font-medium">Kết quả</th>
+                              <th className="py-2.5 px-3 font-medium">
+                                {analysis.reference_mode === "study"
+                                  ? "Khoảng nghiên cứu theo giai đoạn"
+                                  : "Khoảng trên phiếu"}
+                              </th>
+                              <th className="py-2.5 px-3 font-medium">So với khoảng</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[var(--border)]">
+                            {resultRows.map((row) => {
+                              const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
+                              return (
+                                <tr key={row.analyte} className="hover:bg-[#f8fafa]">
+                                  <td className="py-2.5 px-3">
+                                    <div className="font-semibold">{info?.name || row.analyte} ({row.analyte})</div>
+                                    {info?.description && (
+                                      <p className="mt-1 text-[10px] leading-snug text-[var(--muted)]">{info.description}</p>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3">{row.value} {row.unit}</td>
+                                  <td className="py-2.5 px-3 text-[var(--muted)]">{row.ref_low} – {row.ref_high} {row.unit}</td>
+                                  <td className="py-2.5 px-3">
+                                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_META[row.status].cls}`}>
+                                      {STATUS_META[row.status].label}
+                                    </span>
+                                    <p className="mt-1 text-[10px] leading-snug text-[var(--muted)]">{STATUS_META[row.status].meaning}</p>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </details>
+
+                  <details className="rounded-xl border border-[var(--border-strong)]">
+                    <summary className="cursor-pointer select-none p-3 text-xs font-medium text-[var(--muted)]">
+                      Cách đọc kết quả và nguồn tham khảo
+                    </summary>
+                    <div className="px-3 pb-3 space-y-2 text-[11px] text-[var(--muted)]">
+                      <p>“Thấp hơn” nghĩa là dưới mức thấp nhất; “trong khoảng” nghĩa là từ mức thấp nhất đến mức cao nhất; “cao hơn” nghĩa là vượt mức cao nhất của khoảng đang chọn.</p>
+                      {analysis.reference_mode === "study" && (
+                        <p className="font-medium text-[#7c3aed]">Lưu ý HGB: mức thấp nhất của khoảng nghiên cứu không dùng một mình để kết luận có hay không thiếu máu.</p>
+                      )}
+                      {(analysis.reference_note || analysis.reference_source) && (
+                        <div className="pt-2 border-t border-[var(--border)] space-y-1">
+                          {analysis.reference_source && (
+                            <div className="font-medium text-[var(--foreground)] flex flex-wrap items-center gap-1.5">
+                              <span>Nguồn: {analysis.reference_source.title}</span>
+                              {analysis.reference_source.url && (
+                                <a
+                                  href={analysis.reference_source.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[var(--primary)] inline-flex items-center gap-0.5 underline"
+                                >
+                                  Xem bài báo <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
                           )}
+                          {analysis.reference_note && <p>{analysis.reference_note}</p>}
                         </div>
                       )}
-                      {analysis.reference_note && (
-                        <p>{analysis.reference_note}</p>
-                      )}
                     </div>
-                  )}
+                  </details>
                 </div>
 
                 {/* Q&A + Voice */}
