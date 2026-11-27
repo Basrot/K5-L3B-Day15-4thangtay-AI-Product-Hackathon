@@ -127,7 +127,7 @@ function normalizeRowsForForm(
 
 function toApiPayload(draft: CBCReport): CBCReport {
   const filledRows = draft.rows
-    .filter((r) => (r.value ?? "").trim() !== "" || (r.unit ?? "").trim() !== "")
+    .filter((r) => (r.value ?? "").trim() !== "")
     .map((r) => {
       if (draft.reference_mode === "study") {
         return {
