@@ -35,6 +35,22 @@ import type {
   RowStatus,
 } from "@/lib/types";
 
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (options: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+          }) => void;
+          renderButton: (element: HTMLElement, options: Record<string, string | number>) => void;
+        };
+      };
+    };
+  }
+}
+
 const ANALYTE_LIST = [
   { code: "HGB", name: "Huyết sắc tố (Hemoglobin)", defaultUnit: "g/dL" },
   { code: "RBC", name: "Số lượng hồng cầu", defaultUnit: "10^12/L" },
@@ -159,8 +175,11 @@ export default function HomePage() {
   const [token, setToken] = useState("");
   const [username, setUsername] = useState("demo");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   const [sessionId, setSessionId] = useState("");
   const [revision, setRevision] = useState(0);
@@ -204,6 +223,44 @@ export default function HomePage() {
   );
 
   useEffect(() => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
+    if (!clientId) return;
+
+    const initializeGoogleButton = () => {
+      if (!window.google || !googleButtonRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: ({ credential }) => {
+          void handleGoogleCredential(credential);
+        },
+      });
+      googleButtonRef.current.replaceChildren();
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "rectangular",
+        width: 360,
+      });
+    };
+
+    let script = document.getElementById("google-identity-services") as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement("script");
+      script.id = "google-identity-services";
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.addEventListener("load", initializeGoogleButton, { once: true });
+      document.head.appendChild(script);
+    } else if (window.google) {
+      initializeGoogleButton();
+    } else {
+      script.addEventListener("load", initializeGoogleButton, { once: true });
+    }
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
@@ -239,20 +296,39 @@ export default function HomePage() {
     }
   }
 
+  async function finishSignIn(accessToken: string) {
+    const client = createApiClient(() => accessToken, () => setToken(""));
+    const session = await client.createSession();
+    setToken(accessToken);
+    setSessionId(session.session_id);
+    setRevision(session.revision);
+  }
+
+  async function handleGoogleCredential(credential: string) {
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      const result = await api.loginWithGoogle(credential);
+      await finishSignIn(result.access_token);
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : "Đăng nhập Google không thành công.");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setAuthError("");
     setAuthLoading(true);
     try {
-      const res = await api.login(username.trim(), password);
-      setToken(res.access_token);
-      const client = createApiClient(
-        () => res.access_token,
-        () => setToken("")
-      );
-      const session = await client.createSession();
-      setSessionId(session.session_id);
-      setRevision(session.revision);
+      if (authMode === "register" && password !== passwordConfirm) {
+        throw new Error("Hai mật khẩu chưa khớp.");
+      }
+      const res = authMode === "register"
+        ? await api.register(username.trim(), password)
+        : await api.login(username.trim(), password);
+      await finishSignIn(res.access_token);
     } catch (err) {
       setAuthError(
         err instanceof Error ? err.message : "Đăng nhập không thành công."
@@ -581,7 +657,7 @@ export default function HomePage() {
                 Đọc phiếu CBC thai kỳ
               </h1>
               <p className="text-xs text-[var(--muted)]">
-                Nhóm 4thangtay · Đăng nhập bản demo
+                Nhóm 4thangtay · Đăng nhập hoặc tạo tài khoản
               </p>
             </div>
           </div>
@@ -593,39 +669,91 @@ export default function HomePage() {
             </div>
           )}
 
+          {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? (
+            <div className="flex flex-col items-center gap-3">
+              <div ref={googleButtonRef} className="min-h-10" />
+              <div className="w-full flex items-center gap-3 text-[11px] text-[var(--muted)]">
+                <span className="h-px flex-1 bg-[var(--border-strong)]" />
+                hoặc đăng nhập bằng email
+                <span className="h-px flex-1 bg-[var(--border-strong)]" />
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--muted)]">
+              Đăng nhập Google sẽ hiện sau khi cấu hình Google Client ID.
+            </p>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-3.5">
             <div>
               <label className="block text-xs font-medium text-[var(--muted)] mb-1">
-                Tên đăng nhập
+                {authMode === "register" ? "Email" : "Email hoặc tên đăng nhập admin"}
               </label>
               <input
+                type={authMode === "register" ? "email" : "text"}
                 className="wf-input"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                placeholder={authMode === "register" ? "ten@example.com" : "Email hoặc tên admin"}
+                autoComplete={authMode === "register" ? "email" : "username"}
                 required
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-[var(--muted)] mb-1">
-                Mật khẩu demo
+                Mật khẩu
               </label>
               <input
                 type="password"
                 className="wf-input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu được cấp"
+                placeholder={authMode === "register" ? "Ít nhất 10 ký tự" : "Nhập mật khẩu"}
+                autoComplete={authMode === "register" ? "new-password" : "current-password"}
                 required
               />
             </div>
+            {authMode === "register" && (
+              <div>
+                <label className="block text-xs font-medium text-[var(--muted)] mb-1">
+                  Nhập lại mật khẩu
+                </label>
+                <input
+                  type="password"
+                  className="wf-input"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+            )}
             <button
               type="submit"
               className="btn-primary w-full"
               disabled={authLoading}
             >
-              {authLoading ? "Đang kết nối..." : "Đăng nhập"}
+              {authLoading
+                ? "Đang kết nối..."
+                : authMode === "register" ? "Tạo tài khoản" : "Đăng nhập"}
             </button>
           </form>
+          <p className="text-center text-xs text-[var(--muted)]">
+            {authMode === "register" ? "Đã có tài khoản?" : "Chưa có tài khoản?"}{" "}
+            <button
+              type="button"
+              className="font-semibold text-[var(--primary)] underline underline-offset-2"
+              onClick={() => {
+                setAuthError("");
+                setAuthMode(authMode === "register" ? "login" : "register");
+                setUsername("");
+                setPassword("");
+                setPasswordConfirm("");
+              }}
+            >
+              {authMode === "register" ? "Đăng nhập" : "Đăng ký"}
+            </button>
+          </p>
         </div>
       </main>
     );

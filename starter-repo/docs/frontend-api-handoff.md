@@ -18,9 +18,12 @@ OpenAPI và màn hình thử nằm ở `/openapi.json` và `/docs`. Trong Vercel
 
 ```dotenv
 NEXT_PUBLIC_CBC_API_URL=https://your-backend.up.railway.app
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
 ```
 
 Railway đặt CORS_ORIGINS bằng origin Vercel chính xác, ví dụ https://your-app.vercel.app. Thêm localhost khi phát triển. Các khóa AI, mật khẩu app và APP_SECRET được giữ trên backend.
+
+`NEXT_PUBLIC_GOOGLE_CLIENT_ID` chỉ cần thiết khi muốn bật nút Google. Cùng giá trị phải nằm trong Railway `GOOGLE_CLIENT_ID`; đăng ký OAuth Web Client trong Google Cloud và cho phép origin Vercel. Không cần Google client secret. Đổi biến Vercel cần build/deploy lại frontend. Email/mật khẩu đăng ký cho phép vào ngay; email verification và quên mật khẩu chưa được tích hợp. Email đăng ký không tự liên kết với tài khoản Google cùng địa chỉ.
 
 ## Endpoint
 
@@ -29,7 +32,9 @@ Ngoài health, login và OpenAPI, mỗi yêu cầu gửi header `Authorization: 
 | Method | Path | Đầu vào | Đầu ra |
 |---|---|---|---|
 | GET | /health | — | status |
-| POST | /v1/auth/login | username, password | access_token, token_type, expires_in |
+| POST | /v1/auth/login | username hoặc email, password | access_token, token_type, expires_in |
+| POST | /v1/auth/register | email, password (tối thiểu 10 ký tự) | Tạo user và trả access token |
+| POST | /v1/auth/google | Google ID credential | Xác minh Google, tạo/đăng nhập user và trả access token |
 | GET | /v1/catalog | — | Mảng 8 mục code, name, unit, group |
 | GET | /v1/references?gestational_age=21w3d | Tuổi thai | reference_mode, trimester, gestational_age, source, note, rows khoảng nghiên cứu |
 | POST | /v1/reports/validate | Report | status, rows hoặc issues |
@@ -75,7 +80,7 @@ Mẫu có trường `notice` chỉ để hiển thị. Trước khi gửi API, l
 
 ## Thứ tự luồng người dùng
 
-1. Login lấy bearer token, có hạn một giờ. Giữ token trong bộ nhớ phiên frontend và xóa khi logout hoặc nhận 401. Đây là tài khoản demo chung của nhóm; các phiên được nhận diện bằng mã ngẫu nhiên.
+1. Đăng nhập hoặc đăng ký lấy bearer token có hạn một giờ. Frontend giữ token trong bộ nhớ và xóa khi logout hoặc nhận 401. Mỗi tài khoản chỉ đọc và sửa các phiên CBC do chính tài khoản đó sở hữu; admin demo cũ giữ dữ liệu chưa có owner khi khởi động.
 2. Tạo session và giữ session_id cùng revision. Có thể cho người dùng giữ mã phiên để mở lại qua GET sau khi login.
 3. Chọn study mặc định, nhập từng kết quả/đơn vị và tuổi thai, hoặc đọc ảnh qua extract. Ảnh gửi đến dịch vụ AI đã cấu hình, vì vậy giao diện cho biết thao tác này trước nút đọc ảnh. Kết quả extract vẫn có ref_low/ref_high/ref_unit/warnings nhưng là bản nháp cần kiểm lại; study chỉ dùng analyte/value/unit và bỏ các khoảng OCR. Người dùng muốn khoảng trên phiếu chọn lab rõ ràng và kiểm cả khoảng.
 4. Khi người dùng xác nhận các trường, PUT report kèm revision đang xem. Hiện analysis ngay, gồm rows, counts, output, sources và metadata nguồn khoảng. rows có trạng thái below/within/above theo nguồn đã chọn; dùng nhãn khoảng nghiên cứu hoặc khoảng trên phiếu tương ứng, không diễn đạt thành chẩn đoán.

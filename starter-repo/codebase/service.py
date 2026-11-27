@@ -25,6 +25,7 @@ class CBCService:
                     id TEXT PRIMARY KEY,
                     report TEXT,
                     revision INTEGER NOT NULL DEFAULT 0,
+                    owner_id TEXT,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE TABLE IF NOT EXISTS messages (
@@ -38,6 +39,10 @@ class CBCService:
                     UNIQUE(session_id, revision, request_id)
                 );
             """)
+            session_columns = {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}
+            if "owner_id" not in session_columns:
+                db.execute("ALTER TABLE sessions ADD COLUMN owner_id TEXT")
+            db.execute("CREATE INDEX IF NOT EXISTS idx_sessions_owner ON sessions(owner_id)")
 
     @contextmanager
     def _connection(self):
@@ -51,21 +56,29 @@ class CBCService:
         finally:
             db.close()
 
-    def create_session(self):
+    def assign_unowned_sessions(self, owner_id):
+        with self._connection() as db:
+            db.execute("UPDATE sessions SET owner_id = ? WHERE owner_id IS NULL", (owner_id,))
+
+    def create_session(self, owner_id=None):
         session_id = uuid4().hex
         with self._connection() as db:
-            db.execute("INSERT INTO sessions(id) VALUES (?)", (session_id,))
+            db.execute("INSERT INTO sessions(id, owner_id) VALUES (?, ?)", (session_id, owner_id))
         return session_id
 
-    def get_session(self, session_id):
+    def get_session(self, session_id, owner_id=None):
         with self._connection() as db:
-            row = db.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()
+            if owner_id is None:
+                row = db.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()
+            else:
+                row = db.execute("SELECT * FROM sessions WHERE id = ? AND owner_id = ?",
+                                 (session_id, owner_id)).fetchone()
         if row is None:
             raise KeyError("Không tìm thấy phiên CBC.")
         return {"session_id": row["id"], "revision": row["revision"],
                 "report": json.loads(row["report"]) if row["report"] else None}
 
-    def confirm_report(self, session_id, report, *, confirmed, expected_revision):
+    def confirm_report(self, session_id, report, *, confirmed, expected_revision, owner_id=None):
         if confirmed is not True:
             raise ValueError("Xác nhận thông tin trên phiếu trước khi lưu.")
         comparison = compare_cbc(report)
@@ -82,7 +95,11 @@ class CBCService:
             cleaned["reference_version"] = comparison["reference_version"]
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
-            current = db.execute("SELECT report, revision FROM sessions WHERE id = ?", (session_id,)).fetchone()
+            if owner_id is None:
+                current = db.execute("SELECT report, revision FROM sessions WHERE id = ?", (session_id,)).fetchone()
+            else:
+                current = db.execute("SELECT report, revision FROM sessions WHERE id = ? AND owner_id = ?",
+                                     (session_id, owner_id)).fetchone()
             if current is None:
                 raise KeyError("Không tìm thấy phiên CBC.")
             existing = json.loads(current["report"]) if current["report"] else None
@@ -102,26 +119,32 @@ class CBCService:
             snapshot = {"session_id": session_id, "revision": current["revision"] + 1, "report": cleaned}
         return {**comparison, "session": snapshot}
 
-    def invalidate_report(self, session_id, *, expected_revision):
+    def invalidate_report(self, session_id, *, expected_revision, owner_id=None):
         """Gọi ngay khi người dùng sửa form hoặc chọn ảnh khác."""
         with self._connection() as db:
-            cursor = db.execute(
-                "UPDATE sessions SET report = NULL, revision = revision + 1 WHERE id = ? AND revision = ?",
-                (session_id, expected_revision),
-            )
+            if owner_id is None:
+                cursor = db.execute(
+                    "UPDATE sessions SET report = NULL, revision = revision + 1 WHERE id = ? AND revision = ?",
+                    (session_id, expected_revision),
+                )
+            else:
+                cursor = db.execute(
+                    "UPDATE sessions SET report = NULL, revision = revision + 1 WHERE id = ? AND owner_id = ? AND revision = ?",
+                    (session_id, owner_id, expected_revision),
+                )
             if cursor.rowcount != 1:
                 raise ValueError("Phiếu đã thay đổi hoặc phiên đã bị xóa.")
             db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
         return {"session_id": session_id, "revision": expected_revision + 1, "report": None}
 
-    def ask(self, session_id, question, *, expected_revision, request_id=None):
+    def ask(self, session_id, question, *, expected_revision, request_id=None, owner_id=None):
         if not isinstance(question, str) or not question.strip() or len(question) > 1000:
             raise ValueError("Nhập câu hỏi dài từ 1 đến 1000 ký tự.")
         if request_id is None:
             request_id = uuid4().hex
         if not isinstance(request_id, str) or not 1 <= len(request_id) <= 128:
             raise ValueError("request_id phải là chuỗi từ 1 đến 128 ký tự.")
-        session = self.get_session(session_id)
+        session = self.get_session(session_id, owner_id)
         if session["revision"] != expected_revision:
             raise ValueError("Phiếu đã thay đổi. Hãy tải lại dữ liệu trước khi hỏi.")
         if session["report"] is None:
@@ -140,7 +163,11 @@ class CBCService:
         result = answer(json.dumps({"report": session["report"], "question": question}, ensure_ascii=False))
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
-            current = db.execute("SELECT revision FROM sessions WHERE id = ?", (session_id,)).fetchone()
+            if owner_id is None:
+                current = db.execute("SELECT revision FROM sessions WHERE id = ?", (session_id,)).fetchone()
+            else:
+                current = db.execute("SELECT revision FROM sessions WHERE id = ? AND owner_id = ?",
+                                     (session_id, owner_id)).fetchone()
             if current is None or current["revision"] != session["revision"]:
                 raise ValueError("Phiếu đã thay đổi trong khi trả lời. Hãy gửi lại câu hỏi.")
             db.execute(
@@ -155,16 +182,26 @@ class CBCService:
                 raise ValueError("request_id đã được dùng cho câu hỏi khác.")
         return json.loads(stored["result"])
 
-    def history(self, session_id):
+    def history(self, session_id, owner_id=None):
         with self._connection() as db:
-            rows = db.execute(
-                """SELECT m.question, m.result, m.created_at FROM messages m
-                   JOIN sessions s ON s.id = m.session_id AND s.revision = m.revision
-                   WHERE m.session_id = ? ORDER BY m.id""", (session_id,)
-            ).fetchall()
+            if owner_id is None:
+                rows = db.execute(
+                    """SELECT m.question, m.result, m.created_at FROM messages m
+                       JOIN sessions s ON s.id = m.session_id AND s.revision = m.revision
+                       WHERE m.session_id = ? ORDER BY m.id""", (session_id,)
+                ).fetchall()
+            else:
+                rows = db.execute(
+                    """SELECT m.question, m.result, m.created_at FROM messages m
+                       JOIN sessions s ON s.id = m.session_id AND s.revision = m.revision
+                       WHERE m.session_id = ? AND s.owner_id = ? ORDER BY m.id""", (session_id, owner_id)
+                ).fetchall()
         return [{"question": row["question"], "result": json.loads(row["result"]),
                  "created_at": row["created_at"]} for row in rows]
 
-    def delete_session(self, session_id):
+    def delete_session(self, session_id, owner_id=None):
         with self._connection() as db:
-            db.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+            if owner_id is None:
+                db.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+            else:
+                db.execute("DELETE FROM sessions WHERE id = ? AND owner_id = ?", (session_id, owner_id))
