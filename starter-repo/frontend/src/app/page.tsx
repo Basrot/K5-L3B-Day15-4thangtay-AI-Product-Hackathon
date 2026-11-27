@@ -587,6 +587,7 @@ export default function HomePage() {
       }
       const hist = await api.getHistory(sessionId, controller.signal);
       setHistory(hist.messages || []);
+      setChatRequestId(null);
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         setBannerError(
