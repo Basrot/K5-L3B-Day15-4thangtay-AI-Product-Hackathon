@@ -5,7 +5,7 @@
 ## 1. Đầu vào
 
 - **Persona** (`cost/personas.yaml`): 3 kiểu, tỷ lệ 50% / 35% / 15%; tương ứng 1 / 2 / 4 phiên mỗi người mỗi tháng và 1 / 1 / 2 lượt hỏi mỗi phiên. Tất cả là **tự ước tính**, chưa được kiểm chứng qua phỏng vấn.
-- **Số người dùng**: thấp 100 · cơ sở 500 · cao 1.500 mỗi tháng. Nguồn: tự ước tính quy mô beta, không phải số người dùng thật.
+- **Số người dùng**: thấp 100 · cơ sở 500 · cao 1.500 mỗi tháng. Nguồn: tự ước tính quy mô triển khai beta (chiếm `< 1.5%` quy mô tự ước tính `~100.000` thai phụ tự xem phiếu/tháng ở `spec.md §2`; riêng một bệnh viện sản tuyến cuối là BV Từ Dũ đã có `~1.000.000` lượt khám và `>60.000` ca sinh/năm), không phải số người dùng đang dùng sản phẩm thật.
 - **Giá model trả phí** (USD/1 triệu token; truy cập 27/11/2026): [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing) — Gemini 3.1 Flash-Lite, input $0.25 / output $1.50; Gemini 4 Hydrogen, input $1.50 / output $7.50. Giá là cấu hình standard paid tier trong `cost/personas.yaml`; kiểm tra giá và khả năng truy cập model trước khi triển khai.
 - **Tỷ lệ đạt dùng để tính**: 19/24 (79%) — `run-1@20261127-163814`. Chưa có run 2; do đó đây là ước tính tạm, không phải tỷ lệ sau cải tiến.
 - Token đo trên **qwen3:4b** local, tính theo giá **Gemini 3.1 Flash-Lite** và **Gemini 4 Hydrogen**. Tokenizer, giá thực tế, retry và chính sách cache có thể làm chi phí thực khác.
@@ -29,9 +29,9 @@ Chi phí/task thành công = chi phí trung bình mỗi phiên ÷ tỷ lệ đ�
 
 ## 3. So với impact
 
-- Impact/người/tháng (`spec.md` §2): **chưa có số liệu**, vì bảng impact và bằng chứng phỏng vấn chưa được điền.
-- Chi phí/người/tháng (kịch bản cơ sở): khoảng **$0.00020** với mức giá Gemini 3.1 Flash-Lite; khoảng **$0.0011** với Gemini 4 Hydrogen.
-- **Kết luận:** chưa thể kết luận đáng làm dựa trên cost/impact khi impact chưa được đo. Các con số chi phí token thấp trong phạm vi mô phỏng; chúng không đại diện cho tổng chi phí sản phẩm.
+- Impact/người/tháng (`spec.md` §2): Ước tính sơ bộ ở `spec.md §2` là **`22.5` phút/người/tháng** *(tự ước tính dựa trên `1.5` lần/tháng × `15` phút/lần; chưa đo trực tiếp từ phỏng vấn `P1–P3`)*.
+- Chi phí/người/tháng (kịch bản cơ sở từ `simulate-1`, tỷ lệ đạt `19/24 = 79%`): khoảng **`$0.00020`** với mức giá Gemini 3.1 Flash-Lite; khoảng **`$0.0011`** với Gemini 4 Hydrogen (`$0.00012–$0.00068`/task thành công).
+- **Kết luận:** Nếu giả định `22.5` phút/người/tháng *(tự ước tính)* giữ vững trong thực tế, chi phí token LLM rất nhỏ so với thời gian tra cứu và lo lắng tiết kiệm được; tuy nhiên **chưa chốt hiệu quả cuối cùng** cho tới khi xác thực tần suất & số phút thật qua phỏng vấn/thử nghiệm người dùng, tính thêm chi phí OCR/hosting và có kết quả lượt đánh giá 2 (`eval/run-2.csv`).
 
 ## 4. Giới hạn và bước tiếp theo
 
