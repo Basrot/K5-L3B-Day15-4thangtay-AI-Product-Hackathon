@@ -27,10 +27,10 @@ Nguồn yêu cầu: [Checkpoint](../../../README.md#checkpoint), [đề bài](..
 
 | Người | Sở hữu | Bàn giao cho ai |
 |---|---|---|
-| **N1 · Product & Data** | Phỏng vấn/khảo sát, phân tích dữ liệu, bằng chứng vấn đề và tác động, Canvas, Data Card, phần §0–§2 của spec. Tìm người dùng thử nếu còn thời gian | Gửi N3 câu hỏi ẩn danh có nguồn. Gửi N2 và N4 phiếu giả lập kèm đáp án từng trường |
+| **N1 · Product & Data — Hân** | Phỏng vấn/khảo sát, phân tích dữ liệu, bằng chứng vấn đề và tác động, Canvas, Data Card, phần §0–§2 của spec. Tìm người dùng thử nếu còn thời gian | Gửi N3 câu hỏi ẩn danh có nguồn. Gửi N2 và N4 phiếu giả lập kèm đáp án từng trường |
 | **N2 · AI Engineer — Nam** | Kiến trúc và workflow AI, `codebase/tools.py`, `codebase/agent.py`, `codebase/ai.py`, `codebase/speech.py`. Đối chiếu đơn vị/khoảng, prompt, giới hạn câu trả lời, xử lý lỗi, LLM và Zipformer | Gửi N4 hàm giải thích phiếu và hàm WAV → chữ. Gửi N3 cách chạy và trace, sửa lỗi quan trọng được phát hiện ở lượt 1 |
-| **N3 · Evaluation & Cost** | Bộ câu thử, metric và ngưỡng, hai lượt đánh giá, phân tích lỗi, mô phỏng chi phí | Gửi N2 danh sách lỗi có thể tái hiện và gửi N4 số liệu cho slide. Nhờ N1 chấm độc lập 5 đầu ra |
-| **N4 · Fullstack & Presentation** | `web_app.py`, nhập tay, tải và đọc ảnh, sửa/xác nhận, mic, repo, checklist checkpoint, slide và video | Nối form và mic với hai hàm của N2. Gửi N3 log chi phí đọc ảnh và kết quả kiểm giao diện. Chuẩn bị gói nộp để đội trưởng gửi |
+| **N3 · Evaluation & Cost — Ngọc** | Bộ câu thử, metric và ngưỡng, hai lượt đánh giá, phân tích lỗi, mô phỏng chi phí | Gửi N2 danh sách lỗi có thể tái hiện và gửi N4 số liệu cho slide. Nhờ N1 chấm độc lập 5 đầu ra |
+| **N4 · Fullstack & Presentation — Tài** | `web_app.py`, nhập tay, tải và đọc ảnh, sửa/xác nhận, mic, repo, checklist checkpoint, slide và video | Nối form và mic với hai hàm của N2. Gửi N3 log chi phí đọc ảnh và kết quả kiểm giao diện. Chuẩn bị gói nộp để đội trưởng gửi |
 
 **Hợp đồng ký trong 30 phút đầu**
 
@@ -41,7 +41,7 @@ Nguồn yêu cầu: [Checkpoint](../../../README.md#checkpoint), [đề bài](..
 
 ## 10 giờ và bàn giao tại từng checkpoint
 
-| Mốc và ngân sách | N1 · Product & Data | N2 · AI Engineer — Nam | N3 · Evaluation & Cost | N4 · Fullstack & Presentation |
+| Mốc và ngân sách | N1 · Product & Data — Hân | N2 · AI Engineer — Nam | N3 · Evaluation & Cost | N4 · Fullstack & Presentation |
 |---|---|---|---|---|
 | **CP1 · 27/11, 16:00–17:00 · 1 giờ** | Canvas 7 dòng, bài toán 1–2 câu, lát cắt một câu, một phiếu giả lập có đáp án và lịch phỏng vấn ≥3 thai phụ từng đọc CBC | Ví dụ JSON, một kết quả đối chiếu mẫu và sơ đồ nháp. Thử một WAV với Zipformer trên máy demo | Chốt các nhóm lỗi cần đo với Nam và dựng khung benchmark | Tạo repo công khai từ khung, kiểm `TEAMS.md`, dựng bố cục trang và chuẩn bị gói nộp CP1 |
 | **CP2 · 27/11, 17:00–19:30 · 2,5 giờ** | Canvas cập nhật và 1–3 dòng thay đổi, tiến độ bằng chứng và Data Card bản đầu. Chấm độc lập 5 đầu ra mẫu cùng N3 | Có sơ đồ §4, CLI nhận JSON chạy hết luồng với AI giả, quy tắc đối chiếu và hàm WAV → chữ bàn giao cho N4. Gọi thử LLM thật một câu để kiểm key | Có ≥10 ca thử phủ đủ 8 chỉ số và ≥3 metric. Ghi tỷ lệ chấm khớp và khóa chuẩn đạt ở §7 trước khi nộp | Form nhập tay chạy hết luồng với AI giả, ảnh mẫu điền vào form sửa được. Rà link spec, benchmark, Data Card và chuẩn đạt để đội trưởng nộp |
