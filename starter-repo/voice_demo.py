@@ -7,6 +7,13 @@ import streamlit as st
 
 from codebase.agent import answer
 from codebase.speech import transcribe_wav
+from codebase.tts import synthesize_wav
+
+
+def display_reply(result):
+    st.write(result["output"])
+    for source in result.get("sources", []):
+        st.link_button(source["title"], source["url"])
 
 st.set_page_config(page_title="Hỏi về phiếu CBC", page_icon="🎙️")
 st.title("Hỏi về phiếu CBC")
@@ -35,12 +42,27 @@ if st.button("Chuyển thành chữ", disabled=audio is None):
 
 question = st.text_area("Kiểm tra hoặc sửa câu hỏi trước khi gửi", key="question",
                         placeholder="Ví dụ: Vì sao huyết sắc tố có dấu L?")
-if st.button("Hỏi AI", disabled=not confirmed or not question.strip(), type="primary"):
+read_aloud = st.checkbox("Đọc câu trả lời bằng giọng nói", value=True)
+submitted = st.button("Hỏi AI", disabled=not confirmed or not question.strip(), type="primary")
+if submitted:
+    st.session_state.pop("reply_audio", None)
+    st.session_state.pop("reply", None)
     try:
         with st.spinner("Đang giải thích phiếu…"):
             result = answer(json.dumps({"report": sample["report"], "question": question}, ensure_ascii=False))
-        st.write(result["output"])
-        for source in result.get("sources", []):
-            st.link_button(source["title"], source["url"])
+        st.session_state["reply"] = result
+        display_reply(result)
+        if read_aloud:
+            try:
+                with st.spinner("Đang tạo giọng đọc…"):
+                    st.session_state["reply_audio"] = synthesize_wav(result["output"])
+            except Exception as exc:
+                st.warning(f"Chưa tạo được giọng đọc: {exc}")
     except (ValueError, RuntimeError, OSError) as exc:
         st.error(str(exc))
+
+if "reply" in st.session_state:
+    if not submitted:
+        display_reply(st.session_state["reply"])
+    if read_aloud and "reply_audio" in st.session_state:
+        st.audio(st.session_state["reply_audio"], format="audio/wav", autoplay=True)

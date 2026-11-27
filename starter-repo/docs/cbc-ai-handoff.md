@@ -53,6 +53,23 @@ Mở PowerShell trong `starter-repo` và chạy `./start-voice-demo.ps1`, sau đ
 
 Trên máy khác, tạo `.venv` bằng Python 3.12, cài `pip install -r requirements-voice.txt`, giải nén model vào `runtime/zipformer` và tải model Ollama trước khi chạy script. Đặt `ZIPFORMER_BACKEND=onnx` để dùng backend tương thích này trong giao diện chính. Hàm `transcribe_wav` giữ cùng cách gọi, backend ONNX nhận WAV 16 kHz. Giữ chế độ ghi âm `sample_rate=16000`.
 
+### Đọc câu trả lời bằng VieNeu
+
+`codebase.tts.synthesize_wav(text) -> bytes` tạo WAV từ câu trả lời đã hiển thị, dùng VieNeu 3.8.5 qua ONNX Runtime và giọng dựng sẵn Hải Đăng. Model và giọng được tải vào cache Hugging Face lần đầu, các lần sau dùng lại. Giao diện thử có ô “Đọc câu trả lời bằng giọng nói”, được bật sẵn. Khi tổng hợp thành công, trình phát xuất hiện bên dưới câu trả lời, có thể bấm nghe lại. Tắt ô này để chỉ nhận chữ.
+
+```python
+from codebase.tts import synthesize_wav
+
+wav_bytes = synthesize_wav(result["output"])
+st.audio(wav_bytes, format="audio/wav", autoplay=True)
+```
+
+Hàm đổi HGB/WBC/PLT, số thập phân và đơn vị HGB sang cách đọc tiếng Việt. Khi tạo giọng gặp lỗi, giao diện vẫn hiện nội dung trả lời và thông báo lỗi âm thanh. Giữ model trong cache và WAV sinh ra ngoài repo công khai.
+
+Môi trường Windows này dùng NumPy 2.2.6 theo `requirements-voice.txt` để tương thích các mô-đun native khi tổng hợp. Đã tạo WAV 48 kHz bằng VieNeu thật. Lần nạp model đầu lâu hơn các câu tiếp theo. Trình duyệt có thể yêu cầu bấm Play để phát âm thanh.
+
+Tài liệu SDK được đối chiếu tại [VieNeu-TTS](https://github.com/pnnbao97/VieNeu-TTS#sdk).
+
 ## SQLite và lịch sử phiên
 
 Thành viên 4 dùng lớp dưới đây nếu cần lưu phiên khi tải lại giao diện. SQLite tự khởi tạo bảng và dùng thư viện chuẩn Python. Mặc định tạo `runtime/cbc.sqlite3` bên cạnh `run.py`, đã được bỏ qua trong Git. Khi thử tự động, truyền đường dẫn DB riêng.
