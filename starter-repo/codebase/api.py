@@ -1,6 +1,7 @@
 """HTTP interface for the shared CBC service; one process and one inference slot."""
 import os
 import threading
+from datetime import date, datetime, timedelta, timezone
 from contextlib import asynccontextmanager, contextmanager
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
@@ -46,6 +47,7 @@ class Report(Payload):
     pregnancy_status: Literal["pregnant", "not_pregnant", "unknown"] | None = None
     adult_confirmed: StrictBool | None = None
     gestational_age: Annotated[StrictStr, Field(max_length=10)] | None = None
+    specimen_date: Annotated[StrictStr, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")] | None = None
     rows: Annotated[list[LabRow], Field(min_length=1, max_length=8)]
 
 
@@ -91,6 +93,18 @@ def _upload(file: UploadFile, limit: int) -> bytes:
         return content
     finally:
         file.file.close()
+
+
+def _validate_specimen_date(value):
+    if value is None:
+        return
+    try:
+        sample_date = date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(422, "Ngày lấy mẫu không hợp lệ.") from None
+    vietnam_today = datetime.now(timezone(timedelta(hours=7))).date()
+    if sample_date > vietnam_today:
+        raise HTTPException(422, "Ngày lấy mẫu không thể nằm trong tương lai.")
 
 
 @contextmanager
@@ -206,8 +220,24 @@ def create_app(db_path=None) -> FastAPI:
     def references(gestational_age: Annotated[str, Query(min_length=1, max_length=10)]):
         return study_references(gestational_age)
 
+    @router.get("/reports/history")
+    def report_history(user: dict = Depends(require_access)):
+        return {"reports": application.state.service.list_reports(user["id"])}
+
+    @router.get("/reports/history/{prior_session_id}/compare")
+    def compare_report_history(prior_session_id: str, current_session_id: Annotated[str, Query(min_length=1, max_length=128)],
+                               user: dict = Depends(require_access)):
+        try:
+            return application.state.service.compare_saved_reports(
+                prior_session_id, current_session_id, user["id"])
+        except KeyError:
+            raise HTTPException(404, "Không tìm thấy phiếu CBC đã xác nhận.") from None
+        except ValueError as exception:
+            raise HTTPException(422, str(exception)) from None
+
     @router.post("/reports/validate")
     def validate(body: Report):
+        _validate_specimen_date(body.specimen_date)
         with _operation(application):
             return compare_cbc(body.model_dump())
 
@@ -248,12 +278,13 @@ def create_app(db_path=None) -> FastAPI:
 
     @router.put("/sessions/{session_id}/report")
     def confirm(session_id: str, body: ConfirmBody, user: dict = Depends(require_access)):
+        _validate_specimen_date(body.report.specimen_date)
         service = application.state.service
         with _operation(application):
             saved = service.confirm_report(session_id, body.report.model_dump(), confirmed=body.confirmed,
                                            expected_revision=body.expected_revision, owner_id=user["id"])
             state = saved["session"]
-            return {**state, "analysis": analyze_report(state["report"])}
+            return {**state, "analysis": analyze_report(state["report"], confirmed=True)}
 
     @router.post("/sessions/{session_id}/invalidate")
     def invalidate(session_id: str, body: RevisionBody, user: dict = Depends(require_access)):
@@ -270,7 +301,7 @@ def create_app(db_path=None) -> FastAPI:
         if state["report"] is None:
             raise HTTPException(422, "Xác nhận phiếu CBC trước khi xem phân tích.")
         with _operation(application):
-            return analyze_report(state["report"])
+            return analyze_report(state["report"], confirmed=True)
 
     @router.get("/sessions/{session_id}/history")
     def history(session_id: str, user: dict = Depends(require_access)):

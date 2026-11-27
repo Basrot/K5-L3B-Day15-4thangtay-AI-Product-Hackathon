@@ -5,11 +5,11 @@ import re
 
 if __package__:
     from .ai import call_model
-    from .tools import ANALYTES, compare_cbc
+    from .tools import ANALYTES, compare_cbc, confirmed_comparison
     from .tracing import note
 else:
     from ai import call_model
-    from tools import ANALYTES, compare_cbc
+    from tools import ANALYTES, compare_cbc, confirmed_comparison
     from tracing import note
 
 SYSTEM = """Chọn cách trả lời cho bản demo đọc phiếu CBC của thai phụ trưởng thành.
@@ -84,9 +84,9 @@ def _reference_details(comparison):
     return metadata, label, sources
 
 
-def analyze_report(report: dict) -> dict:
+def analyze_report(report: dict, *, confirmed=False) -> dict:
     """Trả bảng đối chiếu toàn bộ chỉ số và tóm tắt sau khi người dùng xác nhận."""
-    comparison = compare_cbc(report)
+    comparison = confirmed_comparison(report) if confirmed else compare_cbc(report)
     if comparison["status"] != "ok":
         return {"status": comparison["status"], "output": " ".join(comparison["issues"])}
     rows = comparison["rows"]
@@ -101,15 +101,22 @@ def analyze_report(report: dict) -> dict:
         codes = [row["analyte"] for row in rows if row["status"] == status]
         if codes:
             lines.append(label + ": " + ", ".join(codes) + ".")
+    row_errors = comparison.get("row_errors", {})
+    if row_errors:
+        lines.append("Chưa đối chiếu được: " + "; ".join(
+            f"{code} ({issue['reason']})" for code, issue in row_errors.items()
+        ) + ".")
     lines.append("Các trạng thái này chỉ cho biết vị trí của con số so với khoảng tham chiếu, "
                  "không tự kết luận có hay không có bệnh; kể cả nằm trong khoảng cũng không loại trừ bệnh.")
     lines.append("Anh/chị có thể dùng những dòng thấp hơn hoặc cao hơn khoảng để hỏi bác sĩ theo dõi thai kỳ; "
                  "bác sĩ sẽ xem thêm tuổi thai, triệu chứng và các thông tin sức khỏe ạ.")
     return {"status": "analyzed", "rows": rows, "counts": counts,
-            "output": " ".join(lines), "sources": sources, **metadata}
+            "output": " ".join(lines), "sources": sources,
+            "issues": [f"{code}: {issue['reason']}" for code, issue in row_errors.items()],
+            "row_errors": row_errors, **metadata}
 
 
-def answer(text: str) -> dict:
+def answer(text: str, *, confirmed=False) -> dict:
     """Nhận JSON gồm report và question, trả ít nhất khóa output cho bộ chạy."""
     try:
         payload = json.loads(text)
@@ -123,7 +130,7 @@ def answer(text: str) -> dict:
         note("nhánh câu hỏi: urgent")
         return {"status": "urgent", "output": ROUTES["urgent"]}
 
-    comparison = compare_cbc(payload.get("report"))
+    comparison = confirmed_comparison(payload.get("report")) if confirmed else compare_cbc(payload.get("report"))
     if comparison["status"] != "ok":
         note("dừng trước khi gọi model: " + comparison["status"])
         return {"status": comparison["status"], "output": " ".join(comparison["issues"])}
@@ -171,7 +178,7 @@ def answer(text: str) -> dict:
         intent, analyte = "explain", explicit_analyte
     prefix = "[AI giả] " if fake else ""
     if intent == "summarize":
-        result = analyze_report(payload["report"])
+        result = analyze_report(payload["report"], confirmed=confirmed)
         result["output"] = prefix + result["output"]
         return result
     if (intent == "explain" and set(decision) == {"intent", "analyte"}

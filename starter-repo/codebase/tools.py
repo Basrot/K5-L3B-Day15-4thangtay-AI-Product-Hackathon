@@ -7,11 +7,11 @@ from decimal import Decimal
 if __package__:
     from .tracing import tool
     from .catalog import ANALYTES, normalize_analyte
-    from .references import GESTATIONAL_AGE, age_context, reference_mode, study_references, LAB_SOURCE, SUPPORTED_ANALYTES
+    from .references import GESTATIONAL_AGE, age_context, reference_mode, study_references, LAB_SOURCE
 else:
     from tracing import tool
     from catalog import ANALYTES, normalize_analyte
-    from references import GESTATIONAL_AGE, age_context, reference_mode, study_references, LAB_SOURCE, SUPPORTED_ANALYTES
+    from references import GESTATIONAL_AGE, age_context, reference_mode, study_references, LAB_SOURCE
 
 # Each exponent converts a value to the same dimension-specific base unit.
 UNITS = {
@@ -61,6 +61,129 @@ def _unit(analyte, raw):
 def _format_decimal(value):
     text = format(value, "f")
     return text.rstrip("0").rstrip(".") if "." in text else text
+
+
+_TREND_BASE_UNITS = {
+    "HGB": "g/dL", "RBC": "10¹²/L", "HCT": "%", "MCV": "fL",
+    "MCH": "pg", "MCHC": "g/dL", "WBC": "10⁹/L", "PLT": "10⁹/L",
+}
+
+
+def confirmed_comparison(report):
+    """Use a saved confirmation snapshot; safely reconstruct only known legacy reports."""
+    snapshot = report.get("analysis_snapshot") if isinstance(report, dict) else None
+    required = {"rows", "gestational_age", "trimester", "reference_mode", "reference_source"}
+    if isinstance(snapshot, dict) and required <= snapshot.keys():
+        return {"status": "ok", **snapshot}
+
+    try:
+        mode = reference_mode(report)
+    except (TypeError, ValueError):
+        return compare_cbc(report)
+    if mode == "study" and not report.get("reference_version"):
+        return {"status": "needs_input", "issues": [
+            "Phiếu CBC cũ chưa lưu phiên bản khoảng nghiên cứu đã dùng; cần xác nhận lại trước khi so sánh."]}
+
+    result = compare_cbc(report)
+    if result["status"] == "ok":
+        return result
+
+    # Older accepted reports can contain a unit no longer recognized by the
+    # current converter. Keep valid rows usable and explain only the affected one.
+    successful_rows = []
+    row_errors = {}
+    metadata = None
+    for raw in report.get("rows", []) if isinstance(report, dict) else []:
+        if not isinstance(raw, dict):
+            continue
+        code = normalize_analyte(raw.get("analyte", ""))
+        single = compare_cbc({**report, "rows": [raw]})
+        if single["status"] == "ok":
+            successful_rows.extend(single["rows"])
+            metadata = metadata or single
+        elif code in ANALYTES:
+            row_errors[code] = {
+                "reason": "Không thể đối chiếu đơn vị hoặc khoảng đã lưu của dòng này.",
+                "value": str(raw.get("value") or ""),
+                "unit": str(raw.get("unit") or ""),
+            }
+    if metadata is None:
+        return result
+    return {**metadata, "rows": successful_rows, "row_errors": row_errors}
+
+
+def compare_cbc_reports(prior_report, current_report, prior_date, current_date):
+    """Compare saved reports as values only; do not interpret rise/fall clinically."""
+    prior_result = confirmed_comparison(prior_report)
+    current_result = confirmed_comparison(current_report)
+    for label, result in (("Phiếu trước", prior_result), ("Phiếu hiện tại", current_result)):
+        if result["status"] != "ok":
+            raise ValueError(f"{label}: " + " ".join(result.get("issues", [])))
+
+    prior_rows = {row["analyte"]: row for row in prior_result["rows"]}
+    current_rows = {row["analyte"]: row for row in current_result["rows"]}
+    prior_errors = prior_result.get("row_errors", {})
+    current_errors = current_result.get("row_errors", {})
+    present_codes = set(prior_rows) | set(current_rows) | set(prior_errors) | set(current_errors)
+    all_codes = [code for code in ANALYTES if code in present_codes]
+    paired = []
+    for code in all_codes:
+        before, now = prior_rows.get(code), current_rows.get(code)
+        item = {"analyte": code, "prior": before, "current": now,
+                "delta": None, "delta_unit": None, "comparable": False, "reason": None,
+                "prior_normalized_value": None, "current_normalized_value": None,
+                "normalized_unit": None, "reference_context_differs": False,
+                "prior_unavailable": prior_errors.get(code),
+                "current_unavailable": current_errors.get(code)}
+        if before is None or now is None:
+            if code in prior_errors or code in current_errors:
+                item["reason"] = "Không thể chuẩn hóa đơn vị hoặc khoảng tham chiếu của một lần đo."
+            else:
+                item["reason"] = "Chỉ số này không có trên cả hai phiếu."
+        else:
+            before_unit = _unit(code, before["unit"])
+            now_unit = _unit(code, now["unit"])
+            if before_unit is None or now_unit is None:
+                item["reason"] = "Không thể chuẩn hóa đơn vị của hai phiếu."
+            else:
+                range_differs = any(
+                    Decimal(before[key]).scaleb(before_unit[1])
+                    != Decimal(now[key]).scaleb(now_unit[1])
+                    for key in ("ref_low", "ref_high")
+                )
+                item["reference_context_differs"] = range_differs
+                before_value = Decimal(before["value"]).scaleb(before_unit[1])
+                now_value = Decimal(now["value"]).scaleb(now_unit[1])
+                unit_name = _TREND_BASE_UNITS.get(code) or next(
+                    (label for label, exponent in UNITS[code].values() if exponent == 0), None)
+                if unit_name is None:
+                    item["reason"] = "Không có đơn vị chung an toàn cho hai lần đo."
+                else:
+                    item.update({
+                        "delta": _format_decimal(now_value - before_value),
+                        "delta_unit": unit_name,
+                        "comparable": True,
+                        "prior_normalized_value": _format_decimal(before_value),
+                        "current_normalized_value": _format_decimal(now_value),
+                        "normalized_unit": unit_name,
+                    })
+        paired.append(item)
+
+    return {
+        "status": "compared",
+        "prior": {"specimen_date": prior_date, "gestational_age": prior_result["gestational_age"],
+                  "trimester": prior_result["trimester"], "reference_mode": prior_result["reference_mode"],
+                  "reference_source": prior_result["reference_source"]},
+        "current": {"specimen_date": current_date, "gestational_age": current_result["gestational_age"],
+                    "trimester": current_result["trimester"], "reference_mode": current_result["reference_mode"],
+                    "reference_source": current_result["reference_source"]},
+        "reference_context_differs": (
+            any(prior_result[key] != current_result[key]
+                for key in ("trimester", "reference_mode", "reference_version"))
+            or any(row["reference_context_differs"] for row in paired)
+        ),
+        "rows": paired,
+    }
 
 
 @tool

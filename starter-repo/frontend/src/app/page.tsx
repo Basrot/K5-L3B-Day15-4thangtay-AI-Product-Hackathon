@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Check,
@@ -33,6 +33,8 @@ import type {
   PregnancyStatus,
   ReferenceMode,
   RowStatus,
+  ReportComparison,
+  ReportHistoryItem,
 } from "@/lib/types";
 
 declare global {
@@ -91,6 +93,7 @@ function makeEmptyReport(mode: ReferenceMode = "study"): CBCReport {
     adult_confirmed: false,
     pregnancy_status: "pregnant",
     gestational_age: "",
+    specimen_date: "",
     reference_mode: mode,
     rows: ANALYTE_LIST.map((item) => ({
       analyte: item.code,
@@ -113,6 +116,7 @@ function makeMockTCN2Report(): CBCReport {
     adult_confirmed: true,
     pregnancy_status: "pregnant",
     gestational_age: "24w2d",
+    specimen_date: "",
     reference_mode: "study",
     rows: [
       { analyte: "HGB", value: "104", unit: "g/L" },
@@ -131,6 +135,7 @@ function normalizeRowsForForm(
   incoming: CBCRowInput[],
   preserveMissing = false
 ): CBCRowInput[] {
+  const asText = (value: string | number | null | undefined) => value == null ? "" : String(value);
   const byCode = new Map(incoming.map((r) => [r.analyte, r]));
   return ANALYTE_LIST.map((item) => {
     const found = byCode.get(item.code);
@@ -146,10 +151,10 @@ function normalizeRowsForForm(
     }
     return {
       analyte: item.code,
-      value: found.value ?? "",
+      value: asText(found.value),
       unit: found.unit ?? (preserveMissing ? "" : item.defaultUnit),
-      ref_low: found.ref_low ?? "",
-      ref_high: found.ref_high ?? "",
+      ref_low: asText(found.ref_low),
+      ref_high: asText(found.ref_high),
       ref_unit: found.ref_unit ?? (preserveMissing ? "" : item.defaultUnit),
     };
   });
@@ -157,7 +162,7 @@ function normalizeRowsForForm(
 
 function toApiPayload(draft: CBCReport): CBCReport {
   const filledRows = draft.rows
-    .filter((r) => (r.value ?? "").trim() !== "" || (r.unit ?? "").trim() !== "")
+    .filter((r) => (r.value ?? "").trim() !== "")
     .map((r) => {
       if (draft.reference_mode === "study") {
         return {
@@ -180,9 +185,16 @@ function toApiPayload(draft: CBCReport): CBCReport {
     adult_confirmed: draft.adult_confirmed,
     pregnancy_status: draft.pregnancy_status,
     gestational_age: draft.gestational_age.trim(),
+    specimen_date: draft.specimen_date?.trim() || null,
     reference_mode: draft.reference_mode,
     rows: filledRows,
   };
+}
+
+function firstComparisonReportId(reports: ReportHistoryItem[], activeSessionId: string, activeDate?: string | null) {
+  if (!activeDate) return "";
+  return reports.find((item) => item.session_id !== activeSessionId
+    && item.specimen_date && item.specimen_date < activeDate)?.session_id || "";
 }
 
 export default function HomePage() {
@@ -196,12 +208,19 @@ export default function HomePage() {
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
   const [sessionId, setSessionId] = useState("");
+  const authEpochRef = useRef(0);
   const [revision, setRevision] = useState(0);
   const [draft, setDraft] = useState<CBCReport>(() => makeMockTCN2Report());
   const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
 
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([]);
+  const [selectedComparisonId, setSelectedComparisonId] = useState("");
+  const [comparison, setComparison] = useState<ReportComparison | null>(null);
+  const [comparisonError, setComparisonError] = useState("");
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [doctorPrompt, setDoctorPrompt] = useState("");
   const [reply, setReply] = useState<ChatResult | null>(null);
 
   const [question, setQuestion] = useState("");
@@ -224,17 +243,48 @@ export default function HomePage() {
 
   const abortRef = useRef<AbortController | null>(null);
 
-  const api = useMemo(
-    () =>
-      createApiClient(
-        () => token,
-        () => {
-          setToken("");
-          setAuthError("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
-        }
-      ),
-    [token]
-  );
+  const clearAccountData = useCallback(() => {
+    setSessionId("");
+    setRevision(0);
+    setDraft(makeEmptyReport("study"));
+    setOcrWarnings([]);
+    setAnalysis(null);
+    setHistory([]);
+    setReportHistory([]);
+    setSelectedComparisonId("");
+    setComparison(null);
+    setComparisonError("");
+    setComparisonLoading(false);
+    setDoctorPrompt("");
+    setReply(null);
+    setQuestion("");
+    setChatRequestId(null);
+    setLastSentQuestion("");
+    setBannerError("");
+    setLoadingAction(null);
+    setAudioUrl(null);
+    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
+    mediaRecorderRef.current = null;
+    setRecording(false);
+    setSessionModalOpen(false);
+    setRestoreInput("");
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    authEpochRef.current += 1;
+    abortInFlight();
+    clearAccountData();
+    setToken("");
+  }, [clearAccountData]);
+
+  const api = useMemo(() => {
+    const clientEpoch = authEpochRef.current;
+    return createApiClient(() => token, () => {
+      if (clientEpoch !== authEpochRef.current) return;
+      handleLogout();
+      setAuthError("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+    });
+  }, [handleLogout, token]);
 
   useEffect(() => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
@@ -288,6 +338,7 @@ export default function HomePage() {
   }
 
   async function invalidateIfConfirmed() {
+    const requestEpoch = authEpochRef.current;
     abortInFlight();
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
@@ -301,9 +352,13 @@ export default function HomePage() {
       setHistory([]);
       try {
         const res = await api.invalidateReport(sessionId, revision);
+        if (requestEpoch !== authEpochRef.current) return;
         setRevision(res.revision);
+        const savedReports = await api.getReportHistory();
+        if (requestEpoch !== authEpochRef.current) return;
+        setReportHistory(savedReports.reports || []);
       } catch (err) {
-        if (err instanceof ApiError) {
+        if (requestEpoch === authEpochRef.current && err instanceof ApiError) {
           setBannerError(err.message);
         }
       }
@@ -311,11 +366,19 @@ export default function HomePage() {
   }
 
   async function finishSignIn(accessToken: string) {
-    const client = createApiClient(() => accessToken, () => setToken(""));
+    const requestEpoch = ++authEpochRef.current;
+    abortInFlight();
+    clearAccountData();
+    const client = createApiClient(() => accessToken, () => {
+      if (requestEpoch === authEpochRef.current) handleLogout();
+    });
     const session = await client.createSession();
+    const savedReports = await client.getReportHistory();
+    if (requestEpoch !== authEpochRef.current) return;
     setToken(accessToken);
     setSessionId(session.session_id);
     setRevision(session.revision);
+    setReportHistory(savedReports.reports || []);
   }
 
   async function handleGoogleCredential(credential: string) {
@@ -353,24 +416,31 @@ export default function HomePage() {
   }
 
   async function handleNewSession() {
+    const requestEpoch = authEpochRef.current;
     abortInFlight();
     setBannerError("");
     setLoadingAction("session");
     try {
       const session = await api.createSession();
+      if (requestEpoch !== authEpochRef.current) return;
       setSessionId(session.session_id);
       setRevision(session.revision);
       setDraft(makeEmptyReport("study"));
       setAnalysis(null);
       setReply(null);
       setHistory([]);
+      setComparison(null);
+      setSelectedComparisonId("");
+      setDoctorPrompt("");
       setOcrWarnings([]);
       setQuestion("");
       setChatRequestId(null);
     } catch (err) {
-      setBannerError(err instanceof Error ? err.message : "Lỗi tạo phiên mới.");
+      if (requestEpoch === authEpochRef.current) {
+        setBannerError(err instanceof Error ? err.message : "Lỗi tạo phiên mới.");
+      }
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
     }
   }
 
@@ -378,28 +448,35 @@ export default function HomePage() {
     await invalidateIfConfirmed();
     setBannerError("");
     setOcrWarnings([]);
+    setDoctorPrompt("");
     setDraft(makeMockTCN2Report());
   }
 
   async function handleRestoreSession() {
     const id = restoreInput.trim();
     if (!id) return;
+    const requestEpoch = authEpochRef.current;
     abortInFlight();
     setBannerError("");
     setLoadingAction("session");
     try {
       const snap = await api.getSession(id);
+      if (requestEpoch !== authEpochRef.current) return;
+      setSelectedComparisonId("");
+      setDoctorPrompt("");
       setSessionId(snap.session_id);
       setRevision(snap.revision);
       if (snap.report) {
         setDraft({
           ...snap.report,
+          specimen_date: snap.report.specimen_date || "",
           rows: normalizeRowsForForm(snap.report.rows, false),
         });
         const [ana, hist] = await Promise.all([
           api.getAnalysis(snap.session_id, snap.revision),
           api.getHistory(snap.session_id),
         ]);
+        if (requestEpoch !== authEpochRef.current) return;
         const msgs = hist.messages || [];
         setAnalysis(ana);
         setHistory(msgs);
@@ -418,28 +495,60 @@ export default function HomePage() {
         setReply(null);
         setBannerError(`Phiên ${snap.session_id} chưa có phiếu nào được xác nhận.`);
       }
+      const savedReports = await api.getReportHistory();
+      if (requestEpoch !== authEpochRef.current) return;
+      setReportHistory(savedReports.reports || []);
+      setSelectedComparisonId(firstComparisonReportId(savedReports.reports || [], snap.session_id,
+        snap.report?.specimen_date));
       setSessionModalOpen(false);
       setRestoreInput("");
     } catch (err) {
-      setBannerError(
-        err instanceof Error ? err.message : "Không thể mở phiên này."
-      );
+      if (requestEpoch === authEpochRef.current) {
+        setBannerError(
+          err instanceof Error ? err.message : "Không thể mở phiên này."
+        );
+      }
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
     }
   }
 
   async function handleDeleteCurrentSession() {
     if (!sessionId) return;
+    const requestEpoch = authEpochRef.current;
     setLoadingAction("session");
     try {
       await api.deleteSession(sessionId);
+      if (requestEpoch !== authEpochRef.current) return;
+      const savedReports = await api.getReportHistory();
+      if (requestEpoch !== authEpochRef.current) return;
+      setReportHistory(savedReports.reports || []);
       setSessionModalOpen(false);
       await handleNewSession();
     } catch (err) {
-      setBannerError(err instanceof Error ? err.message : "Không thể xóa phiên.");
+      if (requestEpoch === authEpochRef.current) {
+        setBannerError(err instanceof Error ? err.message : "Không thể xóa phiên.");
+      }
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
+    }
+  }
+
+  async function handleDeleteSavedReport(reportSessionId: string) {
+    if (!window.confirm("Xóa phiếu CBC đã lưu này khỏi lịch sử của tài khoản?")) return;
+    const requestEpoch = authEpochRef.current;
+    try {
+      await api.deleteSession(reportSessionId);
+      if (requestEpoch !== authEpochRef.current) return;
+      setReportHistory((items) => items.filter((item) => item.session_id !== reportSessionId));
+      if (selectedComparisonId === reportSessionId) setSelectedComparisonId("");
+      setComparison(null);
+      setComparisonError("");
+      setDoctorPrompt("");
+    } catch (err) {
+      if (requestEpoch === authEpochRef.current) {
+        setComparisonError(err instanceof Error ? err.message : "Không thể xóa phiếu đã lưu.");
+      }
     }
   }
 
@@ -447,8 +556,10 @@ export default function HomePage() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    const requestEpoch = authEpochRef.current;
 
     await invalidateIfConfirmed();
+    if (requestEpoch !== authEpochRef.current) return;
     setBannerError("");
     setOcrWarnings([]);
     setLoadingAction("ocr");
@@ -457,24 +568,27 @@ export default function HomePage() {
     abortRef.current = controller;
     try {
       const extracted = await api.extractReport(file, controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
       setOcrWarnings(extracted.warnings || []);
       setDraft((prev) => ({
         ...prev,
         adult_confirmed: false,
+        specimen_date: "",
         rows: normalizeRowsForForm(extracted.rows || [], true),
       }));
     } catch (err) {
-      if ((err as Error).name !== "AbortError") {
+      if (requestEpoch === authEpochRef.current && (err as Error).name !== "AbortError") {
         setBannerError(
           err instanceof Error ? err.message : "Đọc ảnh thất bại."
         );
       }
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
     }
   }
 
   async function handleConfirm() {
+    const requestEpoch = authEpochRef.current;
     setBannerError("");
     setLoadingAction("confirm");
     const controller = new AbortController();
@@ -483,6 +597,7 @@ export default function HomePage() {
     try {
       const payload = toApiPayload(draft);
       const check = await api.validateReport(payload, controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
       if (check.status !== "ok" && check.status !== "analyzed") {
         const issueMsg =
           check.issues && check.issues.length > 0
@@ -497,11 +612,20 @@ export default function HomePage() {
         revision,
         controller.signal
       );
+      if (requestEpoch !== authEpochRef.current) return;
       setRevision(res.revision);
       setAnalysis(res.analysis);
       setReply(null);
+      setDoctorPrompt("");
       const hist = await api.getHistory(sessionId, controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
       setHistory(hist.messages || []);
+      const savedReports = await api.getReportHistory(controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
+      setReportHistory(savedReports.reports || []);
+      setSelectedComparisonId(firstComparisonReportId(savedReports.reports || [], sessionId,
+        payload.specimen_date));
+      setComparisonError("");
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         setBannerError(
@@ -514,6 +638,7 @@ export default function HomePage() {
   }
 
   async function handleToggleRecording() {
+    const requestEpoch = authEpochRef.current;
     setBannerError("");
     if (recording && mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
@@ -537,6 +662,7 @@ export default function HomePage() {
         try {
           const wav = await toWav16k(blob);
           const { text } = await api.transcribeWav(wav);
+          if (requestEpoch !== authEpochRef.current) return;
           if (text?.trim()) {
             setQuestion(text.trim());
           } else {
@@ -545,20 +671,23 @@ export default function HomePage() {
             );
           }
         } catch (err) {
+          if (requestEpoch !== authEpochRef.current) return;
           setBannerError(
             err instanceof Error
               ? err.message
               : "Không thể chuyển giọng nói thành chữ."
           );
         } finally {
-          setLoadingAction(null);
+          if (requestEpoch === authEpochRef.current) setLoadingAction(null);
         }
       };
       mediaRecorderRef.current = recorder;
       recorder.start();
       setRecording(true);
     } catch {
-      setBannerError("Không thể truy cập micro. Vui lòng cấp quyền trình duyệt.");
+      if (requestEpoch === authEpochRef.current) {
+        setBannerError("Không thể truy cập micro. Vui lòng cấp quyền trình duyệt.");
+      }
     }
   }
 
@@ -566,6 +695,7 @@ export default function HomePage() {
     if (e) e.preventDefault();
     const q = question.trim();
     if (!q || !analysis) return;
+    const requestEpoch = authEpochRef.current;
 
     setBannerError("");
     setLoadingAction("chat");
@@ -581,38 +711,43 @@ export default function HomePage() {
 
     try {
       const res = await api.chat(sessionId, q, revision, reqId, controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
       setReply(res);
       if (typeof res.revision === "number") {
         setRevision(res.revision);
       }
       const hist = await api.getHistory(sessionId, controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
       setHistory(hist.messages || []);
       setChatRequestId(null);
     } catch (err) {
-      if ((err as Error).name !== "AbortError") {
+      if (requestEpoch === authEpochRef.current && (err as Error).name !== "AbortError") {
         setBannerError(
           err instanceof Error ? err.message : "Không thể nhận câu trả lời từ AI."
         );
       }
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
     }
   }
 
   async function handleReadAloud(text: string) {
+    const requestEpoch = authEpochRef.current;
     setBannerError("");
     setLoadingAction("tts");
     try {
       const wavBlob = await api.synthesizeWav(text);
+      if (requestEpoch !== authEpochRef.current) return;
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       const url = URL.createObjectURL(wavBlob);
       setAudioUrl(url);
     } catch (err) {
+      if (requestEpoch !== authEpochRef.current) return;
       setBannerError(
         err instanceof Error ? err.message : "Chưa tạo được giọng đọc."
       );
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
     }
   }
 
@@ -620,6 +755,7 @@ export default function HomePage() {
     if (!analysis) return;
     const lines = [
       "KẾT QUẢ ĐỐI CHIẾU CHỈ SỐ CBC THAI KỲ",
+      `Ngày lấy mẫu trên phiếu: ${draft.specimen_date || "chưa được nhập"}`,
       analysis.output,
       "",
       ...(analysis.rows || []).map(
@@ -641,7 +777,8 @@ export default function HomePage() {
   }
 
   function updateField<K extends keyof CBCReport>(key: K, value: CBCReport[K]) {
-    invalidateIfConfirmed();
+    if (key !== "specimen_date") invalidateIfConfirmed();
+    setDoctorPrompt("");
     setDraft((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -651,6 +788,7 @@ export default function HomePage() {
     value: string
   ) {
     invalidateIfConfirmed();
+    setDoctorPrompt("");
     setDraft((prev) => ({
       ...prev,
       rows: prev.rows.map((r) =>
@@ -662,6 +800,72 @@ export default function HomePage() {
   const resultStage = pregnancyStageInfo(analysis?.trimester);
   const resultRows = analysis?.rows || [];
   const rowsToReview = resultRows.filter((row) => row.status !== "within");
+  const otherSavedReports = useMemo(
+    () => reportHistory.filter((item) => item.session_id !== sessionId),
+    [reportHistory, sessionId]
+  );
+  const comparableReports = useMemo(
+    () => otherSavedReports.filter((item) => Boolean(item.specimen_date)
+      && Boolean(draft.specimen_date) && item.specimen_date! < draft.specimen_date!),
+    [draft.specimen_date, otherSavedReports]
+  );
+  const undatedSavedReports = otherSavedReports.filter((item) => !item.specimen_date);
+  const sameOrLaterSavedReports = otherSavedReports.filter((item) =>
+    item.specimen_date && draft.specimen_date && item.specimen_date >= draft.specimen_date
+  );
+
+  useEffect(() => {
+    if (!analysis || !sessionId) {
+      setComparison(null);
+      setComparisonError("");
+      setComparisonLoading(false);
+      return;
+    }
+    if (!draft.specimen_date) {
+      setComparison(null);
+      setComparisonError("Nhập ngày lấy mẫu trên phiếu hiện tại để so sánh theo thời gian.");
+      setComparisonLoading(false);
+      return;
+    }
+    const activeSavedReport = reportHistory.find((item) => item.session_id === sessionId);
+    if (!activeSavedReport || activeSavedReport.specimen_date !== draft.specimen_date) {
+      setComparison(null);
+      setComparisonError("Xác nhận ngày lấy mẫu đã nhập trước khi xem so sánh.");
+      setComparisonLoading(false);
+      return;
+    }
+    if (!selectedComparisonId) {
+      setComparison(null);
+      setComparisonError("");
+      setComparisonLoading(false);
+      return;
+    }
+    const selected = comparableReports.find((item) => item.session_id === selectedComparisonId);
+    if (!selected) {
+      setSelectedComparisonId("");
+      setComparison(null);
+      setComparisonError("");
+      setComparisonLoading(false);
+      return;
+    }
+    if (selected.session_id !== selectedComparisonId) setSelectedComparisonId(selected.session_id);
+    const controller = new AbortController();
+    setComparison(null);
+    setComparisonLoading(true);
+    setComparisonError("");
+    api.compareReports(selected.session_id, sessionId, controller.signal)
+      .then((result) => setComparison(result))
+      .catch((err) => {
+        if ((err as Error).name !== "AbortError") {
+          setComparison(null);
+          setComparisonError(err instanceof Error ? err.message : "Không thể so sánh hai phiếu.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setComparisonLoading(false);
+      });
+    return () => controller.abort();
+  }, [analysis, api, comparableReports, draft.specimen_date, selectedComparisonId, sessionId]);
 
   if (!token) {
     return (
@@ -824,7 +1028,7 @@ export default function HomePage() {
             </button>
             <button
               type="button"
-              onClick={() => setToken("")}
+              onClick={handleLogout}
               className="btn-outline h-9 text-xs"
               title="Đăng xuất"
             >
@@ -946,7 +1150,7 @@ export default function HomePage() {
             )}
 
             {/* Context */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs text-[var(--muted)] mb-1">
                   Tuổi thai lúc xét nghiệm (tuần + ngày)
@@ -959,6 +1163,18 @@ export default function HomePage() {
                   }
                   placeholder="24w2d (24 tuần 2 ngày)"
                 />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--muted)] mb-1">
+                  Ngày lấy mẫu trên phiếu
+                </label>
+                <input
+                  type="date"
+                  className="wf-input"
+                  value={draft.specimen_date || ""}
+                  onChange={(e) => updateField("specimen_date", e.target.value)}
+                />
+                <p className="mt-1 text-[10px] text-[var(--muted)]">Dùng để so sánh với lần xét nghiệm trước.</p>
               </div>
               <div>
                 <label className="block text-xs text-[var(--muted)] mb-1">
@@ -1148,6 +1364,11 @@ export default function HomePage() {
                   <p className="text-xs text-[var(--muted)]">
                     Đây là phép so sánh với khoảng đã chọn, không phải kết luận bệnh. Kết quả trong khoảng cũng không loại trừ bệnh.
                   </p>
+                  {analysis.issues && analysis.issues.length > 0 && (
+                    <p role="status" className="rounded-lg bg-[#fffbeb] p-2.5 text-xs text-[#8a5b10]">
+                      Một số dòng chưa thể đối chiếu: {analysis.issues.join("; ")}
+                    </p>
+                  )}
 
                   {rowsToReview.length > 0 && (
                     <section className="rounded-xl border border-[#f3d9a7] bg-[#fffbeb] p-3 space-y-2">
@@ -1170,6 +1391,15 @@ export default function HomePage() {
                               <p className="mt-1 text-[var(--muted)]">
                                 {info?.description} {STATUS_META[row.status].meaning}
                               </p>
+                              <button
+                                type="button"
+                                className="mt-1 text-[var(--primary)] underline underline-offset-2"
+                                onClick={() => setDoctorPrompt(
+                                  `Lúc thai ${draft.gestational_age}, kết quả ${info?.name || row.analyte} (${row.analyte}) của tôi là ${row.value} ${row.unit}, đang ${STATUS_META[row.status].label.toLowerCase()} theo khoảng này. Bác sĩ sẽ xem thêm những thông tin nào để giải thích kết quả?`
+                                )}
+                              >
+                                Soạn câu hỏi cho bác sĩ
+                              </button>
                             </li>
                           );
                         })}
@@ -1214,6 +1444,18 @@ export default function HomePage() {
                                       {STATUS_META[row.status].label}
                                     </span>
                                     <p className="mt-1 text-[10px] leading-snug text-[var(--muted)]">{STATUS_META[row.status].meaning}</p>
+                                    <button
+                                      type="button"
+                                      className="mt-1 text-[10px] text-[var(--primary)] underline underline-offset-2"
+                                      onClick={() => {
+                                        const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
+                                        setDoctorPrompt(
+                                          `Lúc thai ${draft.gestational_age}, kết quả ${info?.name || row.analyte} (${row.analyte}) của tôi là ${row.value} ${row.unit}, đang ${STATUS_META[row.status].label.toLowerCase()} theo khoảng này. Bác sĩ sẽ xem thêm những thông tin nào để giải thích kết quả?`
+                                        );
+                                      }}
+                                    >
+                                      Soạn câu hỏi cho bác sĩ
+                                    </button>
                                   </td>
                                 </tr>
                               );
@@ -1255,6 +1497,157 @@ export default function HomePage() {
                       )}
                     </div>
                   </details>
+                </div>
+
+                <div className="soft-card p-4 sm:p-5 space-y-3">
+                  <div>
+                    <h2 className="font-semibold text-[15px]">Theo dõi giữa các lần xét nghiệm</h2>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      So sánh các con số theo ngày lấy mẫu. Tăng hoặc giảm chỉ mô tả thay đổi, không tự nói lên tình trạng sức khỏe.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="flex-1 min-w-[220px] text-xs text-[var(--muted)]">
+                      Chọn một phiếu khác đã lưu
+                      <select
+                        className="wf-input mt-1"
+                        value={selectedComparisonId}
+                        onChange={(e) => {
+                          setSelectedComparisonId(e.target.value);
+                          setDoctorPrompt("");
+                        }}
+                        disabled={comparableReports.length === 0}
+                      >
+                        <option value="">Chọn phiếu để so sánh</option>
+                        {comparableReports.map((item) => (
+                          <option key={item.session_id} value={item.session_id}>
+                            {new Date(`${item.specimen_date}T00:00:00`).toLocaleDateString("vi-VN")}
+                            {item.gestational_age ? ` · ${item.gestational_age}` : ""}
+                            {` · ${item.rows.length} chỉ số`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {selectedComparisonId && (
+                      <button type="button" className="btn-outline h-10 px-3 text-xs" onClick={() => handleDeleteSavedReport(selectedComparisonId)}>
+                        <Trash2 className="w-3.5 h-3.5" /> Xóa phiếu đã chọn
+                      </button>
+                    )}
+                  </div>
+                  {undatedSavedReports.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-[var(--muted)]">
+                        {undatedSavedReports.length} phiếu đã lưu chưa có ngày lấy mẫu nên chưa thể xếp theo thời gian. Mở phiếu để bổ sung đúng ngày ghi trên phiếu.
+                      </p>
+                      {undatedSavedReports.map((item) => (
+                        <div key={item.session_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#f8fafa] p-2 text-xs">
+                          <span>{item.rows.length} chỉ số CBC · chưa có ngày lấy mẫu</span>
+                          <button
+                            type="button"
+                            className="text-[var(--primary)] underline underline-offset-2"
+                            onClick={() => {
+                              setRestoreInput(item.session_id);
+                              setSessionModalOpen(true);
+                            }}
+                          >
+                            Mở phiếu
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {sameOrLaterSavedReports.length > 0 && comparableReports.length === 0 && (
+                    <p className="text-xs text-[var(--muted)]">
+                      Phiếu đã lưu có ngày cùng ngày hoặc muộn hơn phiếu hiện tại nên không được dùng làm “lần trước”. Hãy mở phiếu có ngày sớm hơn để so sánh theo thứ tự thời gian.
+                    </p>
+                  )}
+                  {otherSavedReports.length === 0 && (
+                    <p className="text-xs text-[var(--muted)]">
+                      Cần thêm ít nhất một phiếu CBC khác có ngày lấy mẫu để xem các con số thay đổi ra sao giữa hai lần.
+                    </p>
+                  )}
+                  {comparisonLoading && <p className="text-xs text-[var(--muted)]">Đang tải phần so sánh…</p>}
+                  {comparisonError && <p role="alert" className="text-xs text-[#b42318]">{comparisonError}</p>}
+                  {comparison && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-[var(--muted)]">
+                        {new Date(`${comparison.prior.specimen_date}T00:00:00`).toLocaleDateString("vi-VN")}
+                        {` → `}
+                        {new Date(`${comparison.current.specimen_date}T00:00:00`).toLocaleDateString("vi-VN")}
+                        {` · Tuổi thai: ${comparison.prior.gestational_age} → ${comparison.current.gestational_age}`}
+                      </p>
+                      <p className="text-[10px] text-[var(--muted)]">Các giá trị so sánh được hiển thị cùng đơn vị chuẩn hóa; trạng thái vẫn dựa trên khoảng của từng phiếu.</p>
+                      {comparison.reference_context_differs && (
+                        <p className="rounded-lg bg-[#fffbeb] p-2.5 text-xs text-[#8a5b10]">
+                          Hai phiếu khác giai đoạn thai kỳ hoặc cách chọn khoảng tham chiếu. Trạng thái của mỗi phiếu được giữ riêng theo khoảng đã dùng lúc đó.
+                        </p>
+                      )}
+                      <div className="overflow-x-auto border border-[var(--border-strong)] rounded-xl">
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead className="bg-[#f8fafa] text-[var(--muted)]">
+                            <tr>
+                              <th className="py-2 px-3 font-medium">Chỉ số</th>
+                              <th className="py-2 px-3 font-medium">Lần trước</th>
+                              <th className="py-2 px-3 font-medium">Lần sau</th>
+                              <th className="py-2 px-3 font-medium">So sánh</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[var(--border)]">
+                            {comparison.rows.map((row) => {
+                              const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
+                              return (
+                                <tr key={row.analyte}>
+                                  <td className="py-2 px-3 font-medium">{info?.name || row.analyte} ({row.analyte})</td>
+                                  <td className="py-2 px-3">
+                                    {row.prior
+                                      ? <>{row.comparable ? `${row.prior_normalized_value} ${row.normalized_unit}` : `${row.prior.value} ${row.prior.unit}`}<br /><span className="text-[10px] text-[var(--muted)]">{STATUS_META[row.prior.status].label}</span></>
+                                      : row.prior_unavailable
+                                        ? <>{row.prior_unavailable.value} {row.prior_unavailable.unit}<br /><span className="text-[10px] text-[#8a5b10]">{row.prior_unavailable.reason}</span></>
+                                        : "Không có trên phiếu"}
+                                  </td>
+                                  <td className="py-2 px-3">
+                                    {row.current
+                                      ? <>{row.comparable ? `${row.current_normalized_value} ${row.normalized_unit}` : `${row.current.value} ${row.current.unit}`}<br /><span className="text-[10px] text-[var(--muted)]">{STATUS_META[row.current.status].label}</span></>
+                                      : row.current_unavailable
+                                        ? <>{row.current_unavailable.value} {row.current_unavailable.unit}<br /><span className="text-[10px] text-[#8a5b10]">{row.current_unavailable.reason}</span></>
+                                        : "Không có trên phiếu"}
+                                  </td>
+                                  <td className="py-2 px-3">
+                                    {row.comparable
+                                      ? `Thay đổi ${row.delta} ${row.delta_unit}`
+                                      : row.reason}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-outline text-xs"
+                        onClick={() => {
+                          const comparableRows = comparison.rows
+                            .filter((row) => row.comparable && row.prior && row.current);
+                          const changedValues = comparableRows
+                            .filter((row) => row.delta !== "0")
+                            .map((row) => `${row.analyte}: ${row.prior_normalized_value} ${row.normalized_unit} → ${row.current_normalized_value} ${row.normalized_unit}`)
+                            .join("; ");
+                          setDoctorPrompt(
+                            `So với phiếu ngày ${comparison.prior.specimen_date}, phiếu ngày ${comparison.current.specimen_date} có các thay đổi số liệu sau: ${changedValues || (comparableRows.length > 0 ? "các chỉ số so sánh được không thay đổi về giá trị" : "không có dòng nào so sánh trực tiếp được")}. Bác sĩ sẽ xem các thay đổi này cùng những thông tin nào để giải thích?`
+                          );
+                        }}
+                      >
+                        Soạn câu hỏi về thay đổi giữa hai phiếu
+                      </button>
+                    </div>
+                  )}
+                  {doctorPrompt && (
+                    <div className="rounded-xl border border-[var(--border-strong)] bg-[#f8fafa] p-3 space-y-1.5">
+                      <p className="text-xs font-medium">Câu hỏi để mang tới buổi khám</p>
+                      <p className="text-xs text-[var(--muted)]">{doctorPrompt}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Q&A + Voice */}
@@ -1377,6 +1770,55 @@ export default function HomePage() {
             )}
           </section>
         </div>
+
+        <section className="soft-card p-4 sm:p-5 space-y-3">
+          <div>
+            <h2 className="font-semibold text-[15px]">Phiếu CBC đã lưu trong tài khoản</h2>
+            <p className="mt-1 text-xs text-[var(--muted)]">Chỉ bạn mới xem được các phiếu này. Mở một phiếu để xem lại hoặc bổ sung ngày lấy mẫu.</p>
+          </div>
+          {reportHistory.length === 0 ? (
+            <p className="text-xs text-[var(--muted)]">Chưa có phiếu CBC nào được lưu.</p>
+          ) : (
+            <ul className="space-y-2">
+              {reportHistory.map((item) => (
+                <li key={item.session_id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--border-strong)] p-3">
+                  <div className="text-xs">
+                    <p className="font-medium">
+                      {item.specimen_date
+                        ? new Date(`${item.specimen_date}T00:00:00`).toLocaleDateString("vi-VN")
+                        : "Chưa có ngày lấy mẫu"}
+                      {item.gestational_age ? ` · Thai ${item.gestational_age}` : ""}
+                      {` · ${item.rows.length} chỉ số`}
+                      {item.session_id === sessionId ? " · Đang mở" : ""}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-[var(--muted)]">Mã phiếu: {item.session_id.slice(0, 8)}</p>
+                  </div>
+                  {item.session_id !== sessionId && (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="btn-outline h-8 px-3 text-xs"
+                        onClick={() => {
+                          setRestoreInput(item.session_id);
+                          setSessionModalOpen(true);
+                        }}
+                      >
+                        Mở phiếu
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-outline h-8 px-3 text-xs text-[#be123c]"
+                        onClick={() => handleDeleteSavedReport(item.session_id)}
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
 
       {/* Saved Session Modal */}

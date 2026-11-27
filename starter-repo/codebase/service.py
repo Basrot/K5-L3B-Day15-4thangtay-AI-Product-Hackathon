@@ -8,8 +8,23 @@ from pathlib import Path
 from uuid import uuid4
 
 from .agent import answer
-from .tools import compare_cbc
+from .tools import compare_cbc, compare_cbc_reports
 from .references import reference_mode
+
+
+def _comparison_key(report):
+    """Normalize harmless JSON number/string representation differences for equality checks."""
+    if not report:
+        return report
+    normalized = dict(report)
+    normalized["rows"] = []
+    for raw in report.get("rows", []):
+        row = dict(raw)
+        for key in ("value", "ref_low", "ref_high"):
+            if row.get(key) is not None:
+                row[key] = str(row[key])
+        normalized["rows"].append(row)
+    return normalized
 
 
 class CBCService:
@@ -24,6 +39,7 @@ class CBCService:
                 CREATE TABLE IF NOT EXISTS sessions (
                     id TEXT PRIMARY KEY,
                     report TEXT,
+                    specimen_date TEXT,
                     revision INTEGER NOT NULL DEFAULT 0,
                     owner_id TEXT,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -42,6 +58,8 @@ class CBCService:
             session_columns = {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}
             if "owner_id" not in session_columns:
                 db.execute("ALTER TABLE sessions ADD COLUMN owner_id TEXT")
+            if "specimen_date" not in session_columns:
+                db.execute("ALTER TABLE sessions ADD COLUMN specimen_date TEXT")
             db.execute("CREATE INDEX IF NOT EXISTS idx_sessions_owner ON sessions(owner_id)")
 
     @contextmanager
@@ -75,8 +93,11 @@ class CBCService:
                                  (session_id, owner_id)).fetchone()
         if row is None:
             raise KeyError("Không tìm thấy phiên CBC.")
+        report = json.loads(row["report"]) if row["report"] else None
+        if report is not None and "specimen_date" not in report:
+            report["specimen_date"] = row["specimen_date"]
         return {"session_id": row["id"], "revision": row["revision"],
-                "report": json.loads(row["report"]) if row["report"] else None}
+                "specimen_date": row["specimen_date"], "report": report}
 
     def confirm_report(self, session_id, report, *, confirmed, expected_revision, owner_id=None):
         if confirmed is not True:
@@ -88,48 +109,146 @@ class CBCService:
         fields = (("analyte", "value", "unit") if comparison["reference_mode"] == "study" else
                   ("analyte", "value", "unit", "ref_low", "ref_high", "ref_unit"))
         cleaned = {key: report[key] for key in ("pregnancy_status", "adult_confirmed", "gestational_age")}
+        specimen_date = report.get("specimen_date")
+        cleaned["specimen_date"] = specimen_date.isoformat() if hasattr(specimen_date, "isoformat") else specimen_date
         cleaned["rows"] = [{key: row.get(key) for key in fields} for row in report["rows"]]
         if report.get("reference_mode") is not None or comparison["reference_mode"] == "study":
             cleaned["reference_mode"] = comparison["reference_mode"]
         if comparison["reference_mode"] == "study":
             cleaned["reference_version"] = comparison["reference_version"]
+        cleaned["analysis_snapshot"] = {
+            key: comparison[key] for key in (
+                "rows", "gestational_age", "trimester", "reference_mode",
+                "reference_version", "reference_source", "reference_note",
+            ) if key in comparison
+        }
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             if owner_id is None:
-                current = db.execute("SELECT report, revision FROM sessions WHERE id = ?", (session_id,)).fetchone()
+                current = db.execute("SELECT report, revision, specimen_date FROM sessions WHERE id = ?", (session_id,)).fetchone()
             else:
-                current = db.execute("SELECT report, revision FROM sessions WHERE id = ? AND owner_id = ?",
+                current = db.execute("SELECT report, revision, specimen_date FROM sessions WHERE id = ? AND owner_id = ?",
                                      (session_id, owner_id)).fetchone()
             if current is None:
                 raise KeyError("Không tìm thấy phiên CBC.")
             existing = json.loads(current["report"]) if current["report"] else None
-            if existing and {**existing, "reference_mode": reference_mode(existing)} == {
-                    **cleaned, "reference_mode": comparison["reference_mode"]}:
+            if existing:
+                normalized_existing = dict(existing)
+                normalized_existing.setdefault("specimen_date", current["specimen_date"])
+                normalized_existing.setdefault("reference_mode", reference_mode(existing))
+            else:
+                normalized_existing = None
+            if _comparison_key(normalized_existing) == _comparison_key(cleaned):
                 return {**comparison, "session": {"session_id": session_id,
-                        "revision": current["revision"], "report": existing}}
+                        "revision": current["revision"], "specimen_date": current["specimen_date"], "report": existing}}
+            existing_without_snapshot = dict(normalized_existing) if normalized_existing else None
+            cleaned_without_snapshot = dict(cleaned)
+            if existing_without_snapshot is not None:
+                existing_without_snapshot.pop("analysis_snapshot", None)
+                existing_without_date = dict(existing_without_snapshot)
+                existing_without_date.pop("specimen_date", None)
+            else:
+                existing_without_date = None
+            cleaned_without_snapshot.pop("analysis_snapshot", None)
+            cleaned_without_date = dict(cleaned_without_snapshot)
+            cleaned_without_date.pop("specimen_date", None)
+            existing_mode = reference_mode(existing) if existing else None
+            old_analysis_snapshot = existing.get("analysis_snapshot") if existing else None
+            snapshot_reference_is_current = (
+                existing is not None and (
+                    old_analysis_snapshot == cleaned.get("analysis_snapshot")
+                    or (old_analysis_snapshot is None and (
+                        existing_mode == "lab"
+                        or existing.get("reference_version") == comparison.get("reference_version")
+                    ))
+                )
+            )
+            date_only_change = (
+                _comparison_key(existing_without_date) == _comparison_key(cleaned_without_date)
+                and snapshot_reference_is_current
+            )
             if current["revision"] != expected_revision:
                 raise ValueError("Phiếu đã thay đổi. Hãy tải lại dữ liệu trước khi xác nhận.")
-            cursor = db.execute(
-                "UPDATE sessions SET report = ?, revision = revision + 1 WHERE id = ?",
-                (json.dumps(cleaned, ensure_ascii=False), session_id),
-            )
+            if owner_id is None:
+                cursor = db.execute(
+                    "UPDATE sessions SET report = ?, specimen_date = ?, revision = revision + 1 WHERE id = ?",
+                    (json.dumps(cleaned, ensure_ascii=False), cleaned["specimen_date"], session_id),
+                )
+            else:
+                cursor = db.execute(
+                    "UPDATE sessions SET report = ?, specimen_date = ?, revision = revision + 1 WHERE id = ? AND owner_id = ?",
+                    (json.dumps(cleaned, ensure_ascii=False), cleaned["specimen_date"], session_id, owner_id),
+                )
             if cursor.rowcount != 1:
                 raise KeyError("Không tìm thấy phiên CBC.")
-            db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
-            snapshot = {"session_id": session_id, "revision": current["revision"] + 1, "report": cleaned}
+            if date_only_change:
+                db.execute(
+                    "UPDATE messages SET revision = ? WHERE session_id = ? AND revision = ?",
+                    (current["revision"] + 1, session_id, current["revision"]),
+                )
+            else:
+                db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+            snapshot = {"session_id": session_id, "revision": current["revision"] + 1,
+                        "specimen_date": cleaned["specimen_date"], "report": cleaned}
         return {**comparison, "session": snapshot}
+
+    def list_reports(self, owner_id):
+        """Return confirmed report summaries for one authenticated account only."""
+        with self._connection() as db:
+            rows = db.execute(
+                "SELECT id, report, revision, specimen_date FROM sessions "
+                "WHERE owner_id = ? AND report IS NOT NULL", (owner_id,)
+            ).fetchall()
+        reports = []
+        for row in rows:
+            report = json.loads(row["report"])
+            reports.append({
+                "session_id": row["id"],
+                "revision": row["revision"],
+                "specimen_date": row["specimen_date"],
+                "gestational_age": report.get("gestational_age"),
+                "rows": [{key: item.get(key) for key in ("analyte", "value", "unit")}
+                         for item in report.get("rows", [])],
+            })
+        reports.sort(key=lambda item: (item["specimen_date"] or "", item["session_id"]), reverse=True)
+        reports.sort(key=lambda item: item["specimen_date"] is None)
+        return reports
+
+    def compare_saved_reports(self, prior_session_id, current_session_id, owner_id):
+        """Compare two confirmed CBC reports owned by the same account."""
+        with self._connection() as db:
+            rows = db.execute(
+                "SELECT id, report, specimen_date FROM sessions "
+                "WHERE owner_id = ? AND id IN (?, ?)",
+                (owner_id, prior_session_id, current_session_id),
+            ).fetchall()
+        by_id = {row["id"]: row for row in rows}
+        prior = by_id.get(prior_session_id)
+        current = by_id.get(current_session_id)
+        if (prior is None or current is None or prior["report"] is None or current["report"] is None):
+            raise KeyError("Không tìm thấy phiếu CBC đã xác nhận.")
+        if prior_session_id == current_session_id:
+            raise ValueError("Chọn hai phiếu CBC khác nhau để so sánh.")
+        if not prior["specimen_date"] or not current["specimen_date"]:
+            raise ValueError("Cả hai phiếu cần có ngày lấy mẫu để so sánh theo thời gian.")
+        if prior["specimen_date"] >= current["specimen_date"]:
+            raise ValueError("Phiếu hiện tại cần có ngày lấy mẫu muộn hơn phiếu trước.")
+        return compare_cbc_reports(
+            json.loads(prior["report"]), json.loads(current["report"]),
+            prior["specimen_date"], current["specimen_date"],
+        )
 
     def invalidate_report(self, session_id, *, expected_revision, owner_id=None):
         """Gọi ngay khi người dùng sửa form hoặc chọn ảnh khác."""
         with self._connection() as db:
             if owner_id is None:
                 cursor = db.execute(
-                    "UPDATE sessions SET report = NULL, revision = revision + 1 WHERE id = ? AND revision = ?",
+                    "UPDATE sessions SET report = NULL, specimen_date = NULL, revision = revision + 1 WHERE id = ? AND revision = ?",
                     (session_id, expected_revision),
                 )
             else:
                 cursor = db.execute(
-                    "UPDATE sessions SET report = NULL, revision = revision + 1 WHERE id = ? AND owner_id = ? AND revision = ?",
+                    "UPDATE sessions SET report = NULL, specimen_date = NULL, revision = revision + 1 WHERE id = ? AND owner_id = ? AND revision = ?",
                     (session_id, owner_id, expected_revision),
                 )
             if cursor.rowcount != 1:
@@ -160,7 +279,8 @@ class CBCService:
                 raise ValueError("request_id đã được dùng cho câu hỏi khác.")
             return json.loads(cached["result"])
 
-        result = answer(json.dumps({"report": session["report"], "question": question}, ensure_ascii=False))
+        result = answer(json.dumps({"report": session["report"], "question": question}, ensure_ascii=False),
+                        confirmed=True)
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             if owner_id is None:

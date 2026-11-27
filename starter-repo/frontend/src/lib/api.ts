@@ -4,6 +4,8 @@ import type {
   CBCReport,
   ChatResult,
   HistoryItem,
+  ReportComparison,
+  ReportHistoryItem,
 } from "./types";
 
 const BASE_URL = (
@@ -122,6 +124,15 @@ export function createApiClient(
       ),
 
     getCatalog: () => request<CatalogItem[]>("/v1/catalog"),
+
+    getReportHistory: (signal?: AbortSignal) =>
+      request<{ reports: ReportHistoryItem[] }>("/v1/reports/history", { signal }),
+
+    compareReports: (priorSessionId: string, currentSessionId: string, signal?: AbortSignal) =>
+      request<ReportComparison>(
+        `/v1/reports/history/${encodeURIComponent(priorSessionId)}/compare?current_session_id=${encodeURIComponent(currentSessionId)}`,
+        { signal }
+      ),
 
     createSession: () =>
       request<{ session_id: string; revision: number; report: CBCReport | null }>(
