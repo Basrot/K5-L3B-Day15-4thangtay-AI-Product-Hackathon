@@ -62,20 +62,20 @@ print(result["output"])
 
    Kết quả mẫu có nhãn `[AI giả]`. HGB được quy đổi từ 108 g/L thành 10.8 g/dL và nằm dưới khoảng ghi trên phiếu mẫu.
 2. **LLM thật.** Khởi động Ollama trên máy có model `qwen3:4b`. Đặt `MODEL_PROVIDER=ollama` và `MODEL_NAME=qwen3:4b` trong `.env`. Chạy lại ca trên và kiểm tên model, token vào/ra trong CLI. Ollama cục bộ dùng cổng mặc định 11434. Nên chạy sẵn một câu mẫu trước demo để model nạp xong.
-3. **Zipformer.** Chạy `python -m pip install -r requirements.txt`. Tải và giải nén gói Zipformer tiếng Việt 30M INT8 được dẫn trong [tài liệu sherpa-onnx](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-transducer/zipformer-transducer-models.html#sherpa-onnx-zipformer-vi-30m-int8-2026-02-09-vietnamese). Đặt `ZIPFORMER_MODEL_DIR` trong `.env` trỏ đến thư mục chứa ba tệp ONNX và `tokens.txt`. Dùng WAV PCM mono 16-bit, 8–48 kHz, tối đa 30 giây. Mẫu WAV trong gói model dùng để thử kết nối. Ghi thêm một câu riêng có “huyết sắc tố” để thử luồng demo.
+3. **Zipformer.** Các Docker image API và demo tải Zipformer tiếng Việt 150M INT8 từ revision ghim trong Dockerfile; file `config.json` của model được dùng làm `tokens.txt`. Model card khai báo giấy phép `cc-by-nc-nd-4.0`. Để chạy trực tiếp ngoài Docker, cài `requirements-voice.txt`, tải đúng bốn artifact từ revision đó vào một thư mục và đặt `ZIPFORMER_MODEL_DIR` trỏ đến thư mục ấy. Dùng WAV PCM mono 16-bit, 8–48 kHz, tối đa 30 giây. Thử cả ba WAV mẫu và thêm câu riêng có “huyết sắc tố”.
 4. **Kiểm thử tự động.** Chạy `python -m unittest discover -s tests -v`.
 
 Hàm AI nhận dữ liệu có cấu trúc. Phần đọc ảnh và xác nhận kết quả thuộc giao diện của thành viên 4. Model chọn dòng và loại câu hỏi gợi ý. Mọi số, đơn vị, khoảng và trạng thái hiển thị đều lấy từ hàm đối chiếu. Phần giải thích dùng khoảng nghiên cứu đã chọn từ tuổi thai trong study hoặc khoảng do người dùng xác nhận trên phiếu trong lab, và nêu rõ nguồn.
 
-**Trạng thái kiểm thử giọng nói.** Windows Application Control chặn thư viện native của wheel sherpa-onnx. Backend ONNX bên dưới đã nhận dạng được WAV tiếng Việt mẫu trên chính máy này và chuyển bản chép đến Ollama thật. Màn hình thử mic đã được mở tại cổng 8501. Độ chính xác với giọng nói của người dùng cần kiểm qua micro thực tế.
+**Trạng thái kiểm thử giọng nói.** Windows Application Control chặn thư viện native của wheel sherpa-onnx. Backend ONNX đã nhận dạng được cả ba WAV mẫu với bộ model 150M đã ghim; đây là smoke test tương thích, chưa phải đánh giá độ chính xác độc lập. Peak working set standalone khi nhận dạng cả ba WAV là khoảng 301 MiB trên Windows; đây không thay thế phép đo Docker/cgroup. Màn hình mic trên checkout gốc vẫn trỏ model 30M; cần cấu hình model 150M riêng và thử mic thực tế trước demo.
 
 ### Thử giọng nói trên Windows với ONNX Runtime
 
-Backend `onnx` chạy cùng model Zipformer tiếng Việt 30M INT8 qua ONNX Runtime. Màn hình `voice_demo.py` dùng phiếu giả lập cố định để kiểm luồng micro → bản chép → xác nhận câu hỏi → AI giải thích. Trên máy này đã chuẩn bị `.venv` và model trong `runtime/zipformer`.
+Backend `onnx` chạy Zipformer qua ONNX Runtime. Docker image đã cấu hình model 150M INT8; checkout Windows hiện có model 30M trong `runtime/zipformer`, nên chạy script trực tiếp trên máy đó vẫn dùng model 30M cho đến khi tải/cấu hình model 150M riêng. Màn hình `voice_demo.py` dùng phiếu giả lập cố định để kiểm luồng micro → bản chép → xác nhận câu hỏi → AI giải thích.
 
 Mở PowerShell trong `starter-repo` và chạy `./start-voice-demo.ps1`, sau đó mở [màn hình thử](http://127.0.0.1:8501). Cho trình duyệt dùng micro, ghi một câu ngắn như “Vì sao huyết sắc tố có dấu L?”, bấm Chuyển thành chữ, sửa bản chép nếu cần, xác nhận phiếu mẫu rồi bấm Hỏi AI. Ollama dùng `qwen3:4b` trên cổng 11434.
 
-Trên máy khác, tạo `.venv` bằng Python 3.12, cài `pip install -r requirements-voice.txt`, giải nén model vào `runtime/zipformer` và tải model Ollama trước khi chạy script. Đặt `ZIPFORMER_BACKEND=onnx` để dùng backend tương thích này trong giao diện chính. Hàm `transcribe_wav` giữ cùng cách gọi, backend ONNX nhận WAV 16 kHz. Giữ chế độ ghi âm `sample_rate=16000`.
+Trên máy khác, tạo `.venv` bằng Python 3.12, cài `pip install -r requirements-voice.txt`, đặt bốn file model vào thư mục được `ZIPFORMER_MODEL_DIR` chỉ tới và tải model Ollama trước khi chạy script. Đặt `ZIPFORMER_BACKEND=onnx` để dùng backend tương thích này trong giao diện chính. Hàm `transcribe_wav` giữ cùng cách gọi, backend ONNX nhận WAV 16 kHz. Giữ chế độ ghi âm `sample_rate=16000`.
 
 ### Đọc câu trả lời bằng VieNeu
 

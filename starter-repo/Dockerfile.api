@@ -1,23 +1,28 @@
 # syntax=docker/dockerfile:1
 FROM python:3.12-slim-bookworm AS model
-ARG ZIPFORMER_MODEL_URL=https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-vi-30M-int8-2026-02-09.tar.bz2
+ARG ZIPFORMER_MODEL_REVISION=8c3d474d3d74cb247f4b8c7b0f8b48598ac8c1c6
 RUN python - <<'PY'
 import os
-import tarfile
-import urllib.request
+import shutil
+from urllib.request import urlopen
 from pathlib import Path
 
-archive = Path("/tmp/model.tar.bz2")
-urllib.request.urlretrieve(os.environ["ZIPFORMER_MODEL_URL"], archive)
 destination = Path("/opt/models/zipformer")
 destination.mkdir(parents=True)
-with tarfile.open(archive, "r:bz2") as model:
-    model.extractall("/tmp/model", filter="data")
-for name in ("encoder.int8.onnx", "decoder.onnx", "joiner.int8.onnx", "tokens.txt"):
-    matches = list(Path("/tmp/model").rglob(name))
-    if len(matches) != 1:
-        raise RuntimeError(f"Expected exactly one {name}, found {len(matches)}")
-    matches[0].rename(destination / name)
+revision = os.environ["ZIPFORMER_MODEL_REVISION"]
+base = f"https://huggingface.co/hynt/ZipFormer-150M-CR-CTC-RNNT-6000h/resolve/{revision}/"
+artifacts = {
+    "encoder-epoch-11-avg-2.int8.onnx": "encoder.int8.onnx",
+    "decoder-epoch-11-avg-2.onnx": "decoder.onnx",
+    "joiner-epoch-11-avg-2.int8.onnx": "joiner.int8.onnx",
+    "config.json": "tokens.txt",
+}
+for source, target in artifacts.items():
+    with urlopen(base + source, timeout=120) as response:
+        with (destination / target).open("wb") as output:
+            shutil.copyfileobj(response, output)
+    if (destination / target).stat().st_size == 0:
+        raise RuntimeError(f"Downloaded empty Zipformer artifact: {source}")
 PY
 
 FROM python:3.12-slim-bookworm

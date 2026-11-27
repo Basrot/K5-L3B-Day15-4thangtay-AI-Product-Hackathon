@@ -19,3 +19,24 @@ class FeaturesTest(unittest.TestCase):
         offset = log_mel(tone + 1)
         np.testing.assert_allclose(plain[:, 25:35], offset[:, 25:35], atol=0.01)
         self.assertGreater(plain[50].max() - plain[50].min(), 10)
+
+
+class DockerModelConfigTest(unittest.TestCase):
+    def test_api_and_demo_images_pin_the_same_150m_int8_files(self):
+        repo = Path(__file__).resolve().parents[1]
+        revision = "8c3d474d3d74cb247f4b8c7b0f8b48598ac8c1c6"
+        expected_files = {
+            "encoder-epoch-11-avg-2.int8.onnx": "encoder.int8.onnx",
+            "decoder-epoch-11-avg-2.onnx": "decoder.onnx",
+            "joiner-epoch-11-avg-2.int8.onnx": "joiner.int8.onnx",
+            "config.json": "tokens.txt",
+        }
+        for name in ("Dockerfile.api", "Dockerfile"):
+            with self.subTest(dockerfile=name):
+                content = (repo / name).read_text(encoding="utf-8")
+                self.assertIn(revision, content)
+                self.assertIn("ARG ZIPFORMER_MODEL_REVISION=", content)
+                self.assertIn('os.environ["ZIPFORMER_MODEL_REVISION"]', content)
+                self.assertNotIn("30M-int8", content)
+                for source, target in expected_files.items():
+                    self.assertIn(f'"{source}": "{target}"', content)
