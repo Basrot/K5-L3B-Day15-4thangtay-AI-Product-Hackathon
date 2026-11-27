@@ -27,15 +27,38 @@
 | Nhãn | `synthetic` (dữ liệu giả lập 100%, không phải phiếu bệnh nhân thật). |
 | Giới hạn | Sinh tất định từ 3 kịch bản lâm sàng cố định (không dùng ngẫu nhiên; thông số sinh học nhất quán `MCV ≈ HCT×10/RBC`, `MCH ≈ HGB×10/RBC`, `MCHC ≈ HGB×100/HCT`); người kiểm: Đào Ngọc Hân (N1); số dòng đã kiểm tay & script: 24/24 dòng chỉ số trên 3 cặp phiếu. Ca dựng sẵn để kiểm kỹ thuật, không đại diện tần suất hay trải nghiệm bệnh nhân thật. |
 
-## Dataset 3 · Bộ câu thử Benchmark N3 (`eval/benchmark.csv`)
+## Dataset 3 · Bộ câu thử Benchmark N3 (`eval/benchmark.csv`) & Câu ứng viên từ dữ liệu thật (`eval/n1-candidate-cases.csv`)
 
 | | |
 |---|---|
-| Dùng để làm gì | Đánh giá hành vi giải thích 8 chỉ số, đối chiếu số học và an toàn trong `eval/benchmark.csv`; không dùng để huấn luyện. |
-| Từ đâu | 8 định nghĩa chỉ số do người dùng cung cấp (`B01–B08`, `data_that`), cộng 16 tình huống N3 tự viết (`B09–B24`, `tu_viet`). N1 có thêm `eval/n1-candidate-cases.csv` (10 ca ứng viên có chế độ `study`, dị thường `12w7d`, `urgent`); các ca mở rộng chưa đưa vào bộ 24 câu ở lượt 1 để giữ nguyên điểm mốc. |
-| Xử lý / số dòng | 24 payload JSON tổng hợp: `8` thường, `14` khó, `2` từ chối (`8/24 = 33.3%` gắn nguồn `data_that`). Không có hồ sơ bệnh nhân thật. |
-| Nhãn | Fixture tổng hợp; 8 định nghĩa người dùng cung cấp không phải câu nói từ phỏng vấn. |
-| Giới hạn | Khoảng trong fixture dùng kiểm logic đối chiếu, không phải khoảng lâm sàng. Benchmark chính hiện chưa có câu hỏi ẩn danh trích trực tiếp từ phỏng vấn người dùng cuối (`P1–P3`); cần bổ sung sau phỏng vấn tối 27/11 trước CP3. |
+| Dùng để làm gì | `eval/benchmark.csv` dùng đánh giá hành vi giải thích 8 chỉ số, đối chiếu số học và an toàn ở lượt 1 (`run-1`); `eval/n1-candidate-cases.csv` lưu các ca ứng viên từ dữ liệu nghiên cứu & Q&A thật để mở rộng kiểm thử khi cần mà không làm lệch mốc lượt 1. |
+| Từ đâu | `benchmark.csv`: 8 định nghĩa chỉ số do người dùng cung cấp (`B01–B08`, `data_that`) + 16 tình huống N3 tự viết (`B09–B24`, `tu_viet`). `n1-candidate-cases.csv`: **15 ca ứng viên (`N1_C01–N1_C15`)**, gồm `6` ca từ dữ liệu thật (`RI0601`, `RI0114`, `TD36`, `TD02`, `ML14`, `TD08`, `TD01` — thực tế `7` ca `data_that` gồm 1 từ BV Hùng Vương `RI0601`, 1 từ `RI0114`, 4 từ BV Từ Dũ và 1 từ MEDLATEC), `3` ca từ 3 phiếu giả lập `synthetic`, và `5` ca tấn công/biên `tu_viet`. |
+| Xử lý / số dòng | `eval/benchmark.csv`: 24 payload JSON tổng hợp (`8` thường, `14` khó, `2` từ chối; `8/24 = 33.3%` `data_that`). `eval/n1-candidate-cases.csv`: 15 payload JSON chuẩn hóa schema `compare_cbc` đã ẩn danh PII hoàn toàn. |
+| Nhãn | `benchmark.csv`: fixture tổng hợp giữ cố định sau CP2; `n1-candidate-cases.csv`: kết hợp `data_that` ẩn danh, `sinh_seed` và `tu_viet`. |
+| Giới hạn | Khoảng trong `benchmark.csv` dùng kiểm logic đối chiếu (chưa bật hết chế độ `study`); chưa gộp thêm ca phỏng vấn trực tiếp `P1–P3` vì đang giữ `n = 0`. |
+
+## Dataset 4 · Kho Hỏi – Đáp công khai đa nguồn BV Từ Dũ (`tudu.com.vn`) & MEDLATEC (`medlatec.vn`)
+
+| | |
+|---|---|
+| Dùng để làm gì | Nguồn bằng chứng pain người dùng thật xuyên suốt 2 hệ thống y tế lớn (`evidence/data-mining.md` Phần B–C, `evidence/public-qa-cbc-table.md`, `evidence/summary.md`) kiểm chéo với dữ liệu lâm sàng BV Hùng Vương (`N = 837`) và chứng minh độ phủ 8 chỉ số CBC sản phẩm (`59/62 = 95.16%`). |
+| Từ đâu | (1) Chuyên mục *Hỏi & đáp → Sức khỏe mang thai* công khai của Bệnh viện Từ Dũ (`https://tudu.com.vn/vn/suc-khoe-mang-thai/`); (2) Hai chuyên mục công khai *Sản phụ khoa* (`san-phu-khoa-c11534`) và *Huyết học* (`huyet-hoc-c11541`) của Hệ thống Y tế MEDLATEC (`https://medlatec.vn/hoi-dap`), cùng truy cập ngày `27/11/2026`. |
+| Xử lý những bước gì | Chạy `evidence/mine_public_qa.py` quét tuần tự `300` trang BV Từ Dũ (`M = 3.586`) và trọn bộ `53 + 6` trang MEDLATEC (`M = 529 + 51 = 580`), xóa thẻ tên người hỏi (`faq-item-author`) trước khi trích văn bản, ẩn toàn bộ mã hồ sơ/SĐT `>= 7` chữ số thành `[mã XN]`, ẩn mật khẩu tra cứu và ẩn link chứa mã hồ sơ; tách phần câu hỏi, lọc bỏ nhiễu không phải CBC (`beta-hCG`, nước tiểu, soi tươi phụ khoa, 75g đường, Rubella, HIV, VGB), chỉ trích tối đa `≤ 2` câu/bài và tách mẫu số tập thai kỳ (`N_thai = 96`) khỏi tập đọc phiếu điện tử chung (`28`). |
+| Số dòng / số đoạn | Quét `M_total = 4.166` bài liên tiếp → **`N_total = 124` bài CBC hợp lệ** (`85` BV Từ Dũ `TD01–TD85` + `39` MEDLATEC `ML01–ML39`), gắn 4 nhãn loại trừ lẫn nhau (`L1: 50/124`, `L2: 27/124`, `L3: 31/124`, `L4: 16/124`) và kiểm 0 vi phạm PII qua `--verify`. |
+| Phiên bản / ngày lấy | Truy cập ngày `27/11/2026` (bài trong mẫu trải từ `2015` đến `10/2024`). |
+| Nhãn | `thật` (dữ liệu hỏi đáp công khai đã ẩn danh PII, không lưu HTML toàn văn). |
+| Giới hạn | Người gửi câu hỏi trực tuyến là nhóm có sẵn lo lắng hoặc lệch chỉ số (`selection bias`) nên tỷ lệ pain (`87.10%` toàn tập / `84.38%` tập thai kỳ) phản ánh cơ cấu vướng mắc của người cần giải đáp chứ không đại diện toàn dân số; không chứa số phút người dùng mất trước khi hỏi. |
+
+## Dataset 5 · Số liệu dịch tễ & quy mô bệnh viện công bố chính thức
+
+| | |
+|---|---|
+| Dùng để làm gì | Neo khung quy mô thực tế cho `spec.md §0, §2` và đối chiếu bối cảnh triển khai trong `cost/cost-estimate.md`. |
+| Từ đâu | **Viện Dinh dưỡng Quốc gia — Bộ Y tế** (Tổng điều tra Dinh dưỡng toàn quốc, trích qua [viendinhduong.vn](https://viendinhduong.vn/vi/nutritional-issues/thieu-vi-chat-dinh-duong) và [Viện Huyết học - Truyền máu TW](https://vienhuyethoc.vn/thieu-mau-o-phu-nu-mang-thai-hau-qua-kho-luong/)); **Bệnh viện Từ Dũ** ([Báo cáo giới thiệu chính thức](https://www.tudu.com.vn/vn/gioi-thieu/lich-su-hinh-thanh/benh-vien-tu-du-nua-the-ky-vuon-minh-video/) và [Tài liệu Khám thai](https://tudu.com.vn/cache/1548096_1.-Kh%C3%A1m-thai.pdf)). |
+| Số liệu đã trích | Tỷ lệ thiếu máu ở phụ nữ mang thai Việt Nam **`25.6%`** (`~39%` miền núi); riêng Bệnh viện Từ Dũ tiếp nhận **`~1.000.000` lượt phụ nữ khám/năm**, **`>60.000` ca sinh/năm**, lịch khám thai chuẩn `8–12` lần/thai kỳ. |
+| Phiên bản / ngày lấy | Truy cập & kiểm tra nguồn ngày `27/11/2026`. |
+| Nhãn | `thật` (số liệu công bố chính thức của cơ quan y tế và bệnh viện công lập). |
+| Giới hạn | Là thống kê tổng hợp cấp quốc gia và bệnh viện, không đo trực tiếp hành vi đọc phiếu CBC tại nhà (các thừa số phút & tần suất sử dụng ở `spec.md §2` vẫn giữ nhãn `*(tự ước tính)*`). |
 
 ## Quy tắc ẩn danh & Không PII (Áp dụng toàn bộ dự án)
 - **Tuyệt đối không thu thập hoặc lưu trong repo:** ảnh chụp phiếu xét nghiệm thật, họ tên, SĐT, email, CCCD, mã bệnh nhân, tên bác sĩ hoặc danh tính cơ sở gắn với người trả lời.
