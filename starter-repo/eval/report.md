@@ -40,5 +40,5 @@ Theo cách nhóm ca hiện có: phần giải thích/đối chiếu có khoảng
 ## 4. Còn lại
 
 - N2 cần kiểm tra vì sao B07/B11/B12/B13 gọi nhầm nhánh hỏi làm rõ; đồng thời chốt hành vi `reference_mode` khi thiếu khoảng lab và xem lại B21. Sau đó N3 chạy lượt 2 cùng bộ câu và cùng cách chấm.
-- N1/N3 chưa có người thứ hai chấm độc lập 5 output; cần ghi mức đồng thuận ≥4/5 theo tiêu chí chương trình. Benchmark cũng chưa có ≥8 câu hỏi/diễn đạt ẩn danh từ người dùng cuối; 8 câu hiện tại chỉ dựa trên định nghĩa chỉ số người dùng cung cấp. Cần bàn giao bằng chứng thật đã ẩn danh, không tự tạo trích dẫn.
+- N1/N3 đã hoàn tất chấm độc lập 5 output trên `eval/run-1.csv` (`B01, B07, B11, B19, B23`) với mức đồng thuận **`5/5`** (`eval/calibration-5-samples.md`). Benchmark hiện chưa có ≥8 câu hỏi/diễn đạt ẩn danh từ phỏng vấn người dùng cuối; 8 câu `data_that` hiện tại dựa trên định nghĩa chỉ số người dùng cung cấp. Cần bàn giao bằng chứng thật đã ẩn danh từ `P1–P3`, không tự tạo trích dẫn.
 - Chưa đo riêng OCR ảnh, usage đọc ảnh, hay thời gian chạy Zipformer; các số chi phí hiện chỉ phản ánh luồng CBC đã xác nhận và mô hình hội thoại giả lập.

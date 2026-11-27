@@ -6,13 +6,13 @@ README của nhóm có mục "Dùng AI vào việc gì" (2–3 dòng, bắt bu�
 
 | Việc | Công cụ AI | AI làm gì | Người kiểm/sửa gì | Ai phụ trách |
 |---|---|---|---|---|
-| Code bản chạy thử | | | | |
-| Prompt / thiết kế lời gọi mô hình | | | | |
-| Đào data (viết script đếm, gợi ý nhãn) | | | Kiểm tay __ dòng, khớp __ | |
-| Rà câu hỏi phỏng vấn / khảo sát | | Chỉ rà câu dẫn dắt | | |
-| Viết câu thử (benchmark) | | | Mỗi câu thử có `source`; câu thử AI viết được ghi rõ | |
-| Sinh data `synthetic` (nếu có) | | | Seed __ · kiểm tay __ dòng | |
-| Chấm cột `pass` bằng LLM (nếu có) | | | Kiểm tra thủ công __ câu thử, khớp __/__ | |
-| Slide, văn bản | | | | |
+| Code bản chạy thử | Codex / Antigravity | Hỗ trợ viết `tools.py`, `references.py`, `agent.py`, tích hợp ONNX STT/TTS và unit test | Kiểm tra quy đổi đơn vị `Decimal`, ranh giới tuần thai và chạy bộ `unittest` | Nguyễn Gia Nam (N2) |
+| Prompt / thiết kế lời gọi mô hình | Codex / Antigravity | Nháp schema JSON phân loại `intent` + `analyte` và các câu định nghĩa ngắn | Rà không cho LLM tự tính số hay chẩn đoán/kê thuốc | Nguyễn Gia Nam (N2) |
+| Đào data (viết script đếm, gợi ý nhãn) | Antigravity | Hỗ trợ viết script `openpyxl` đếm mẫu số `N = 837` và phân vị trên dữ liệu công bố | Kiểm đối chiếu lại từng số với Bảng 2 & 3 *Pham et al. (2023)* (`416/837`, `95/837`) | Đào Ngọc Hân (N1) |
+| Rà câu hỏi phỏng vấn / khảo sát | Antigravity | Chỉ rà bỏ câu dẫn dắt và soạn khung ghi chép theo nguyên tắc Mom Test | Tự liên hệ, phỏng vấn thật và ghi chép nguyên văn (không dùng AI sinh lời người dùng) | Đào Ngọc Hân (N1) |
+| Viết câu thử (benchmark) | Codex / Antigravity | Hỗ trợ chuẩn hóa định dạng JSON cho 24 câu `benchmark.csv` và 10 câu ứng viên | Gắn rõ `source`, kiểm tay điều kiện `pass_criterion` và biên số học từng câu | Thiều Thế Ngọc (N3) & Đào Ngọc Hân (N1) |
+| Sinh data `synthetic` (nếu có) | Antigravity | Dựng HTML + kết xuất 3 ảnh phiếu giả lập `cbc-mock-01..03.png` kèm JSON | Kịch bản cố định tất định · kiểm tay 24/24 dòng khớp 100% PNG ↔ JSON | Đào Ngọc Hân (N1) |
+| Chấm cột `pass` bằng LLM (nếu có) | Antigravity (hỗ trợ rà tiêu chí) | Hỗ trợ N1 chấm độc lập 5 mẫu trên `eval/run-1.csv` (`B01, B07, B11, B19, B23`) đối chiếu với N3 (`eval/calibration-5-samples.md`); lượt chính thức không dùng LLM chấm tự động | N1 rà kiểm từng lý do chấm theo `metric_spec.yaml` & `pass_criterion` và đối chiếu khớp `5/5` với N3; lượt chính thức N3 chấm tay 100% | Thiều Thế Ngọc (N3) & Đào Ngọc Hân (N1) |
+| Slide, văn bản | Antigravity | Hỗ trợ định dạng bảng Markdown trong `spec.md`, `canvas.md`, `DATA_CARD.md` | Rà soát toàn bộ con số, nguồn trích dẫn và trình bày demo | Trần Trọng Đức Tài (N4) & cả nhóm |
 
 **Không dùng AI để:** tạo người được phỏng vấn, trích dẫn, câu trả lời khảo sát; sửa kết quả các lượt đã chạy (`eval/run-*.csv`, `cost/simulate-*.csv`, `traces/`).

@@ -1,6 +1,6 @@
-# N1 Handoff Summary (v1.1 — Đồng bộ `main` `62104b5`) — Đào Ngọc Hân (`2A202603779`, Track B)
+# N1 Handoff Summary (v1.2 — Đồng bộ CP2 & Track F) — Đào Ngọc Hân (`2A202603779`, Track F)
 
-> Tài liệu bàn giao đã đồng bộ với bản `main` mới nhất (PR #1 `feat/evaluation-cost`, PR #2 `codex/trimester-reference-intervals`, PR #3 `codex/cbc-explanation-polish`) cho **N2 (Nguyễn Gia Nam)**, **N3** và **N4** tại các mốc **CP1–CP3**.
+> Tài liệu bàn giao đã đồng bộ với bản `main` mới nhất cho **N2 (Nguyễn Gia Nam)**, **N3 (Thiều Thế Ngọc)** và **N4 (Trần Trọng Đức Tài)** tại các mốc **CP1–CP3**.
 
 ---
 
@@ -15,7 +15,7 @@
 | **CP3** | `evidence/data-mining.md` | Công thức & mẫu số (`N = 837`), số liệu kiểm chứng (`416/837 = 49.70%` dưới `12.0 g/dL`; `95/837 = 11.35%` dưới WHO 2024; `0/837` ngoại lai ở 8 chỉ số chọn), 5 ví dụ ẩn danh (`RI0601`, `P0756`, `RI0114`, `RI0335`, `RI0205`), và khai báo `.xlsx` gốc giữ ngoài repo. |
 | **CP3** | `evidence/summary.md` | Khung tổng hợp bằng chứng + bảng lịch hẹn `P1–P3`; phần số đào data đã điền đủ, phần phỏng vấn thật & trích dẫn người dùng giữ `[Chờ phỏng vấn P1–P3]`. |
 | **CP3** | `spec.md` (`header` + `§0–§2`) | Luồng hiện tại 4 bước, JTBD & Pain không chữ "AI", bảng 3 hướng (`Hướng B` chọn, giữ `Hướng A` & `Hướng C` bị loại kèm lý do, khớp hoàn toàn với `§4` trên `main`), công thức `Impact / tháng` có nguồn hoặc `*(tự ước tính)*`. |
-| **CP3** | `eval/n1-candidate-cases.csv` | 10 tình huống ứng viên ẩn danh (`N1_C01`–`N1_C10`, đủ 6 cột chuẩn `benchmark.csv`) phủ đủ 8 chỉ số `SUPPORTED_ANALYTES` + cả 2 chế độ `study` và `lab`, chạy thông 100% qua `codebase.agent.answer()`. |
+| **CP3** | `eval/n1-candidate-cases.csv` | 10 tình huống ứng viên ẩn danh (`N1_C01`–`N1_C10`, đủ 6 cột chuẩn `benchmark.csv`) phủ đủ 8 chỉ số `SUPPORTED_ANALYTES` + cả 2 chế độ `study` và `lab`, chạy thông 100% qua `codebase.agent.answer()` (chưa gộp vào bộ 24 câu lượt 1 để giữ nguyên mốc so sánh `run-1`). |
 
 ---
 

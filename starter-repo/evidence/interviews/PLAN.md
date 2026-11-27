@@ -1,4 +1,4 @@
-# Kế hoạch phỏng vấn người dùng — Track B (Phiếu CBC thai kỳ)
+# Kế hoạch phỏng vấn người dùng — Track F (Phiếu CBC thai kỳ)
 
 > Mục tiêu đạt ngưỡng R1 (03-rubric.md): **≥ 3 người ngoài nhóm** đúng vai người dùng chính, hỏi chuyện đã xảy ra trong **1 tháng qua** (10–15 phút/người), mỗi người 1 file (`P1.md`, `P2.md`, `P3.md`), **không ghi %** khi `n = 3` (ghi dạng `x/3 người`).
 

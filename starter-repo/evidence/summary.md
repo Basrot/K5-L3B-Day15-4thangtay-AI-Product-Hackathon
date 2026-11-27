@@ -48,6 +48,6 @@ Giả thuyết ở `evidence/hypothesis.md`: **[Chờ kết luận cuối sau ph
 
 | Vai | Giờ hẹn | Đã xong? |
 |---|---|---|
-| Thai phụ TCN1 (từng tự đọc phiếu CBC trong 1 tháng qua) | [Chờ chốt giờ hẹn P1 — dự kiến 10–15 phút, hỏi: N1] | ☐ Chưa |
-| Thai phụ TCN2 (từng tự đọc phiếu CBC trong 1 tháng qua) | [Chờ chốt giờ hẹn P2 — dự kiến 10–15 phút, hỏi: N1] | ☐ Chưa |
-| Thai phụ TCN3 hoặc mới sinh `≤ 3 tháng` (từng tự đọc phiếu CBC) | [Chờ chốt giờ hẹn P3 — dự kiến 10–15 phút, hỏi: N1] | ☐ Chưa |
+| Thai phụ TCN1 (từng tự đọc phiếu CBC trong 1 tháng qua — mã `P1`) | Tối 27/11, khung 19:30–20:30 (10–15 phút, bộ câu hỏi `evidence/interviews/PLAN.md`) | ☐ Đang triển khai |
+| Thai phụ TCN2 (từng tự đọc phiếu CBC trong 1 tháng qua — mã `P2`) | Tối 27/11, khung 20:30–21:30 (10–15 phút, bộ câu hỏi `evidence/interviews/PLAN.md`) | ☐ Đang triển khai |
+| Thai phụ TCN3 hoặc mới sinh `≤ 3 tháng` (từng tự đọc phiếu CBC — mã `P3`) | Tối 27/11 – sáng 28/11 trước 08:30 (10–15 phút, bộ câu hỏi `evidence/interviews/PLAN.md`) | ☐ Đang triển khai |

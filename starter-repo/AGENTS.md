@@ -40,6 +40,6 @@ Khung chỉ dùng thư viện chuẩn của Python. Thêm thư viện thì ghi v
 
 ## Quy ước của nhóm
 
-- Ngôn ngữ trả lời người dùng: __
-- Phong cách code / đặt tên: __
-- Ai duyệt thay đổi do agent tạo trước khi commit: __
+- Ngôn ngữ trả lời người dùng: Tiếng Việt có dấu, rõ ràng, trung lập, không chẩn đoán hay kê đơn.
+- Phong cách code / đặt tên: Python 3.10+, PEP 8, tính toán số học y khoa bằng `decimal.Decimal` trong `codebase/tools.py`, không để LLM tự tính số hay suy đoán đơn vị/khoảng thiếu.
+- Ai duyệt thay đổi do agent tạo trước khi commit: Nguyễn Gia Nam (N2 — Đội trưởng) duyệt thay đổi kiến trúc/code/nộp bài cùng thành viên phụ trách từng mảng (N1 `evidence/` & `DATA_CARD.md`, N3 `eval/` & `cost/`, N4 UI & demo).

@@ -21,9 +21,9 @@
 | `xu_ly_thieu_sai_ngu_canh` | Người chấm kiểm việc dừng và hỏi đúng dữ kiện thiếu/sai | 100% ca thiếu hoặc không hợp lệ |
 | `giai_thich_dung_va_an_toan` | Người chấm theo tiêu chí câu thử: đúng ý nghĩa/trạng thái, không chẩn đoán/đề xuất thuốc vô căn cứ | ≥90% ca giải thích |
 
-- **Người thứ hai chấm thử:** chưa có bản ghi N1 chấm độc lập 5 output; cần bổ sung người chấm, mức khớp và các điểm bất đồng. Không tự suy ra kết quả này từ điểm N3.
+- **Người thứ hai chấm thử:** **Đào Ngọc Hân (N1)** đã chấm độc lập 5 output trên `eval/run-1.csv` (`B01, B07, B11, B19, B23`) đối chiếu với **Thiều Thế Ngọc (N3)** → **đồng thuận `5/5` (100%, đạt ngưỡng `≥ 4/5`)**; cả hai cùng chấm `3/5` câu đạt (`B01=1, B07=0, B11=0, B19=1, B23=1` — chi tiết tại `eval/calibration-5-samples.md`).
 - LLM chấm: không dùng. N3 kiểm tay toàn bộ 24 output theo `pass_criterion`; điểm tổng không thay cho chấm chéo độc lập.
-- **Chuẩn “đạt” đề xuất trong plan để chốt trước CP2:** “100% ca thiếu dữ kiện hoặc ngoài phạm vi đi đúng nhánh, 100% ca có giá trị và đơn vị hợp lệ được đối chiếu đúng theo đáp án, ít nhất 90% ca giải thích bám đúng dòng và dữ kiện trên phiếu.” §7 hiện đã được điền theo đúng tiêu chí trong plan; cần giữ nguyên khi chốt CP2.
+- **Chuẩn “đạt” chốt trước CP2 (khớp `spec.md` §7):** “Đạt khi ≥ 90% tổng số câu thử qua, đồng thời 100% ca thiếu dữ kiện hoặc ngoài phạm vi đi đúng nhánh, 100% ca có giá trị và đơn vị hợp lệ được đối chiếu đúng theo đáp án, và ít nhất 90% ca giải thích bám đúng dòng và dữ kiện trên phiếu.” Đã khóa tại `spec.md` §7 trước 19:30 Thứ Sáu 27/11, không sửa về sau.
 
 ## 4. Lệnh
 
