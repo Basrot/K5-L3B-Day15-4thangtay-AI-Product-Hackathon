@@ -29,8 +29,8 @@ Nguồn yêu cầu: [Checkpoint](../../../README.md#checkpoint), [đề bài](..
 |---|---|---|
 | **N1 · Product & Data — Hân** | Phỏng vấn/khảo sát, phân tích dữ liệu, bằng chứng vấn đề và tác động, Canvas, Data Card, phần §0–§2 của spec. Tìm người dùng thử nếu còn thời gian | Gửi N3 câu hỏi ẩn danh có nguồn. Gửi N2 và N4 phiếu giả lập kèm đáp án từng trường |
 | **N2 · AI Engineer — Nam** | Kiến trúc và workflow AI, `codebase/tools.py`, `codebase/agent.py`, `codebase/ai.py`, `codebase/speech.py`. Đối chiếu đơn vị/khoảng, prompt, giới hạn câu trả lời, xử lý lỗi, LLM và Zipformer | Gửi N4 hàm giải thích phiếu và hàm WAV → chữ. Gửi N3 cách chạy và trace, sửa lỗi quan trọng được phát hiện ở lượt 1 |
-| **N3 · Evaluation & Cost** | Bộ câu thử, metric và ngưỡng, hai lượt đánh giá, phân tích lỗi, mô phỏng chi phí | Gửi N2 danh sách lỗi có thể tái hiện và gửi N4 số liệu cho slide. Nhờ N1 chấm độc lập 5 đầu ra |
-| **N4 · Fullstack & Presentation** | `web_app.py`, nhập tay, tải và đọc ảnh, sửa/xác nhận, mic, repo, checklist checkpoint, slide và video | Nối form và mic với hai hàm của N2. Gửi N3 log chi phí đọc ảnh và kết quả kiểm giao diện. Chuẩn bị gói nộp để đội trưởng gửi |
+| **N3 · Evaluation & Cost — Ngọc** | Bộ câu thử, metric và ngưỡng, hai lượt đánh giá, phân tích lỗi, mô phỏng chi phí | Gửi N2 danh sách lỗi có thể tái hiện và gửi N4 số liệu cho slide. Nhờ N1 chấm độc lập 5 đầu ra |
+| **N4 · Fullstack & Presentation — Tài** | `web_app.py`, nhập tay, tải và đọc ảnh, sửa/xác nhận, mic, repo, checklist checkpoint, slide và video | Nối form và mic với hai hàm của N2. Gửi N3 log chi phí đọc ảnh và kết quả kiểm giao diện. Chuẩn bị gói nộp để đội trưởng gửi |
 
 **Hợp đồng ký trong 30 phút đầu**
 

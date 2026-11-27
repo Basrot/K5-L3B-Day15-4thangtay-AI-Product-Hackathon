@@ -6,15 +6,15 @@
 
 - Tên nhóm: 4thangtay
 - Lớp: L3B
-- Track: B
+- Track: F
 - Link repo: https://github.com/Basrot/K5-L3B-Day15-4thangtay-AI-Product-Hackathon
 
 | STT | Họ và tên | Mã học viên | Vai trò | Phần việc chính |
 |---|---|---|---|---|
 | 1 | Nguyễn Gia Nam | 2A202603761 | Đội trưởng | N2 · AI Engineer: kiến trúc & workflow AI, đối chiếu CBC, LLM, STT/TTS |
-| 2 | Thiều Thế Ngọc | 2A202603788 | Thành viên | ____ |
+| 2 | Thiều Thế Ngọc | 2A202603788 | Thành viên | N3 · Evaluation & Cost: bộ câu thử benchmark, metric, đánh giá & mô phỏng chi phí |
 | 3 | Đào Ngọc Hân | 2A202603779 | Thành viên | N1 · Product & Data: bằng chứng pain, dữ liệu, Canvas, Data Card, spec §0–§2 |
-| 4 | Trần Trọng Đức Tài | 2A202603732 | Thành viên | ____ |
+| 4 | Trần Trọng Đức Tài | 2A202603732 | Thành viên | N4 · Fullstack & Presentation: giao diện web, đọc ảnh & mic, tích hợp demo, slide & video |
 
 **Quy tắc điền**
 - **Lớp:** `L3A` hoặc `L3B`. **Track:** một chữ `A` (EdTech), `B` (Y tế), `C` (Du lịch), `D` (Thương mại điện tử), `E` (Tài chính) hoặc `F` (Làn khác). **Link repo:** link GitHub công khai của nhóm.

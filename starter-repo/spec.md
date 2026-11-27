@@ -3,7 +3,7 @@
 > Mốc nộp: §7 chốt chuẩn "đạt" tại **CP2 19:30 Thứ Sáu 27/11** · §0–§7 nộp **CP3 10:00 Thứ Bảy 28/11** · đủ §0–§10 **CP4 14:30 Thứ Bảy 28/11** · §10 changelog ghi tiếp đến **23:59 Thứ Bảy 28/11**.
 > Đầu mỗi mục ghi bước guide (`02-guide.md` trong repo đề) chỉ cách điền. Mỗi mục ngắn, có số và nguồn; chi tiết để ở file được trỏ tới. Xoá dòng hướng dẫn trong ngoặc vuông khi điền xong.
 
-Track: [ ] A · [x] B · [ ] C · [ ] D · [ ] E — bài toán: Hỗ trợ thai phụ Việt Nam trưởng thành (TCN1–3) tự đọc hiểu và chuẩn bị câu hỏi cho bác sĩ từ phiếu kết quả 8 chỉ số CBC trọng tâm (`HGB`, `RBC`, `HCT`, `MCV`, `MCH`, `MCHC`, `WBC`, `PLT`)
+Track: [ ] A · [ ] B · [ ] C · [ ] D · [ ] E · [x] F — bài toán: Hỗ trợ thai phụ Việt Nam trưởng thành (TCN1–3) tự đọc hiểu và chuẩn bị câu hỏi cho bác sĩ từ phiếu kết quả 8 chỉ số CBC trọng tâm (`HGB`, `RBC`, `HCT`, `MCV`, `MCH`, `MCHC`, `WBC`, `PLT`)
 Data BTC cấp đã dùng (nếu có — không commit nguyên file): Không dùng data BTC cấp; nhóm dùng số liệu công bố *Pham et al. (2023)* tại BV Hùng Vương (workbook `.xlsx` gốc giữ ngoài repo công khai), hướng dẫn WHO (2024), BV Từ Dũ và MedlinePlus.
 
 ## §0. Hiện tại việc này diễn ra thế nào *(guide 1.1)*

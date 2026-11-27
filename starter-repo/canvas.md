@@ -1,4 +1,4 @@
-# Canvas — 4thangtay · Track B
+# Canvas — 4thangtay · Track F
 
 > Điền ở guide bước 1.4. CP1 17:00 Thứ Sáu 27/11: nộp bản đầu, đủ 7 dòng (dòng 4 được ghi giả thuyết + nguồn sẽ kiểm).
 > CP2 19:30 Thứ Sáu 27/11: cập nhật (số bằng chứng đầu, lát cắt đã chốt) và điền dòng "Đã đổi gì so với CP1".
@@ -6,11 +6,37 @@
 
 | # | Dòng | Nhóm điền |
 |---|---|---|
-| 1 | Track + lát cắt dự kiến | Track B (Y tế) · Trợ lý giải thích 8 chỉ số CBC cốt lõi (`HGB`, `RBC`, `HCT`, `MCV`, `MCH`, `MCHC`, `WBC`, `PLT`) cho thai phụ Việt Nam trưởng thành theo tam cá nguyệt 1, 2 và 3. |
+| 1 | Track + lát cắt dự kiến | Track F (Làn khác — Theo dõi thai sản & đọc hiểu xét nghiệm CBC) · Trợ lý giải thích 8 chỉ số CBC cốt lõi (`HGB`, `RBC`, `HCT`, `MCV`, `MCH`, `MCHC`, `WBC`, `PLT`) cho thai phụ Việt Nam trưởng thành theo tam cá nguyệt 1, 2 và 3. |
 | 2 | Người dùng chính (một vai cụ thể — không phải "học viên nói chung") | Thai phụ Việt Nam trưởng thành (mang thai ở tam cá nguyệt 1, 2 hoặc 3) tự đọc phiếu kết quả 8 chỉ số CBC trước hoặc sau buổi khám thai định kỳ. |
 | 3 | Pain một câu: ai — đang làm gì — vướng đâu — hậu quả | Thai phụ Việt Nam ở tam cá nguyệt 1–3 khi tự đọc phiếu xét nghiệm 8 chỉ số CBC thường thấy các chỉ số như HGB, HCT, MCV, MCHC, WBC hoặc PLT bị đánh dấu bất thường do phiếu in khoảng tham chiếu người trưởng thành không mang thai và khác biệt đơn vị theo tuần thai, khiến họ lo lắng oan, tốn thời gian tra cứu rời rạc và dễ tự bổ sung sắt sai hoặc không chuẩn bị được câu hỏi đúng cho bác sĩ sản khoa. |
 | 4 | Bằng chứng đầu — CP1: giả thuyết + nguồn sẽ kiểm · CP2: số đầu tiên + 1 trích dẫn | CP1: Giả thuyết ≥30% thai phụ khỏe mạnh bị gắn cờ sai khi áp ngưỡng HGB nữ không mang thai và ≥2/3 thai phụ phỏng vấn kể được lần vướng khi đọc phiếu CBC trong 1 tháng qua; nguồn kiểm gồm đào dữ liệu 867 bản ghi BV Hùng Vương (*Pham et al., 2023*) và phỏng vấn `P1`–`P3` (`evidence/hypothesis.md`). CP2: [Chờ cập nhật số đầu tiên và 1 trích dẫn thật tại CP2]. |
 | 5 | **Lát cắt MỘT CÂU** (1 người dùng · 1 việc · 1 quyết định AI · 1 kết quả) | Một thai phụ Việt Nam trưởng thành xác nhận phiếu kết quả CBC theo tuần thai ở tam cá nguyệt 1–3, công cụ quy tắc đối chiếu với khoảng trên phiếu hoặc khoảng nghiên cứu theo tam cá nguyệt rồi AI chọn dòng liên quan để giải thích ý nghĩa chỉ số bằng tiếng Việt có dẫn nguồn và gợi ý câu hỏi trao đổi với bác sĩ sản khoa. |
 | 6 | AI tự làm đến đâu + 1 dòng lý do: sai thì ai chịu gì | AI gợi ý, người dùng quyết định (Workflow cố định: hàm xác định kiểm tra ngữ cảnh, đổi đơn vị và đối chiếu khoảng tham chiếu trước khi AI chọn dòng/nhánh trả lời dựa trên dữ liệu đã xác nhận; AI không chẩn đoán hay kê đơn thuốc/liều sắt). Nếu AI nói sai ngưỡng hoặc tự kê liều sắt thì thai phụ có thể hoang mang, tự dùng thuốc sai hoặc chậm đi khám khi có tình huống khẩn, nên mọi quyết định y khoa thuộc về bác sĩ sản khoa. |
-| 7 | Phân công có tên | Nguyễn Gia Nam (N2 · AI Engineer: workflow AI, `tools.py`, STT/TTS, `spec.md §4`) · Đào Ngọc Hân (N1 · Product & Data: `evidence/`, `canvas.md`, `DATA_CARD.md`, phiếu giả lập, `spec.md §0–§2`) · Thiều Thế Ngọc (N3 · Eval/Cost: chuẩn hóa `benchmark.csv`, `metric_spec.yaml`, chạy eval/cost) · Trần Trọng Đức Tài (N4 · UI/Demo: giao diện, slide, demo) — chi tiết phân công xem `TEAMS.md`. |
+| 7 | Phân công có tên | Nguyễn Gia Nam (N2 · AI Engineer: workflow AI, `tools.py`, STT/TTS, `spec.md §4`) · Đào Ngọc Hân (N1 · Product & Data: `evidence/`, `canvas.md`, `DATA_CARD.md`, phiếu giả lập, `spec.md §0–§2`) · Thiều Thế Ngọc (N3 · Eval/Cost: chuẩn hóa `benchmark.csv`, `metric_spec.yaml`, chạy eval/cost) · Trần Trọng Đức Tài (N4 · Fullstack & Presentation: giao diện web, đọc ảnh & mic, slide, demo) — chi tiết xem `TEAMS.md`. |
 | — | *(CP2)* Đã đổi gì so với CP1 | [Chờ cập nhật tại CP2] |
+
+---
+
+# Track F · Đọc hiểu phiếu xét nghiệm CBC thai kỳ
+
+**Lĩnh vực.** Chăm sóc sức khỏe thai sản — hỗ trợ thai phụ đọc hiểu kết quả xét nghiệm công thức máu (CBC) theo từng tam cá nguyệt để chuẩn bị câu hỏi trước/sau buổi khám.
+
+**Pain.** Thai phụ Việt Nam trưởng thành ở tam cá nguyệt 1–3 khi tự xem lại phiếu xét nghiệm CBC thường thấy các chỉ số như HGB, HCT, WBC hoặc PLT bị đánh dấu bất thường do phòng xét nghiệm in khoảng tham chiếu mặc định của người không mang thai và khác biệt đơn vị đo (`g/L` vs `g/dL`), khiến họ hoang mang oan, mất 10–20 phút tra cứu rời rạc, dễ tự mua thêm thuốc sắt hoặc quên câu hỏi cần trao đổi với bác sĩ sản khoa.
+
+**Insight từ người dùng thật.** Đào dữ liệu công bố từ 837 mẫu CBC của thai phụ khỏe mạnh tại Bệnh viện Hùng Vương (*Pham et al., 2023*) cho thấy `416/837 (49.70%)` có `HGB < 12.0 g/dL` (bị gắn cờ thiếu máu sai nếu phiếu dùng ngưỡng nữ không mang thai) và `95/837 (11.35%)` nằm dưới ngưỡng sàng lọc WHO 2024 dù đa phần thuộc khoảng sinh lý thai kỳ; nhóm đang kiểm chéo thêm bằng phỏng vấn trực tiếp ≥3 thai phụ ngoài nhóm (`P1`–`P3`) từng tự đọc phiếu CBC trong 1 tháng qua.
+
+**Người dùng.** Thai phụ Việt Nam trưởng thành ở tam cá nguyệt 1, 2 hoặc 3 (hoặc phụ nữ mới sinh ≤3 tháng từng đọc phiếu CBC gần đây) · Gặp qua người thân, đồng nghiệp, bạn bè của các thành viên nhóm trong tối Thứ Sáu 27/11 và sáng Thứ Bảy 28/11 (10–15 phút/người).
+
+**Data.** Đào bằng chứng từ dữ liệu công bố *Pham et al. (2023)* (`N = 837` mẫu CBC, BV Hùng Vương — giữ workbook `.xlsx` gốc ngoài repo công khai) và phỏng vấn `P1`–`P3`; tự dựng 3 cặp ảnh PNG + JSON phiếu CBC giả lập (`synthetic`) kèm tài liệu chuẩn MedlinePlus, WHO 2024, BV Từ Dũ (`data/DATA_CARD.md`); tuyệt đối không thu ảnh phiếu thật hay thông tin định danh cá nhân (PII).
+
+**Lát cắt.** Một thai phụ Việt Nam trưởng thành xác nhận phiếu kết quả CBC theo tuần thai ở tam cá nguyệt 1–3, công cụ quy tắc đối chiếu với khoảng trên phiếu hoặc khoảng nghiên cứu theo tam cá nguyệt rồi AI chọn dòng liên quan để giải thích ý nghĩa chỉ số bằng tiếng Việt có dẫn nguồn và gợi ý câu hỏi trao đổi với bác sĩ sản khoa.
+
+**Công cụ của agent.** `compare_cbc(report)` (nhận phiếu CBC đã xác nhận → chuẩn hóa đơn vị, kiểm tuổi thai `XwYd`, đối chiếu khoảng trên phiếu `lab` hoặc khoảng nghiên cứu `study` theo tam cá nguyệt → chỉ đọc, không tác động ra ngoài); `transcribe_wav(wav_bytes)` (chuyển câu hỏi giọng nói tiếng Việt sang văn bản có thể sửa trước khi gửi → xử lý cục bộ).
+
+**Bộ câu thử.** 24 câu JSON (`report` + `question`) phủ đủ 8 chỉ số CBC (`HGB, RBC, HCT, MCV, MCH, MCHC, WBC, PLT`), gồm 8 câu thường, 14 câu khó (sát biên, đổi đơn vị `g/L ↔ g/dL`, thiếu đơn vị/khoảng, sai tuổi thai, tình huống khẩn cấp) và ≥2 câu từ chối (ép chẩn đoán/kê thuốc, ngoài đối tượng thai phụ trưởng thành, prompt injection); đạt khi phân loại số học 100% đúng và 100% ca khẩn/ngoài thẩm quyền chuyển hướng an toàn.
+
+**Persona chi phí.** Ít: người ngoài phạm vi hỏi thử (1 lần/tháng) · Vừa: thai phụ khám thai định kỳ tự xem phiếu CBC (1–2 lần/tháng theo lịch khám 8–12 lần/thai kỳ) · Nhiều: thai phụ có chỉ số sát biên được hẹn xét nghiệm theo dõi lại (2–4 lần/tháng).
+
+**Bẫy.** (1) Trở thành "bác sĩ AI" tự suy diễn nguyên nhân bệnh lý hoặc gợi ý liều uống sắt chỉ từ CBC; (2) Để LLM tự nhẩm quy đổi đơn vị `g/L` và `g/dL` dẫn đến sai gấp 10 lần; (3) Đọc ảnh phiếu tự động mà bỏ qua bước người dùng kiểm tra và xác nhận lại số liệu.
+
+**An toàn.** AI tuyệt đối không chẩn đoán bệnh, không kê đơn hay tư vấn liều thuốc/viên sắt, và luôn chuyển hướng liên hệ cơ sở y tế/cấp cứu ngay khi người dùng nêu tình huống khẩn; dữ liệu nhạy cảm là thông tin sức khỏe và danh tính thai phụ nên hệ thống không thu ảnh phiếu thật của người phỏng vấn và chỉ xử lý trên phiếu người dùng tự xác nhận.
