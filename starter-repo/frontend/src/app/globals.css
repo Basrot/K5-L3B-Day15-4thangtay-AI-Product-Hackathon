@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --app-font: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --primary: #0f766e;
+  --primary-hover: #0d5e58;
+  --primary-foreground: #ffffff;
+  --primary-light: rgba(15, 118, 110, 0.09);
+  --ring-focus: rgba(15, 118, 110, 0.18);
+  --border-focus: #0f766e;
+
+  /* Soft surface system */
+  --background: #eef2f3;
+  --surface: #ffffff;
+  --foreground: #2c2c2c;
+  --muted: #6b7280;
+  --border: #f0f2f4;
+  --border-strong: #dfe3e6;
+  --item-hover: #f4f6f7;
+  --elevation-card: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 2px 8px -2px rgb(0 0 0 / 0.06);
+
+  --success: #15803d;
+  --success-bg: #f0fdf4;
+  --warning: #b45309;
+  --warning-bg: #fffbeb;
+  --danger: #be123c;
+  --danger-bg: #fff1f2;
+}
+
+body {
+  font-family: var(--app-font);
+  background: var(--background);
+  color: var(--foreground);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.soft-card {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--elevation-card);
+}
+
+.wf-input {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  height: 38px;
+  padding: 0 11px;
+  font-size: 13px;
+  color: var(--foreground);
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wf-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--ring-focus);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: 8px;
+  height: 38px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--item-hover);
+}
+
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
