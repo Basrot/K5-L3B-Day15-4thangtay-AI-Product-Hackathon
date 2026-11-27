@@ -80,7 +80,8 @@ class CBCService:
             if current is None:
                 raise KeyError("Không tìm thấy phiên CBC.")
             if current["report"] and json.loads(current["report"]) == cleaned:
-                return comparison
+                return {**comparison, "session": {"session_id": session_id,
+                        "revision": current["revision"], "report": cleaned}}
             if current["revision"] != expected_revision:
                 raise ValueError("Phiếu đã thay đổi. Hãy tải lại dữ liệu trước khi xác nhận.")
             cursor = db.execute(
@@ -90,7 +91,8 @@ class CBCService:
             if cursor.rowcount != 1:
                 raise KeyError("Không tìm thấy phiên CBC.")
             db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
-        return comparison
+            snapshot = {"session_id": session_id, "revision": current["revision"] + 1, "report": cleaned}
+        return {**comparison, "session": snapshot}
 
     def invalidate_report(self, session_id, *, expected_revision):
         """Gọi ngay khi người dùng sửa form hoặc chọn ảnh khác."""
@@ -102,6 +104,7 @@ class CBCService:
             if cursor.rowcount != 1:
                 raise ValueError("Phiếu đã thay đổi hoặc phiên đã bị xóa.")
             db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+        return {"session_id": session_id, "revision": expected_revision + 1, "report": None}
 
     def ask(self, session_id, question, *, expected_revision, request_id=None):
         if not isinstance(question, str) or not question.strip() or len(question) > 1000:

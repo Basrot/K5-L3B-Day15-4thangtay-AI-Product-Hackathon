@@ -33,7 +33,7 @@ def _recognizer(model_dir: Path):
             raise RuntimeError("Cần cài sherpa-onnx để nhận dạng giọng nói.") from exc
         raise RuntimeError("Không nạp được phụ thuộc của sherpa-onnx.") from exc
     except (ImportError, OSError) as exc:
-        raise RuntimeError(f"Không nạp được thư viện native của sherpa-onnx: {exc}") from exc
+        raise RuntimeError("Không nạp được thư viện native của sherpa-onnx.") from None
     return OfflineRecognizer.from_transducer(
         **{name: str(path) for name, path in files.items()},
         provider="cpu",
@@ -77,7 +77,7 @@ def transcribe_wav(wav_bytes: bytes) -> str:
             from zipformer_onnx import get_recognizer
         return get_recognizer(model_dir.resolve()).transcribe(samples, rate)
     if backend != "sherpa":
-        raise ValueError("ZIPFORMER_BACKEND phải là sherpa hoặc onnx.")
+        raise RuntimeError("ZIPFORMER_BACKEND phải là sherpa hoặc onnx.")
     recognizer = _recognizer(model_dir.resolve())
     stream = recognizer.create_stream()
     stream.accept_waveform(rate, samples)

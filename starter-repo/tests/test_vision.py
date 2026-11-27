@@ -83,12 +83,12 @@ class VisionTest(unittest.TestCase):
                    {"rows": [row(unit=12)], "warnings": []}, {"rows": [row()], "warnings": "bad"},
                    {"rows": [row()] * 25, "warnings": []}]
         for payload in invalid:
-            with self.subTest(payload=payload), self.assertRaises(ValueError):
+            with self.subTest(payload=payload), self.assertRaises(RuntimeError):
                 self.extract(payload)
 
     def test_non_json_model_output_is_rejected(self):
         with patch.object(ai, "MODEL_PROVIDER", "ollama"), patch.object(vision, "call_model", return_value={"text": "unreadable"}):
-            with self.assertRaises(ValueError):
+            with self.assertRaises(RuntimeError):
                 vision.extract_report(image_bytes(), "image/png")
 
 

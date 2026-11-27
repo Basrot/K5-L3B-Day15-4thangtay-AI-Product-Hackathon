@@ -41,7 +41,7 @@ class CloudModelTest(unittest.TestCase):
         with patch.object(ai, "MODEL_PROVIDER", "openai_compatible"):
             with patch.dict("os.environ", {"API_KEY": ""}):
                 with patch.object(ai, "urlopen", side_effect=AssertionError("unexpected HTTP")):
-                    with self.assertRaisesRegex(ValueError, "API_KEY"):
+                    with self.assertRaisesRegex(RuntimeError, "API_KEY"):
                         ai.call_model("s", "u", model_name="test")
 
     def test_new_vision_provider_requires_its_own_key(self):
@@ -50,5 +50,5 @@ class CloudModelTest(unittest.TestCase):
                                           "LLM_API_BASE": "https://text.example/v1",
                                           "VISION_API_BASE": "https://other.example/v1"}):
                 with patch.object(ai, "urlopen", side_effect=AssertionError("key leaked")):
-                    with self.assertRaisesRegex(ValueError, "VISION_API_KEY"):
+                    with self.assertRaisesRegex(RuntimeError, "VISION_API_KEY"):
                         ai.call_model("s", "u", images=[b"image"], model_name="test")

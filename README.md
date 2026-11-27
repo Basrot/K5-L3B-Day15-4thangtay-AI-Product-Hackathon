@@ -1,5 +1,7 @@
 # Mini Hackathon AI — AI20K khoá 5 · L3
 
+Phần nhóm đang triển khai: [backend FastAPI trên Railway](starter-repo/docs/railway-deployment.md) và [bàn giao frontend Vercel](starter-repo/docs/frontend-api-handoff.md).
+
 > **[README]** → [01-challenge-brief](01-challenge-brief.md) → [tracks/](tracks/README.md) → [02-guide](02-guide.md) → [03-rubric](03-rubric.md)
 
 **Tìm một chỗ đau thật của người dùng, thiết kế một giải pháp AI cho nó, rồi chứng minh bằng số.**

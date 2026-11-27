@@ -3,3 +3,5 @@
 # Nhóm dùng thêm thư viện (vd SDK của nhà cung cấp model) thì ghi tên gói vào đây, mỗi dòng một gói,
 # và ghi lệnh cài vào README: python -m pip install -r requirements.txt
 sherpa-onnx==2.0.3
+# Backend HTTP / CPU; Docker API chỉ cài manifest này và không cần sherpa native.
+-r requirements-api.txt

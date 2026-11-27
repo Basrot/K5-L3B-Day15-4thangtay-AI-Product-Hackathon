@@ -5,6 +5,8 @@
 
 Tích hợp phần AI đọc phiếu CBC và Zipformer theo [hướng dẫn bàn giao CP2](docs/cbc-ai-handoff.md).
 
+Backend FastAPI cho Railway: [triển khai và SQLite volume](docs/railway-deployment.md). Bạn làm frontend Vercel xem [hợp đồng API, ví dụ fetch và ghi âm](docs/frontend-api-handoff.md).
+
 Chạy bản đầy đủ 24 chỉ số, LLM/Vision/VieNeu qua API và SQLite trên VPS CPU theo [hướng dẫn Docker](docs/vps-deployment.md).
 
 **Thành viên, lớp, track:** xem [TEAMS.md](TEAMS.md). **Điền TEAMS.md đúng format**: khi chấm và đánh giá, BTC quét file này để ghép điểm cho từng người.

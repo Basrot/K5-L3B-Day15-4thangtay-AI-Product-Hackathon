@@ -7,6 +7,7 @@ import re
 import tempfile
 import threading
 import wave
+from http.client import HTTPException
 from functools import lru_cache
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -79,7 +80,7 @@ def _api_wav(text: str) -> bytes:
             audio = response.read(MAX_AUDIO_BYTES + 1)
     except HTTPError as exc:
         raise RuntimeError(f"VieNeu API trả HTTP {exc.code}; kiểm tra API key, quyền giọng và hạn mức.") from None
-    except (URLError, TimeoutError, OSError) as exc:
+    except (URLError, TimeoutError, OSError, HTTPException, ValueError) as exc:
         raise RuntimeError("Không kết nối được VieNeu API hoặc quá thời gian chờ.") from None
     if len(audio) > MAX_AUDIO_BYTES:
         raise RuntimeError("Âm thanh VieNeu vượt giới hạn 20 MB.")
@@ -102,6 +103,11 @@ def synthesize_wav(text: str) -> bytes:
         raise ValueError("Nội dung đọc phải dài từ 1 đến 3000 ký tự.")
     backend = os.environ.get("VIENEU_TTS_BACKEND", "api").strip().lower()
     if backend not in ("api", "local"):
-        raise ValueError("VIENEU_TTS_BACKEND phải là api hoặc local.")
+        raise RuntimeError("VIENEU_TTS_BACKEND phải là api hoặc local.")
     spoken = speech_text(text.strip())
-    return _api_wav(spoken) if backend == "api" else _local_wav(spoken)
+    if backend == "api":
+        return _api_wav(spoken)
+    try:
+        return _local_wav(spoken)
+    except (ImportError, OSError, ValueError) as exc:
+        raise RuntimeError("Không nạp hoặc chạy được VieNeu local; kiểm tra model và thư viện.") from None

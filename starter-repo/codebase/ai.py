@@ -20,6 +20,7 @@ Nối model thật: điền .env (chép từ .env.example), rồi viết nhánh 
 import base64
 import json
 import os
+from http.client import HTTPException
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 from urllib.parse import urlsplit
@@ -52,6 +53,17 @@ MODEL_PROVIDER = (os.environ.get("MODEL_PROVIDER") or "fake").strip().lower()
 MODEL_NAME = (os.environ.get("MODEL_NAME") or "").strip()
 
 
+def _api_origin(base: str):
+    try:
+        parsed = urlsplit(base)
+        port = parsed.port
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError
+        return parsed.hostname, port, parsed.scheme
+    except ValueError:
+        raise RuntimeError("LLM_API_BASE và VISION_API_BASE phải là URL HTTPS hợp lệ.") from None
+
+
 @model_call
 def call_model(system: str, user: str, *, output_schema: dict | None = None,
                images: list[bytes] | None = None, model_name: str | None = None,
@@ -62,7 +74,7 @@ def call_model(system: str, user: str, *, output_schema: dict | None = None,
 
     selected_model = model_name or MODEL_NAME
     if MODEL_PROVIDER not in ("ollama", "openai_compatible") or not selected_model:
-        raise ValueError("Cấu hình MODEL_PROVIDER=ollama hoặc openai_compatible và MODEL_NAME.")
+        raise RuntimeError("Cấu hình MODEL_PROVIDER=ollama hoặc openai_compatible và MODEL_NAME.")
 
     if max_tokens is not None and (type(max_tokens) is not int or max_tokens <= 0):
         raise ValueError("max_tokens phải là số nguyên dương.")
@@ -88,18 +100,14 @@ def call_model(system: str, user: str, *, output_schema: dict | None = None,
         if images:
             base = os.environ.get("VISION_API_BASE", "").strip().rstrip("/") or base
             vision_key = os.environ.get("VISION_API_KEY", "").strip()
-            text_origin = urlsplit(os.environ.get("LLM_API_BASE", "https://api.openai.com/v1"))
-            vision_origin = urlsplit(base)
-            if (vision_origin.hostname, vision_origin.port, vision_origin.scheme) != (
-                text_origin.hostname, text_origin.port, text_origin.scheme
-            ) and not vision_key:
-                raise ValueError("Điền VISION_API_KEY riêng khi dùng nhà cung cấp đọc ảnh khác.")
+            text_origin = _api_origin(os.environ.get("LLM_API_BASE", "https://api.openai.com/v1"))
+            vision_origin = _api_origin(base)
+            if vision_origin != text_origin and not vision_key:
+                raise RuntimeError("Điền VISION_API_KEY riêng khi dùng nhà cung cấp đọc ảnh khác.")
             api_key = vision_key or api_key
-        parsed = urlsplit(base)
-        if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
-            raise ValueError("LLM_API_BASE và VISION_API_BASE phải là URL HTTPS.")
+        _api_origin(base)
         if not api_key:
-            raise ValueError("Điền API_KEY trong .env để gọi model qua API.")
+            raise RuntimeError("Điền API_KEY trong .env để gọi model qua API.")
         endpoint = base + "/chat/completions"
         headers["Authorization"] = "Bearer " + api_key
         if images:
@@ -129,9 +137,11 @@ def call_model(system: str, user: str, *, output_schema: dict | None = None,
         with urlopen(request, timeout=300 if images else 90) as response:
             data = json.load(response)
     except HTTPError as exc:
-        raise RuntimeError(f"Dịch vụ AI trả HTTP {exc.code}. Kiểm tra model, khóa API và hạn mức.") from exc
-    except (URLError, TimeoutError) as exc:
-        raise RuntimeError("Không kết nối được dịch vụ AI hoặc model phản hồi quá thời gian.") from exc
+        raise RuntimeError(f"Dịch vụ AI trả HTTP {exc.code}. Kiểm tra model, khóa API và hạn mức.") from None
+    except (json.JSONDecodeError, UnicodeError):
+        raise RuntimeError("Dịch vụ AI trả JSON không hợp lệ.") from None
+    except (URLError, TimeoutError, OSError, HTTPException, ValueError):
+        raise RuntimeError("Không kết nối được dịch vụ AI hoặc model phản hồi quá thời gian.") from None
 
     try:
         if MODEL_PROVIDER == "openai_compatible":
@@ -146,5 +156,7 @@ def call_model(system: str, user: str, *, output_schema: dict | None = None,
         raise RuntimeError("Phản hồi dịch vụ AI thiếu nội dung hoặc số token.") from exc
     if not isinstance(reply, str) or not reply.strip():
         raise RuntimeError("Ollama trả lời rỗng.")
+    if any(type(count) is not int or count < 0 for count in (tokens_in, tokens_out)):
+        raise RuntimeError("Phản hồi dịch vụ AI có số token không hợp lệ.")
     return {"text": reply, "model": data.get("model") or selected_model,
             "tokens_in": tokens_in, "tokens_out": tokens_out}

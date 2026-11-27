@@ -99,7 +99,7 @@ class TTSAPITest(unittest.TestCase):
 
     def test_unknown_backend_is_rejected(self):
         with patch.dict(os.environ, {"VIENEU_TTS_BACKEND": "other"}), patch.object(tts, "_engine", side_effect=AssertionError("unexpected local backend")):
-            with self.assertRaises(ValueError):
+            with self.assertRaises(RuntimeError):
                 tts.synthesize_wav("Xin chào.")
 
 

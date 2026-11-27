@@ -68,18 +68,18 @@ def _schema() -> dict:
 def _validate_result(data: object) -> dict:
     error = "Model trả bản trích xuất không hợp lệ; hãy thử ảnh rõ hơn hoặc nhập tay."
     if not isinstance(data, dict) or set(data) != {"rows", "warnings"}:
-        raise ValueError(error)
+        raise RuntimeError(error)
     rows, notices = data["rows"], data["warnings"]
     if (not isinstance(rows, list) or len(rows) > 24 or not isinstance(notices, list)
             or len(notices) > 24 or any(not isinstance(item, str) or len(item) > 1000 for item in notices)):
-        raise ValueError(error)
+        raise RuntimeError(error)
     seen = set()
     for row in rows:
         if not isinstance(row, dict) or set(row) != set(ROW_FIELDS):
-            raise ValueError(error)
+            raise RuntimeError(error)
         code = row["analyte"]
         if not isinstance(code, str) or code not in ANALYTES or code in seen:
-            raise ValueError(error)
+            raise RuntimeError(error)
         seen.add(code)
         for field in ROW_FIELDS[1:]:
             value = row[field]
@@ -87,9 +87,11 @@ def _validate_result(data: object) -> dict:
                 continue
             if isinstance(value, str):
                 if len(value) > 100:
-                    raise ValueError(error)
-            elif field in ("unit", "ref_unit") or type(value) not in (int, float) or not math.isfinite(value):
-                raise ValueError(error)
+                    raise RuntimeError(error)
+            elif field in ("unit", "ref_unit") or type(value) not in (int, float):
+                raise RuntimeError(error)
+            elif isinstance(value, float) and not math.isfinite(value):
+                raise RuntimeError(error)
     return {"rows": rows, "warnings": notices}
 
 
@@ -118,10 +120,12 @@ def extract_report(image_bytes: bytes, mime_type: str) -> dict:
                         output_schema=_schema(), images=[image_bytes],
                         model_name=vision_model or "gemma3:4b",
                         max_tokens=3500)
+    if not isinstance(result, dict):
+        raise RuntimeError("Model trả phản hồi trích xuất không hợp lệ.")
     if result.get("model") == "fake":
         raise RuntimeError("Đọc ảnh cần model ollama thật; chế độ fake không đọc ảnh.")
     try:
         data = json.loads(result["text"])
     except (KeyError, TypeError, json.JSONDecodeError) as exc:
-        raise ValueError("Model không trả JSON trích xuất hợp lệ; hãy thử lại hoặc nhập tay.") from exc
+        raise RuntimeError("Model không trả JSON trích xuất hợp lệ; hãy thử lại hoặc nhập tay.") from None
     return _validate_result(data)

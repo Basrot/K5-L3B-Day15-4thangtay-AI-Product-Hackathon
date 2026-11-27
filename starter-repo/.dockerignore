@@ -1,7 +1,9 @@
 # Allowlist build inputs; real reports, credentials, local models and DB stay out.
 **
 !Dockerfile
+!Dockerfile.api
 !requirements-server.txt
+!requirements-api.txt
 !voice_demo.py
 !codebase/
 !codebase/*.py
