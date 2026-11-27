@@ -1,0 +1,74 @@
+{
+  "report": {
+    "pregnancy_status": "pregnant",
+    "adult_confirmed": true,
+    "gestational_age": "10w4d",
+    "rows": [
+      {
+        "analyte": "RBC",
+        "value": "4.20",
+        "unit": "10^12/L",
+        "ref_low": "3.80",
+        "ref_high": "5.10",
+        "ref_unit": "10^12/L"
+      },
+      {
+        "analyte": "HGB",
+        "value": "11.6",
+        "unit": "g/dL",
+        "ref_low": "12.0",
+        "ref_high": "15.5",
+        "ref_unit": "g/dL"
+      },
+      {
+        "analyte": "HCT",
+        "value": "34.9",
+        "unit": "%",
+        "ref_low": "35.0",
+        "ref_high": "45.0",
+        "ref_unit": "%"
+      },
+      {
+        "analyte": "MCV",
+        "value": "83.0",
+        "unit": "fL",
+        "ref_low": "80.0",
+        "ref_high": "96.0",
+        "ref_unit": "fL"
+      },
+      {
+        "analyte": "MCH",
+        "value": "27.6",
+        "unit": "pg",
+        "ref_low": "27.0",
+        "ref_high": "32.0",
+        "ref_unit": "pg"
+      },
+      {
+        "analyte": "WBC",
+        "value": "9.80",
+        "unit": "10^9/L",
+        "ref_low": "4.00",
+        "ref_high": "10.00",
+        "ref_unit": "10^9/L"
+      },
+      {
+        "analyte": "NEUT_abs",
+        "value": "6.40",
+        "unit": "10^9/L",
+        "ref_low": "1.80",
+        "ref_high": "7.50",
+        "ref_unit": "10^9/L"
+      },
+      {
+        "analyte": "PLT",
+        "value": "268",
+        "unit": "10^9/L",
+        "ref_low": "150",
+        "ref_high": "400",
+        "ref_unit": "10^9/L"
+      }
+    ]
+  },
+  "question": "Phiếu xét nghiệm ghi HGB 11.6 g/dL có dấu L là thiếu máu hay bình thường ở tuần thai 10w4d?"
+}
