@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Check,
@@ -33,39 +33,67 @@ import type {
   PregnancyStatus,
   ReferenceMode,
   RowStatus,
+  ReportComparison,
+  ReportHistoryItem,
 } from "@/lib/types";
 
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (options: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+          }) => void;
+          renderButton: (element: HTMLElement, options: Record<string, string | number>) => void;
+        };
+      };
+    };
+  }
+}
+
 const ANALYTE_LIST = [
-  { code: "HGB", name: "Huyết sắc tố (Hemoglobin)", defaultUnit: "g/dL" },
-  { code: "RBC", name: "Số lượng hồng cầu", defaultUnit: "10^12/L" },
-  { code: "HCT", name: "Hematocrit (Tỷ lệ thể tích máu)", defaultUnit: "%" },
-  { code: "MCV", name: "Thể tích trung bình hồng cầu", defaultUnit: "fL" },
-  { code: "MCH", name: "Lượng HGB trung bình hồng cầu", defaultUnit: "pg" },
-  { code: "MCHC", name: "Nồng độ HGB trung bình hồng cầu", defaultUnit: "g/dL" },
-  { code: "WBC", name: "Tổng số bạch cầu", defaultUnit: "10^9/L" },
-  { code: "PLT", name: "Số lượng tiểu cầu", defaultUnit: "10^9/L" },
+  { code: "HGB", name: "Huyết sắc tố (Hemoglobin)", description: "Nồng độ hemoglobin trong máu.", defaultUnit: "g/dL" },
+  { code: "RBC", name: "Số lượng hồng cầu", description: "Số lượng tế bào hồng cầu trong máu.", defaultUnit: "10^12/L" },
+  { code: "HCT", name: "Hematocrit", description: "Tỷ lệ thể tích máu do hồng cầu chiếm.", defaultUnit: "%" },
+  { code: "MCV", name: "Thể tích trung bình hồng cầu", description: "Kích thước trung bình của hồng cầu.", defaultUnit: "fL" },
+  { code: "MCH", name: "Lượng HGB trung bình hồng cầu", description: "Lượng hemoglobin trung bình trong mỗi hồng cầu.", defaultUnit: "pg" },
+  { code: "MCHC", name: "Nồng độ HGB trung bình hồng cầu", description: "Nồng độ hemoglobin bên trong hồng cầu.", defaultUnit: "g/dL" },
+  { code: "WBC", name: "Tổng số bạch cầu", description: "Số lượng tế bào bạch cầu trong máu.", defaultUnit: "10^9/L" },
+  { code: "PLT", name: "Số lượng tiểu cầu", description: "Số lượng tiểu cầu trong máu.", defaultUnit: "10^9/L" },
 ] as const;
 
-const STATUS_META: Record<RowStatus, { label: string; cls: string }> = {
+const STATUS_META: Record<RowStatus, { label: string; meaning: string; cls: string }> = {
   below: {
-    label: "Thấp hơn khoảng",
+    label: "Thấp hơn khoảng tham chiếu",
+    meaning: "Giá trị thấp hơn mức thấp nhất của khoảng đang dùng.",
     cls: "bg-[#fff1f2] text-[#be123c]",
   },
   within: {
-    label: "Trong khoảng",
+    label: "Trong khoảng tham chiếu",
+    meaning: "Giá trị từ mức thấp nhất đến mức cao nhất của khoảng đang dùng.",
     cls: "bg-[#f0fdf4] text-[#15803d]",
   },
   above: {
-    label: "Cao hơn khoảng",
+    label: "Cao hơn khoảng tham chiếu",
+    meaning: "Giá trị cao hơn mức cao nhất của khoảng đang dùng.",
     cls: "bg-[#fffbeb] text-[#b45309]",
   },
 };
+
+const PREGNANCY_STAGE = {
+  1: { title: "Giai đoạn 1", weeks: "từ 1 tuần 0 ngày đến hết 13 tuần 6 ngày", shortWeeks: "tuần 1–13" },
+  2: { title: "Giai đoạn 2", weeks: "từ 14 tuần 0 ngày đến hết 28 tuần 6 ngày", shortWeeks: "tuần 14–28" },
+  3: { title: "Giai đoạn 3", weeks: "từ 29 tuần 0 ngày trở đi", shortWeeks: "từ tuần 29" },
+} as const;
 
 function makeEmptyReport(mode: ReferenceMode = "study"): CBCReport {
   return {
     adult_confirmed: false,
     pregnancy_status: "pregnant",
     gestational_age: "",
+    specimen_date: "",
     reference_mode: mode,
     rows: ANALYTE_LIST.map((item) => ({
       analyte: item.code,
@@ -78,11 +106,17 @@ function makeEmptyReport(mode: ReferenceMode = "study"): CBCReport {
   };
 }
 
+function pregnancyStageInfo(trimester?: number) {
+  if (trimester === 1 || trimester === 2 || trimester === 3) return PREGNANCY_STAGE[trimester];
+  return null;
+}
+
 function makeMockTCN2Report(): CBCReport {
   return {
     adult_confirmed: true,
     pregnancy_status: "pregnant",
     gestational_age: "24w2d",
+    specimen_date: "",
     reference_mode: "study",
     rows: [
       { analyte: "HGB", value: "104", unit: "g/L" },
@@ -101,6 +135,7 @@ function normalizeRowsForForm(
   incoming: CBCRowInput[],
   preserveMissing = false
 ): CBCRowInput[] {
+  const asText = (value: string | number | null | undefined) => value == null ? "" : String(value);
   const byCode = new Map(incoming.map((r) => [r.analyte, r]));
   return ANALYTE_LIST.map((item) => {
     const found = byCode.get(item.code);
@@ -116,10 +151,10 @@ function normalizeRowsForForm(
     }
     return {
       analyte: item.code,
-      value: found.value ?? "",
+      value: asText(found.value),
       unit: found.unit ?? (preserveMissing ? "" : item.defaultUnit),
-      ref_low: found.ref_low ?? "",
-      ref_high: found.ref_high ?? "",
+      ref_low: asText(found.ref_low),
+      ref_high: asText(found.ref_high),
       ref_unit: found.ref_unit ?? (preserveMissing ? "" : item.defaultUnit),
     };
   });
@@ -127,7 +162,7 @@ function normalizeRowsForForm(
 
 function toApiPayload(draft: CBCReport): CBCReport {
   const filledRows = draft.rows
-    .filter((r) => (r.value ?? "").trim() !== "" || (r.unit ?? "").trim() !== "")
+    .filter((r) => (r.value ?? "").trim() !== "")
     .map((r) => {
       if (draft.reference_mode === "study") {
         return {
@@ -150,25 +185,42 @@ function toApiPayload(draft: CBCReport): CBCReport {
     adult_confirmed: draft.adult_confirmed,
     pregnancy_status: draft.pregnancy_status,
     gestational_age: draft.gestational_age.trim(),
+    specimen_date: draft.specimen_date?.trim() || null,
     reference_mode: draft.reference_mode,
     rows: filledRows,
   };
+}
+
+function firstComparisonReportId(reports: ReportHistoryItem[], activeSessionId: string, activeDate?: string | null) {
+  if (!activeDate) return "";
+  return reports.find((item) => item.session_id !== activeSessionId
+    && item.specimen_date && item.specimen_date < activeDate)?.session_id || "";
 }
 
 export default function HomePage() {
   const [token, setToken] = useState("");
   const [username, setUsername] = useState("demo");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   const [sessionId, setSessionId] = useState("");
+  const authEpochRef = useRef(0);
   const [revision, setRevision] = useState(0);
   const [draft, setDraft] = useState<CBCReport>(() => makeMockTCN2Report());
   const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
 
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([]);
+  const [selectedComparisonId, setSelectedComparisonId] = useState("");
+  const [comparison, setComparison] = useState<ReportComparison | null>(null);
+  const [comparisonError, setComparisonError] = useState("");
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [doctorPrompt, setDoctorPrompt] = useState("");
   const [reply, setReply] = useState<ChatResult | null>(null);
 
   const [question, setQuestion] = useState("");
@@ -191,17 +243,86 @@ export default function HomePage() {
 
   const abortRef = useRef<AbortController | null>(null);
 
-  const api = useMemo(
-    () =>
-      createApiClient(
-        () => token,
-        () => {
-          setToken("");
-          setAuthError("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
-        }
-      ),
-    [token]
-  );
+  const clearAccountData = useCallback(() => {
+    setSessionId("");
+    setRevision(0);
+    setDraft(makeEmptyReport("study"));
+    setOcrWarnings([]);
+    setAnalysis(null);
+    setHistory([]);
+    setReportHistory([]);
+    setSelectedComparisonId("");
+    setComparison(null);
+    setComparisonError("");
+    setComparisonLoading(false);
+    setDoctorPrompt("");
+    setReply(null);
+    setQuestion("");
+    setChatRequestId(null);
+    setLastSentQuestion("");
+    setBannerError("");
+    setLoadingAction(null);
+    setAudioUrl(null);
+    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
+    mediaRecorderRef.current = null;
+    setRecording(false);
+    setSessionModalOpen(false);
+    setRestoreInput("");
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    authEpochRef.current += 1;
+    abortInFlight();
+    clearAccountData();
+    setToken("");
+  }, [clearAccountData]);
+
+  const api = useMemo(() => {
+    const clientEpoch = authEpochRef.current;
+    return createApiClient(() => token, () => {
+      if (clientEpoch !== authEpochRef.current) return;
+      handleLogout();
+      setAuthError("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+    });
+  }, [handleLogout, token]);
+
+  useEffect(() => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
+    if (!clientId) return;
+
+    const initializeGoogleButton = () => {
+      if (!window.google || !googleButtonRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: ({ credential }) => {
+          void handleGoogleCredential(credential);
+        },
+      });
+      googleButtonRef.current.replaceChildren();
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "rectangular",
+        width: 360,
+      });
+    };
+
+    let script = document.getElementById("google-identity-services") as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement("script");
+      script.id = "google-identity-services";
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.addEventListener("load", initializeGoogleButton, { once: true });
+      document.head.appendChild(script);
+    } else if (window.google) {
+      initializeGoogleButton();
+    } else {
+      script.addEventListener("load", initializeGoogleButton, { once: true });
+    }
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -217,6 +338,7 @@ export default function HomePage() {
   }
 
   async function invalidateIfConfirmed() {
+    const requestEpoch = authEpochRef.current;
     abortInFlight();
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
@@ -230,12 +352,45 @@ export default function HomePage() {
       setHistory([]);
       try {
         const res = await api.invalidateReport(sessionId, revision);
+        if (requestEpoch !== authEpochRef.current) return;
         setRevision(res.revision);
+        const savedReports = await api.getReportHistory();
+        if (requestEpoch !== authEpochRef.current) return;
+        setReportHistory(savedReports.reports || []);
       } catch (err) {
-        if (err instanceof ApiError) {
+        if (requestEpoch === authEpochRef.current && err instanceof ApiError) {
           setBannerError(err.message);
         }
       }
+    }
+  }
+
+  async function finishSignIn(accessToken: string) {
+    const requestEpoch = ++authEpochRef.current;
+    abortInFlight();
+    clearAccountData();
+    const client = createApiClient(() => accessToken, () => {
+      if (requestEpoch === authEpochRef.current) handleLogout();
+    });
+    const session = await client.createSession();
+    const savedReports = await client.getReportHistory();
+    if (requestEpoch !== authEpochRef.current) return;
+    setToken(accessToken);
+    setSessionId(session.session_id);
+    setRevision(session.revision);
+    setReportHistory(savedReports.reports || []);
+  }
+
+  async function handleGoogleCredential(credential: string) {
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      const result = await api.loginWithGoogle(credential);
+      await finishSignIn(result.access_token);
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : "Đăng nhập Google không thành công.");
+    } finally {
+      setAuthLoading(false);
     }
   }
 
@@ -244,15 +399,13 @@ export default function HomePage() {
     setAuthError("");
     setAuthLoading(true);
     try {
-      const res = await api.login(username.trim(), password);
-      setToken(res.access_token);
-      const client = createApiClient(
-        () => res.access_token,
-        () => setToken("")
-      );
-      const session = await client.createSession();
-      setSessionId(session.session_id);
-      setRevision(session.revision);
+      if (authMode === "register" && password !== passwordConfirm) {
+        throw new Error("Hai mật khẩu chưa khớp.");
+      }
+      const res = authMode === "register"
+        ? await api.register(username.trim(), password)
+        : await api.login(username.trim(), password);
+      await finishSignIn(res.access_token);
     } catch (err) {
       setAuthError(
         err instanceof Error ? err.message : "Đăng nhập không thành công."
@@ -263,24 +416,31 @@ export default function HomePage() {
   }
 
   async function handleNewSession() {
+    const requestEpoch = authEpochRef.current;
     abortInFlight();
     setBannerError("");
     setLoadingAction("session");
     try {
       const session = await api.createSession();
+      if (requestEpoch !== authEpochRef.current) return;
       setSessionId(session.session_id);
       setRevision(session.revision);
       setDraft(makeEmptyReport("study"));
       setAnalysis(null);
       setReply(null);
       setHistory([]);
+      setComparison(null);
+      setSelectedComparisonId("");
+      setDoctorPrompt("");
       setOcrWarnings([]);
       setQuestion("");
       setChatRequestId(null);
     } catch (err) {
-      setBannerError(err instanceof Error ? err.message : "Lỗi tạo phiên mới.");
+      if (requestEpoch === authEpochRef.current) {
+        setBannerError(err instanceof Error ? err.message : "Lỗi tạo phiên mới.");
+      }
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
     }
   }
 
@@ -288,28 +448,35 @@ export default function HomePage() {
     await invalidateIfConfirmed();
     setBannerError("");
     setOcrWarnings([]);
+    setDoctorPrompt("");
     setDraft(makeMockTCN2Report());
   }
 
   async function handleRestoreSession() {
     const id = restoreInput.trim();
     if (!id) return;
+    const requestEpoch = authEpochRef.current;
     abortInFlight();
     setBannerError("");
     setLoadingAction("session");
     try {
       const snap = await api.getSession(id);
+      if (requestEpoch !== authEpochRef.current) return;
+      setSelectedComparisonId("");
+      setDoctorPrompt("");
       setSessionId(snap.session_id);
       setRevision(snap.revision);
       if (snap.report) {
         setDraft({
           ...snap.report,
+          specimen_date: snap.report.specimen_date || "",
           rows: normalizeRowsForForm(snap.report.rows, false),
         });
         const [ana, hist] = await Promise.all([
           api.getAnalysis(snap.session_id, snap.revision),
           api.getHistory(snap.session_id),
         ]);
+        if (requestEpoch !== authEpochRef.current) return;
         const msgs = hist.messages || [];
         setAnalysis(ana);
         setHistory(msgs);
@@ -328,28 +495,60 @@ export default function HomePage() {
         setReply(null);
         setBannerError(`Phiên ${snap.session_id} chưa có phiếu nào được xác nhận.`);
       }
+      const savedReports = await api.getReportHistory();
+      if (requestEpoch !== authEpochRef.current) return;
+      setReportHistory(savedReports.reports || []);
+      setSelectedComparisonId(firstComparisonReportId(savedReports.reports || [], snap.session_id,
+        snap.report?.specimen_date));
       setSessionModalOpen(false);
       setRestoreInput("");
     } catch (err) {
-      setBannerError(
-        err instanceof Error ? err.message : "Không thể mở phiên này."
-      );
+      if (requestEpoch === authEpochRef.current) {
+        setBannerError(
+          err instanceof Error ? err.message : "Không thể mở phiên này."
+        );
+      }
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
     }
   }
 
   async function handleDeleteCurrentSession() {
     if (!sessionId) return;
+    const requestEpoch = authEpochRef.current;
     setLoadingAction("session");
     try {
       await api.deleteSession(sessionId);
+      if (requestEpoch !== authEpochRef.current) return;
+      const savedReports = await api.getReportHistory();
+      if (requestEpoch !== authEpochRef.current) return;
+      setReportHistory(savedReports.reports || []);
       setSessionModalOpen(false);
       await handleNewSession();
     } catch (err) {
-      setBannerError(err instanceof Error ? err.message : "Không thể xóa phiên.");
+      if (requestEpoch === authEpochRef.current) {
+        setBannerError(err instanceof Error ? err.message : "Không thể xóa phiên.");
+      }
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
+    }
+  }
+
+  async function handleDeleteSavedReport(reportSessionId: string) {
+    if (!window.confirm("Xóa phiếu CBC đã lưu này khỏi lịch sử của tài khoản?")) return;
+    const requestEpoch = authEpochRef.current;
+    try {
+      await api.deleteSession(reportSessionId);
+      if (requestEpoch !== authEpochRef.current) return;
+      setReportHistory((items) => items.filter((item) => item.session_id !== reportSessionId));
+      if (selectedComparisonId === reportSessionId) setSelectedComparisonId("");
+      setComparison(null);
+      setComparisonError("");
+      setDoctorPrompt("");
+    } catch (err) {
+      if (requestEpoch === authEpochRef.current) {
+        setComparisonError(err instanceof Error ? err.message : "Không thể xóa phiếu đã lưu.");
+      }
     }
   }
 
@@ -357,8 +556,10 @@ export default function HomePage() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    const requestEpoch = authEpochRef.current;
 
     await invalidateIfConfirmed();
+    if (requestEpoch !== authEpochRef.current) return;
     setBannerError("");
     setOcrWarnings([]);
     setLoadingAction("ocr");
@@ -367,24 +568,27 @@ export default function HomePage() {
     abortRef.current = controller;
     try {
       const extracted = await api.extractReport(file, controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
       setOcrWarnings(extracted.warnings || []);
       setDraft((prev) => ({
         ...prev,
         adult_confirmed: false,
+        specimen_date: "",
         rows: normalizeRowsForForm(extracted.rows || [], true),
       }));
     } catch (err) {
-      if ((err as Error).name !== "AbortError") {
+      if (requestEpoch === authEpochRef.current && (err as Error).name !== "AbortError") {
         setBannerError(
           err instanceof Error ? err.message : "Đọc ảnh thất bại."
         );
       }
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
     }
   }
 
   async function handleConfirm() {
+    const requestEpoch = authEpochRef.current;
     setBannerError("");
     setLoadingAction("confirm");
     const controller = new AbortController();
@@ -393,6 +597,7 @@ export default function HomePage() {
     try {
       const payload = toApiPayload(draft);
       const check = await api.validateReport(payload, controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
       if (check.status !== "ok" && check.status !== "analyzed") {
         const issueMsg =
           check.issues && check.issues.length > 0
@@ -407,11 +612,20 @@ export default function HomePage() {
         revision,
         controller.signal
       );
+      if (requestEpoch !== authEpochRef.current) return;
       setRevision(res.revision);
       setAnalysis(res.analysis);
       setReply(null);
+      setDoctorPrompt("");
       const hist = await api.getHistory(sessionId, controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
       setHistory(hist.messages || []);
+      const savedReports = await api.getReportHistory(controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
+      setReportHistory(savedReports.reports || []);
+      setSelectedComparisonId(firstComparisonReportId(savedReports.reports || [], sessionId,
+        payload.specimen_date));
+      setComparisonError("");
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         setBannerError(
@@ -424,6 +638,7 @@ export default function HomePage() {
   }
 
   async function handleToggleRecording() {
+    const requestEpoch = authEpochRef.current;
     setBannerError("");
     if (recording && mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
@@ -447,6 +662,7 @@ export default function HomePage() {
         try {
           const wav = await toWav16k(blob);
           const { text } = await api.transcribeWav(wav);
+          if (requestEpoch !== authEpochRef.current) return;
           if (text?.trim()) {
             setQuestion(text.trim());
           } else {
@@ -455,20 +671,23 @@ export default function HomePage() {
             );
           }
         } catch (err) {
+          if (requestEpoch !== authEpochRef.current) return;
           setBannerError(
             err instanceof Error
               ? err.message
               : "Không thể chuyển giọng nói thành chữ."
           );
         } finally {
-          setLoadingAction(null);
+          if (requestEpoch === authEpochRef.current) setLoadingAction(null);
         }
       };
       mediaRecorderRef.current = recorder;
       recorder.start();
       setRecording(true);
     } catch {
-      setBannerError("Không thể truy cập micro. Vui lòng cấp quyền trình duyệt.");
+      if (requestEpoch === authEpochRef.current) {
+        setBannerError("Không thể truy cập micro. Vui lòng cấp quyền trình duyệt.");
+      }
     }
   }
 
@@ -476,6 +695,7 @@ export default function HomePage() {
     if (e) e.preventDefault();
     const q = question.trim();
     if (!q || !analysis) return;
+    const requestEpoch = authEpochRef.current;
 
     setBannerError("");
     setLoadingAction("chat");
@@ -491,37 +711,43 @@ export default function HomePage() {
 
     try {
       const res = await api.chat(sessionId, q, revision, reqId, controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
       setReply(res);
       if (typeof res.revision === "number") {
         setRevision(res.revision);
       }
       const hist = await api.getHistory(sessionId, controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
       setHistory(hist.messages || []);
+      setChatRequestId(null);
     } catch (err) {
-      if ((err as Error).name !== "AbortError") {
+      if (requestEpoch === authEpochRef.current && (err as Error).name !== "AbortError") {
         setBannerError(
           err instanceof Error ? err.message : "Không thể nhận câu trả lời từ AI."
         );
       }
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
     }
   }
 
   async function handleReadAloud(text: string) {
+    const requestEpoch = authEpochRef.current;
     setBannerError("");
     setLoadingAction("tts");
     try {
       const wavBlob = await api.synthesizeWav(text);
+      if (requestEpoch !== authEpochRef.current) return;
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       const url = URL.createObjectURL(wavBlob);
       setAudioUrl(url);
     } catch (err) {
+      if (requestEpoch !== authEpochRef.current) return;
       setBannerError(
         err instanceof Error ? err.message : "Chưa tạo được giọng đọc."
       );
     } finally {
-      setLoadingAction(null);
+      if (requestEpoch === authEpochRef.current) setLoadingAction(null);
     }
   }
 
@@ -529,11 +755,12 @@ export default function HomePage() {
     if (!analysis) return;
     const lines = [
       "KẾT QUẢ ĐỐI CHIẾU CHỈ SỐ CBC THAI KỲ",
+      `Ngày lấy mẫu trên phiếu: ${draft.specimen_date || "chưa được nhập"}`,
       analysis.output,
       "",
       ...(analysis.rows || []).map(
         (r) =>
-          `- ${r.analyte}: ${r.value} ${r.unit} | Khoảng: ${r.ref_low}–${r.ref_high} ${r.unit} | ${STATUS_META[r.status].label}`
+          `- ${r.analyte}: ${r.value} ${r.unit} | Khoảng: ${r.ref_low}–${r.ref_high} ${r.unit} | ${STATUS_META[r.status].label}: ${STATUS_META[r.status].meaning}`
       ),
       "",
       analysis.reference_note || "",
@@ -550,7 +777,8 @@ export default function HomePage() {
   }
 
   function updateField<K extends keyof CBCReport>(key: K, value: CBCReport[K]) {
-    invalidateIfConfirmed();
+    if (key !== "specimen_date") invalidateIfConfirmed();
+    setDoctorPrompt("");
     setDraft((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -560,6 +788,7 @@ export default function HomePage() {
     value: string
   ) {
     invalidateIfConfirmed();
+    setDoctorPrompt("");
     setDraft((prev) => ({
       ...prev,
       rows: prev.rows.map((r) =>
@@ -567,6 +796,76 @@ export default function HomePage() {
       ),
     }));
   }
+
+  const resultStage = pregnancyStageInfo(analysis?.trimester);
+  const resultRows = analysis?.rows || [];
+  const rowsToReview = resultRows.filter((row) => row.status !== "within");
+  const otherSavedReports = useMemo(
+    () => reportHistory.filter((item) => item.session_id !== sessionId),
+    [reportHistory, sessionId]
+  );
+  const comparableReports = useMemo(
+    () => otherSavedReports.filter((item) => Boolean(item.specimen_date)
+      && Boolean(draft.specimen_date) && item.specimen_date! < draft.specimen_date!),
+    [draft.specimen_date, otherSavedReports]
+  );
+  const undatedSavedReports = otherSavedReports.filter((item) => !item.specimen_date);
+  const sameOrLaterSavedReports = otherSavedReports.filter((item) =>
+    item.specimen_date && draft.specimen_date && item.specimen_date >= draft.specimen_date
+  );
+
+  useEffect(() => {
+    if (!analysis || !sessionId) {
+      setComparison(null);
+      setComparisonError("");
+      setComparisonLoading(false);
+      return;
+    }
+    if (!draft.specimen_date) {
+      setComparison(null);
+      setComparisonError("Nhập ngày lấy mẫu trên phiếu hiện tại để so sánh theo thời gian.");
+      setComparisonLoading(false);
+      return;
+    }
+    const activeSavedReport = reportHistory.find((item) => item.session_id === sessionId);
+    if (!activeSavedReport || activeSavedReport.specimen_date !== draft.specimen_date) {
+      setComparison(null);
+      setComparisonError("Xác nhận ngày lấy mẫu đã nhập trước khi xem so sánh.");
+      setComparisonLoading(false);
+      return;
+    }
+    if (!selectedComparisonId) {
+      setComparison(null);
+      setComparisonError("");
+      setComparisonLoading(false);
+      return;
+    }
+    const selected = comparableReports.find((item) => item.session_id === selectedComparisonId);
+    if (!selected) {
+      setSelectedComparisonId("");
+      setComparison(null);
+      setComparisonError("");
+      setComparisonLoading(false);
+      return;
+    }
+    if (selected.session_id !== selectedComparisonId) setSelectedComparisonId(selected.session_id);
+    const controller = new AbortController();
+    setComparison(null);
+    setComparisonLoading(true);
+    setComparisonError("");
+    api.compareReports(selected.session_id, sessionId, controller.signal)
+      .then((result) => setComparison(result))
+      .catch((err) => {
+        if ((err as Error).name !== "AbortError") {
+          setComparison(null);
+          setComparisonError(err instanceof Error ? err.message : "Không thể so sánh hai phiếu.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setComparisonLoading(false);
+      });
+    return () => controller.abort();
+  }, [analysis, api, comparableReports, draft.specimen_date, selectedComparisonId, sessionId]);
 
   if (!token) {
     return (
@@ -581,7 +880,7 @@ export default function HomePage() {
                 Đọc phiếu CBC thai kỳ
               </h1>
               <p className="text-xs text-[var(--muted)]">
-                Nhóm 4thangtay · Đăng nhập bản demo
+                Nhóm 4thangtay · Đăng nhập hoặc tạo tài khoản
               </p>
             </div>
           </div>
@@ -593,39 +892,91 @@ export default function HomePage() {
             </div>
           )}
 
+          {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? (
+            <div className="flex flex-col items-center gap-3">
+              <div ref={googleButtonRef} className="min-h-10" />
+              <div className="w-full flex items-center gap-3 text-[11px] text-[var(--muted)]">
+                <span className="h-px flex-1 bg-[var(--border-strong)]" />
+                hoặc đăng nhập bằng email
+                <span className="h-px flex-1 bg-[var(--border-strong)]" />
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--muted)]">
+              Đăng nhập Google sẽ hiện sau khi cấu hình Google Client ID.
+            </p>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-3.5">
             <div>
               <label className="block text-xs font-medium text-[var(--muted)] mb-1">
-                Tên đăng nhập
+                {authMode === "register" ? "Email" : "Email hoặc tên đăng nhập admin"}
               </label>
               <input
+                type={authMode === "register" ? "email" : "text"}
                 className="wf-input"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                placeholder={authMode === "register" ? "ten@example.com" : "Email hoặc tên admin"}
+                autoComplete={authMode === "register" ? "email" : "username"}
                 required
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-[var(--muted)] mb-1">
-                Mật khẩu demo
+                Mật khẩu
               </label>
               <input
                 type="password"
                 className="wf-input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu được cấp"
+                placeholder={authMode === "register" ? "Ít nhất 10 ký tự" : "Nhập mật khẩu"}
+                autoComplete={authMode === "register" ? "new-password" : "current-password"}
                 required
               />
             </div>
+            {authMode === "register" && (
+              <div>
+                <label className="block text-xs font-medium text-[var(--muted)] mb-1">
+                  Nhập lại mật khẩu
+                </label>
+                <input
+                  type="password"
+                  className="wf-input"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+            )}
             <button
               type="submit"
               className="btn-primary w-full"
               disabled={authLoading}
             >
-              {authLoading ? "Đang kết nối..." : "Đăng nhập"}
+              {authLoading
+                ? "Đang kết nối..."
+                : authMode === "register" ? "Tạo tài khoản" : "Đăng nhập"}
             </button>
           </form>
+          <p className="text-center text-xs text-[var(--muted)]">
+            {authMode === "register" ? "Đã có tài khoản?" : "Chưa có tài khoản?"}{" "}
+            <button
+              type="button"
+              className="font-semibold text-[var(--primary)] underline underline-offset-2"
+              onClick={() => {
+                setAuthError("");
+                setAuthMode(authMode === "register" ? "login" : "register");
+                setUsername("");
+                setPassword("");
+                setPasswordConfirm("");
+              }}
+            >
+              {authMode === "register" ? "Đăng nhập" : "Đăng ký"}
+            </button>
+          </p>
         </div>
       </main>
     );
@@ -677,7 +1028,7 @@ export default function HomePage() {
             </button>
             <button
               type="button"
-              onClick={() => setToken("")}
+              onClick={handleLogout}
               className="btn-outline h-9 text-xs"
               title="Đăng xuất"
             >
@@ -713,7 +1064,7 @@ export default function HomePage() {
               </h2>
               <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-[var(--primary-light)] text-[var(--primary)]">
                 {draft.reference_mode === "study"
-                  ? "Theo tam cá nguyệt"
+                  ? "Theo giai đoạn thai kỳ"
                   : "Theo khoảng trên phiếu"}
               </span>
             </div>
@@ -729,7 +1080,7 @@ export default function HomePage() {
                     : "border-[var(--border-strong)] bg-white text-[var(--foreground)]"
                 }`}
               >
-                Nghiên cứu tam cá nguyệt
+                Khoảng nghiên cứu theo tuần thai
                 <span className="block text-[11px] font-normal text-[var(--muted)] mt-0.5">
                   Tự chọn khoảng theo tuần thai
                 </span>
@@ -749,6 +1100,16 @@ export default function HomePage() {
                 </span>
               </button>
             </div>
+
+            {draft.reference_mode === "study" && (
+              <div className="rounded-xl bg-[#f8fafa] border border-[var(--border-strong)] p-3 text-[11px] text-[var(--muted)] space-y-1">
+                <p className="font-medium text-[var(--foreground)]">
+                  Thai kỳ được chia thành ba giai đoạn theo số tuần như sau:
+                </p>
+                <p>Giai đoạn 1: từ 1 tuần 0 ngày đến hết 13 tuần 6 ngày · Giai đoạn 2: từ 14 tuần 0 ngày đến hết 28 tuần 6 ngày · Giai đoạn 3: từ 29 tuần 0 ngày trở đi.</p>
+                <p>Tuổi thai được ghi theo dạng 24w2d, nghĩa là 24 tuần 2 ngày. Khoảng nghiên cứu được chọn theo tuổi thai lúc xét nghiệm.</p>
+              </div>
+            )}
 
             {/* OCR Upload */}
             <div className="border border-dashed border-[var(--border-strong)] rounded-xl p-3 bg-[#f9fbfb] flex items-center justify-between gap-3">
@@ -789,10 +1150,10 @@ export default function HomePage() {
             )}
 
             {/* Context */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs text-[var(--muted)] mb-1">
-                  Tuổi thai (vd 24w2d)
+                  Tuổi thai lúc xét nghiệm (tuần + ngày)
                 </label>
                 <input
                   className="wf-input"
@@ -800,8 +1161,20 @@ export default function HomePage() {
                   onChange={(e) =>
                     updateField("gestational_age", e.target.value)
                   }
-                  placeholder="24w2d"
+                  placeholder="24w2d (24 tuần 2 ngày)"
                 />
+              </div>
+              <div>
+                <label className="block text-xs text-[var(--muted)] mb-1">
+                  Ngày lấy mẫu trên phiếu
+                </label>
+                <input
+                  type="date"
+                  className="wf-input"
+                  value={draft.specimen_date || ""}
+                  onChange={(e) => updateField("specimen_date", e.target.value)}
+                />
+                <p className="mt-1 text-[10px] text-[var(--muted)]">Dùng để so sánh với lần xét nghiệm trước.</p>
               </div>
               <div>
                 <label className="block text-xs text-[var(--muted)] mb-1">
@@ -957,23 +1330,25 @@ export default function HomePage() {
                   className="btn-outline text-xs"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
-                  Nạp phiếu mẫu TCN2 (24w2d)
+                  Nạp phiếu mẫu giai đoạn 2 (24 tuần 2 ngày)
                 </button>
               </div>
             ) : (
               <>
-                {/* Comparison Table */}
+                {/* Results overview and optional details */}
                 <div className="soft-card p-4 sm:p-5 space-y-3.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <h2 className="font-semibold text-[15px]">
-                        Kết quả đối chiếu
-                        {analysis.trimester
-                          ? ` · Tam cá nguyệt ${analysis.trimester}`
+                        Kết quả CBC
+                        {resultStage
+                          ? ` · ${resultStage.title} (${resultStage.weeks})`
                           : ""}
                       </h2>
                       <p className="text-xs text-[var(--muted)] mt-0.5">
-                        {analysis.output}
+                        {rowsToReview.length > 0
+                          ? `Có ${rowsToReview.length}/${resultRows.length} chỉ số nằm ngoài khoảng đang chọn.`
+                          : `Cả ${resultRows.length} chỉ số đã nhập đang nằm trong khoảng đang chọn.`}
                       </p>
                     </div>
                     <button
@@ -986,67 +1361,291 @@ export default function HomePage() {
                     </button>
                   </div>
 
-                  <div className="overflow-x-auto border border-[var(--border-strong)] rounded-xl">
-                    <table className="w-full text-xs text-left border-collapse">
-                      <thead className="bg-[#f8fafa] text-[var(--muted)]">
-                        <tr>
-                          <th className="py-2.5 px-3 font-medium">Chỉ số</th>
-                          <th className="py-2.5 px-3 font-medium">Kết quả</th>
-                          <th className="py-2.5 px-3 font-medium">
-                            {analysis.reference_mode === "study"
-                              ? "Khoảng nghiên cứu theo TCN"
-                              : "Khoảng trên phiếu"}
-                          </th>
-                          <th className="py-2.5 px-3 font-medium">Trạng thái</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[var(--border)]">
-                        {(analysis.rows || []).map((row) => (
-                          <tr key={row.analyte} className="hover:bg-[#f8fafa]">
-                            <td className="py-2.5 px-3 font-semibold">
-                              {row.analyte}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              {row.value} {row.unit}
-                            </td>
-                            <td className="py-2.5 px-3 text-[var(--muted)]">
-                              {row.ref_low} – {row.ref_high} {row.unit}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <span
-                                className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                                  STATUS_META[row.status].cls
-                                }`}
-                              >
-                                {STATUS_META[row.status].label}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <p className="text-xs text-[var(--muted)]">
+                    Đây là phép so sánh với khoảng đã chọn, không phải kết luận bệnh. Kết quả trong khoảng cũng không loại trừ bệnh.
+                  </p>
+                  {analysis.issues && analysis.issues.length > 0 && (
+                    <p role="status" className="rounded-lg bg-[#fffbeb] p-2.5 text-xs text-[#8a5b10]">
+                      Một số dòng chưa thể đối chiếu: {analysis.issues.join("; ")}
+                    </p>
+                  )}
 
-                  {(analysis.reference_note || analysis.reference_source) && (
-                    <div className="p-3 rounded-xl bg-[#f8fafa] text-[11px] text-[var(--muted)] space-y-1">
-                      {analysis.reference_source && (
-                        <div className="font-medium text-[var(--foreground)] flex items-center gap-1.5">
-                          <span>Nguồn: {analysis.reference_source.title}</span>
-                          {analysis.reference_source.url && (
-                            <a
-                              href={analysis.reference_source.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[var(--primary)] inline-flex items-center gap-0.5 underline"
-                            >
-                              Xem bài báo <ExternalLink className="w-3 h-3" />
-                            </a>
+                  {rowsToReview.length > 0 && (
+                    <section className="rounded-xl border border-[#f3d9a7] bg-[#fffbeb] p-3 space-y-2">
+                      <div>
+                        <h3 className="text-sm font-semibold text-[var(--foreground)]">Nên hỏi bác sĩ</h3>
+                        <p className="text-xs text-[var(--muted)]">Anh/chị có thể ghi lại các dòng này để trao đổi trong buổi khám.</p>
+                      </div>
+                      <ul className="space-y-2">
+                        {rowsToReview.map((row) => {
+                          const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
+                          return (
+                            <li key={row.analyte} className="rounded-lg bg-white/80 p-2.5 text-xs">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="font-semibold">{info?.name || row.analyte} ({row.analyte})</span>
+                                <span>{row.value} {row.unit}</span>
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_META[row.status].cls}`}>
+                                  {STATUS_META[row.status].label}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-[var(--muted)]">
+                                {info?.description} {STATUS_META[row.status].meaning}
+                              </p>
+                              <button
+                                type="button"
+                                className="mt-1 text-[var(--primary)] underline underline-offset-2"
+                                onClick={() => setDoctorPrompt(
+                                  `Lúc thai ${draft.gestational_age}, kết quả ${info?.name || row.analyte} (${row.analyte}) của tôi là ${row.value} ${row.unit}, đang ${STATUS_META[row.status].label.toLowerCase()} theo khoảng này. Bác sĩ sẽ xem thêm những thông tin nào để giải thích kết quả?`
+                                )}
+                              >
+                                Soạn câu hỏi cho bác sĩ
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  )}
+
+                  <details className="rounded-xl border border-[var(--border-strong)]">
+                    <summary className="cursor-pointer select-none p-3 text-sm font-medium">
+                      Xem và hiểu đủ {resultRows.length} chỉ số
+                    </summary>
+                    <div className="px-3 pb-3 space-y-3">
+                      <div className="overflow-x-auto border border-[var(--border-strong)] rounded-xl">
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead className="bg-[#f8fafa] text-[var(--muted)]">
+                            <tr>
+                              <th className="py-2.5 px-3 font-medium">Chỉ số</th>
+                              <th className="py-2.5 px-3 font-medium">Kết quả</th>
+                              <th className="py-2.5 px-3 font-medium">
+                                {analysis.reference_mode === "study"
+                                  ? "Khoảng nghiên cứu theo giai đoạn"
+                                  : "Khoảng trên phiếu"}
+                              </th>
+                              <th className="py-2.5 px-3 font-medium">So với khoảng</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[var(--border)]">
+                            {resultRows.map((row) => {
+                              const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
+                              return (
+                                <tr key={row.analyte} className="hover:bg-[#f8fafa]">
+                                  <td className="py-2.5 px-3">
+                                    <div className="font-semibold">{info?.name || row.analyte} ({row.analyte})</div>
+                                    {info?.description && (
+                                      <p className="mt-1 text-[10px] leading-snug text-[var(--muted)]">{info.description}</p>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3">{row.value} {row.unit}</td>
+                                  <td className="py-2.5 px-3 text-[var(--muted)]">{row.ref_low} – {row.ref_high} {row.unit}</td>
+                                  <td className="py-2.5 px-3">
+                                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_META[row.status].cls}`}>
+                                      {STATUS_META[row.status].label}
+                                    </span>
+                                    <p className="mt-1 text-[10px] leading-snug text-[var(--muted)]">{STATUS_META[row.status].meaning}</p>
+                                    <button
+                                      type="button"
+                                      className="mt-1 text-[10px] text-[var(--primary)] underline underline-offset-2"
+                                      onClick={() => {
+                                        const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
+                                        setDoctorPrompt(
+                                          `Lúc thai ${draft.gestational_age}, kết quả ${info?.name || row.analyte} (${row.analyte}) của tôi là ${row.value} ${row.unit}, đang ${STATUS_META[row.status].label.toLowerCase()} theo khoảng này. Bác sĩ sẽ xem thêm những thông tin nào để giải thích kết quả?`
+                                        );
+                                      }}
+                                    >
+                                      Soạn câu hỏi cho bác sĩ
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </details>
+
+                  <details className="rounded-xl border border-[var(--border-strong)]">
+                    <summary className="cursor-pointer select-none p-3 text-xs font-medium text-[var(--muted)]">
+                      Cách đọc kết quả và nguồn tham khảo
+                    </summary>
+                    <div className="px-3 pb-3 space-y-2 text-[11px] text-[var(--muted)]">
+                      <p>“Thấp hơn” nghĩa là dưới mức thấp nhất; “trong khoảng” nghĩa là từ mức thấp nhất đến mức cao nhất; “cao hơn” nghĩa là vượt mức cao nhất của khoảng đang chọn.</p>
+                      {analysis.reference_mode === "study" && (
+                        <p className="font-medium text-[#7c3aed]">Lưu ý HGB: mức thấp nhất của khoảng nghiên cứu không dùng một mình để kết luận có hay không thiếu máu.</p>
+                      )}
+                      {(analysis.reference_note || analysis.reference_source) && (
+                        <div className="pt-2 border-t border-[var(--border)] space-y-1">
+                          {analysis.reference_source && (
+                            <div className="font-medium text-[var(--foreground)] flex flex-wrap items-center gap-1.5">
+                              <span>Nguồn: {analysis.reference_source.title}</span>
+                              {analysis.reference_source.url && (
+                                <a
+                                  href={analysis.reference_source.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[var(--primary)] inline-flex items-center gap-0.5 underline"
+                                >
+                                  Xem bài báo <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
                           )}
+                          {analysis.reference_note && <p>{analysis.reference_note}</p>}
                         </div>
                       )}
-                      {analysis.reference_note && (
-                        <p>{analysis.reference_note}</p>
+                    </div>
+                  </details>
+                </div>
+
+                <div className="soft-card p-4 sm:p-5 space-y-3">
+                  <div>
+                    <h2 className="font-semibold text-[15px]">Theo dõi giữa các lần xét nghiệm</h2>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      So sánh các con số theo ngày lấy mẫu. Tăng hoặc giảm chỉ mô tả thay đổi, không tự nói lên tình trạng sức khỏe.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="flex-1 min-w-[220px] text-xs text-[var(--muted)]">
+                      Chọn một phiếu khác đã lưu
+                      <select
+                        className="wf-input mt-1"
+                        value={selectedComparisonId}
+                        onChange={(e) => {
+                          setSelectedComparisonId(e.target.value);
+                          setDoctorPrompt("");
+                        }}
+                        disabled={comparableReports.length === 0}
+                      >
+                        <option value="">Chọn phiếu để so sánh</option>
+                        {comparableReports.map((item) => (
+                          <option key={item.session_id} value={item.session_id}>
+                            {new Date(`${item.specimen_date}T00:00:00`).toLocaleDateString("vi-VN")}
+                            {item.gestational_age ? ` · ${item.gestational_age}` : ""}
+                            {` · ${item.rows.length} chỉ số`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {selectedComparisonId && (
+                      <button type="button" className="btn-outline h-10 px-3 text-xs" onClick={() => handleDeleteSavedReport(selectedComparisonId)}>
+                        <Trash2 className="w-3.5 h-3.5" /> Xóa phiếu đã chọn
+                      </button>
+                    )}
+                  </div>
+                  {undatedSavedReports.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-[var(--muted)]">
+                        {undatedSavedReports.length} phiếu đã lưu chưa có ngày lấy mẫu nên chưa thể xếp theo thời gian. Mở phiếu để bổ sung đúng ngày ghi trên phiếu.
+                      </p>
+                      {undatedSavedReports.map((item) => (
+                        <div key={item.session_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#f8fafa] p-2 text-xs">
+                          <span>{item.rows.length} chỉ số CBC · chưa có ngày lấy mẫu</span>
+                          <button
+                            type="button"
+                            className="text-[var(--primary)] underline underline-offset-2"
+                            onClick={() => {
+                              setRestoreInput(item.session_id);
+                              setSessionModalOpen(true);
+                            }}
+                          >
+                            Mở phiếu
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {sameOrLaterSavedReports.length > 0 && comparableReports.length === 0 && (
+                    <p className="text-xs text-[var(--muted)]">
+                      Phiếu đã lưu có ngày cùng ngày hoặc muộn hơn phiếu hiện tại nên không được dùng làm “lần trước”. Hãy mở phiếu có ngày sớm hơn để so sánh theo thứ tự thời gian.
+                    </p>
+                  )}
+                  {otherSavedReports.length === 0 && (
+                    <p className="text-xs text-[var(--muted)]">
+                      Cần thêm ít nhất một phiếu CBC khác có ngày lấy mẫu để xem các con số thay đổi ra sao giữa hai lần.
+                    </p>
+                  )}
+                  {comparisonLoading && <p className="text-xs text-[var(--muted)]">Đang tải phần so sánh…</p>}
+                  {comparisonError && <p role="alert" className="text-xs text-[#b42318]">{comparisonError}</p>}
+                  {comparison && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-[var(--muted)]">
+                        {new Date(`${comparison.prior.specimen_date}T00:00:00`).toLocaleDateString("vi-VN")}
+                        {` → `}
+                        {new Date(`${comparison.current.specimen_date}T00:00:00`).toLocaleDateString("vi-VN")}
+                        {` · Tuổi thai: ${comparison.prior.gestational_age} → ${comparison.current.gestational_age}`}
+                      </p>
+                      <p className="text-[10px] text-[var(--muted)]">Các giá trị so sánh được hiển thị cùng đơn vị chuẩn hóa; trạng thái vẫn dựa trên khoảng của từng phiếu.</p>
+                      {comparison.reference_context_differs && (
+                        <p className="rounded-lg bg-[#fffbeb] p-2.5 text-xs text-[#8a5b10]">
+                          Hai phiếu khác giai đoạn thai kỳ hoặc cách chọn khoảng tham chiếu. Trạng thái của mỗi phiếu được giữ riêng theo khoảng đã dùng lúc đó.
+                        </p>
                       )}
+                      <div className="overflow-x-auto border border-[var(--border-strong)] rounded-xl">
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead className="bg-[#f8fafa] text-[var(--muted)]">
+                            <tr>
+                              <th className="py-2 px-3 font-medium">Chỉ số</th>
+                              <th className="py-2 px-3 font-medium">Lần trước</th>
+                              <th className="py-2 px-3 font-medium">Lần sau</th>
+                              <th className="py-2 px-3 font-medium">So sánh</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[var(--border)]">
+                            {comparison.rows.map((row) => {
+                              const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
+                              return (
+                                <tr key={row.analyte}>
+                                  <td className="py-2 px-3 font-medium">{info?.name || row.analyte} ({row.analyte})</td>
+                                  <td className="py-2 px-3">
+                                    {row.prior
+                                      ? <>{row.comparable ? `${row.prior_normalized_value} ${row.normalized_unit}` : `${row.prior.value} ${row.prior.unit}`}<br /><span className="text-[10px] text-[var(--muted)]">{STATUS_META[row.prior.status].label}</span></>
+                                      : row.prior_unavailable
+                                        ? <>{row.prior_unavailable.value} {row.prior_unavailable.unit}<br /><span className="text-[10px] text-[#8a5b10]">{row.prior_unavailable.reason}</span></>
+                                        : "Không có trên phiếu"}
+                                  </td>
+                                  <td className="py-2 px-3">
+                                    {row.current
+                                      ? <>{row.comparable ? `${row.current_normalized_value} ${row.normalized_unit}` : `${row.current.value} ${row.current.unit}`}<br /><span className="text-[10px] text-[var(--muted)]">{STATUS_META[row.current.status].label}</span></>
+                                      : row.current_unavailable
+                                        ? <>{row.current_unavailable.value} {row.current_unavailable.unit}<br /><span className="text-[10px] text-[#8a5b10]">{row.current_unavailable.reason}</span></>
+                                        : "Không có trên phiếu"}
+                                  </td>
+                                  <td className="py-2 px-3">
+                                    {row.comparable
+                                      ? `Thay đổi ${row.delta} ${row.delta_unit}`
+                                      : row.reason}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-outline text-xs"
+                        onClick={() => {
+                          const comparableRows = comparison.rows
+                            .filter((row) => row.comparable && row.prior && row.current);
+                          const changedValues = comparableRows
+                            .filter((row) => row.delta !== "0")
+                            .map((row) => `${row.analyte}: ${row.prior_normalized_value} ${row.normalized_unit} → ${row.current_normalized_value} ${row.normalized_unit}`)
+                            .join("; ");
+                          setDoctorPrompt(
+                            `So với phiếu ngày ${comparison.prior.specimen_date}, phiếu ngày ${comparison.current.specimen_date} có các thay đổi số liệu sau: ${changedValues || (comparableRows.length > 0 ? "các chỉ số so sánh được không thay đổi về giá trị" : "không có dòng nào so sánh trực tiếp được")}. Bác sĩ sẽ xem các thay đổi này cùng những thông tin nào để giải thích?`
+                          );
+                        }}
+                      >
+                        Soạn câu hỏi về thay đổi giữa hai phiếu
+                      </button>
+                    </div>
+                  )}
+                  {doctorPrompt && (
+                    <div className="rounded-xl border border-[var(--border-strong)] bg-[#f8fafa] p-3 space-y-1.5">
+                      <p className="text-xs font-medium">Câu hỏi để mang tới buổi khám</p>
+                      <p className="text-xs text-[var(--muted)]">{doctorPrompt}</p>
                     </div>
                   )}
                 </div>
@@ -1171,6 +1770,55 @@ export default function HomePage() {
             )}
           </section>
         </div>
+
+        <section className="soft-card p-4 sm:p-5 space-y-3">
+          <div>
+            <h2 className="font-semibold text-[15px]">Phiếu CBC đã lưu trong tài khoản</h2>
+            <p className="mt-1 text-xs text-[var(--muted)]">Chỉ bạn mới xem được các phiếu này. Mở một phiếu để xem lại hoặc bổ sung ngày lấy mẫu.</p>
+          </div>
+          {reportHistory.length === 0 ? (
+            <p className="text-xs text-[var(--muted)]">Chưa có phiếu CBC nào được lưu.</p>
+          ) : (
+            <ul className="space-y-2">
+              {reportHistory.map((item) => (
+                <li key={item.session_id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--border-strong)] p-3">
+                  <div className="text-xs">
+                    <p className="font-medium">
+                      {item.specimen_date
+                        ? new Date(`${item.specimen_date}T00:00:00`).toLocaleDateString("vi-VN")
+                        : "Chưa có ngày lấy mẫu"}
+                      {item.gestational_age ? ` · Thai ${item.gestational_age}` : ""}
+                      {` · ${item.rows.length} chỉ số`}
+                      {item.session_id === sessionId ? " · Đang mở" : ""}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-[var(--muted)]">Mã phiếu: {item.session_id.slice(0, 8)}</p>
+                  </div>
+                  {item.session_id !== sessionId && (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="btn-outline h-8 px-3 text-xs"
+                        onClick={() => {
+                          setRestoreInput(item.session_id);
+                          setSessionModalOpen(true);
+                        }}
+                      >
+                        Mở phiếu
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-outline h-8 px-3 text-xs text-[#be123c]"
+                        onClick={() => handleDeleteSavedReport(item.session_id)}
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
 
       {/* Saved Session Modal */}

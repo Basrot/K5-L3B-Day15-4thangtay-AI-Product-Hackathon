@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $env:ZIPFORMER_BACKEND = 'onnx'
 $env:ZIPFORMER_MODEL_DIR = Join-Path $PSScriptRoot 'runtime/zipformer'

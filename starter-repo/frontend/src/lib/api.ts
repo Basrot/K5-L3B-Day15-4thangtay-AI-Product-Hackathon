@@ -4,6 +4,8 @@ import type {
   CBCReport,
   ChatResult,
   HistoryItem,
+  ReportComparison,
+  ReportHistoryItem,
 } from "./types";
 
 const BASE_URL = (
@@ -109,7 +111,28 @@ export function createApiClient(
         }
       ),
 
+    register: (email: string, password: string) =>
+      request<{ access_token: string; token_type: string; expires_in: number }>(
+        "/v1/auth/register",
+        { method: "POST", body: JSON.stringify({ email, password }) }
+      ),
+
+    loginWithGoogle: (credential: string) =>
+      request<{ access_token: string; token_type: string; expires_in: number }>(
+        "/v1/auth/google",
+        { method: "POST", body: JSON.stringify({ credential }) }
+      ),
+
     getCatalog: () => request<CatalogItem[]>("/v1/catalog"),
+
+    getReportHistory: (signal?: AbortSignal) =>
+      request<{ reports: ReportHistoryItem[] }>("/v1/reports/history", { signal }),
+
+    compareReports: (priorSessionId: string, currentSessionId: string, signal?: AbortSignal) =>
+      request<ReportComparison>(
+        `/v1/reports/history/${encodeURIComponent(priorSessionId)}/compare?current_session_id=${encodeURIComponent(currentSessionId)}`,
+        { signal }
+      ),
 
     createSession: () =>
       request<{ session_id: string; revision: number; report: CBCReport | null }>(
