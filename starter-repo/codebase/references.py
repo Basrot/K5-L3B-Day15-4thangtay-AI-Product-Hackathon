@@ -13,6 +13,12 @@ LAB_SOURCE = {"title": "Khoảng tham chiếu ghi trên phiếu, do người dù
 SUPPORTED_ANALYTES = ("HGB", "RBC", "HCT", "MCV", "MCH", "MCHC", "WBC", "PLT")
 
 
+def supported_analyte_codes(rows):
+    """Return only supported analyte codes present in a report, in UI order."""
+    available = {row.get("analyte") for row in rows if isinstance(row, dict)}
+    return [code for code in SUPPORTED_ANALYTES if code in available]
+
+
 def age_context(age):
     match = GESTATIONAL_AGE.fullmatch(age.strip()) if isinstance(age, str) else None
     if not match:

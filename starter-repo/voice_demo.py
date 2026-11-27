@@ -10,7 +10,7 @@ import streamlit as st
 
 from codebase.agent import analyze_report
 from codebase.catalog import ANALYTES, DEFAULT_UNITS, GROUPS
-from codebase.references import SUPPORTED_ANALYTES
+from codebase.references import SUPPORTED_ANALYTES, supported_analyte_codes
 from codebase.service import CBCService
 from codebase.speech import transcribe_wav
 from codebase.tts import synthesize_wav
@@ -159,7 +159,8 @@ pregnancy = context[1].selectbox("Tình trạng thai kỳ", ["Đang mang thai", 
 age = context[2].text_input("Tuổi thai lúc xét nghiệm, ví dụ 21w3d",
                            value=draft.get("gestational_age", ""), key=f"age-{version}")
 by_code = {row["analyte"]: row for row in draft["rows"]}
-selected = st.multiselect("Các chỉ số có trên phiếu", list(SUPPORTED_ANALYTES), default=list(by_code),
+default_codes = supported_analyte_codes(by_code.values())
+selected = st.multiselect("Các chỉ số có trên phiếu", list(SUPPORTED_ANALYTES), default=default_codes,
                           format_func=lambda code: f"{code} · {ANALYTES[code]}", key=f"codes-{version}")
 rows = []
 for group in dict.fromkeys(GROUPS.values()):
