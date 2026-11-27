@@ -32,6 +32,7 @@ Nhập trong Railway **Variables**, không điền secrets vào GitHub hoặc fr
 | `APP_USERNAME` | Ví dụ `demo` |
 | `APP_PASSWORD` | Mật khẩu riêng, đủ mạnh; không dùng giá trị mẫu |
 | `APP_SECRET` | Chuỗi ngẫu nhiên ít nhất 32 ký tự, dùng ký token |
+| `GOOGLE_CLIENT_ID` | Tùy chọn; OAuth 2.0 Web Client ID để bật nút đăng nhập Google |
 | `CORS_ORIGINS` | Các origin frontend chính xác, ngăn bằng dấu phẩy; ví dụ `https://your-app.vercel.app` |
 | `MODEL_PROVIDER` | `openai_compatible` |
 | `LLM_API_BASE` | Base URL API tương thích OpenAI, thường có `/v1` |
@@ -60,6 +61,8 @@ Khi deployment healthy, tạo Railway domain ở Networking. Railway kết thúc
 
 Cung cấp frontend URL HTTPS công khai của backend; chỉ URL này được phép nằm trong biến frontend công khai. Mật khẩu, `APP_SECRET` và các API key ở backend. Sau khi biết domain Vercel cuối cùng, cập nhật `CORS_ORIGINS`, redeploy và thử login, nhập phiếu giả lập, phân tích, hỏi đáp, ảnh, microphone và TTS. Nếu gặp lỗi CORS, so sánh Origin trong request với giá trị đã nhập thay vì mở wildcard.
 
+Đăng ký email/mật khẩu hoạt động ngay; email hiện chưa được xác minh và chưa có luồng quên mật khẩu. Để bật Google, tạo OAuth Client ID loại Web trong Google Cloud, thêm domain Vercel vào Authorized JavaScript origins, rồi đặt cùng Client ID vào Railway `GOOGLE_CLIENT_ID` và Vercel `NEXT_PUBLIC_GOOGLE_CLIENT_ID`; build lại frontend sau khi đổi biến Vercel. Không đưa client secret vào frontend. Backend xác minh Google ID token, issuer, audience và email đã xác minh trước khi tạo phiên đăng nhập. Tài khoản Google mới nhận quyền user; email đã đăng ký bằng mật khẩu không tự động được liên kết.
+
 ## 5. Kiểm tra vận hành và dữ liệu
 
 Sau một lần restart/redeploy, xác nhận phiên đã lưu vẫn còn; nếu mất dữ liệu, kiểm tra mount path và `CBC_DB_PATH`. Lỗi `unable to open database file` hoặc `readonly database` thường cần kiểm tra quyền volume và `RAILWAY_RUN_UID`.
@@ -70,4 +73,4 @@ Lượt smoke test Docker ngày 27/11/2026 với model 30M trước đó: image 
 
 Sao lưu SQLite bằng API `sqlite3.Connection.backup` hoặc snapshot nhất quán của volume; không chép riêng `.sqlite3` giữa giao dịch và bỏ qua WAL. Giữ backup ở nơi kiểm soát truy cập. Khi khôi phục, dừng tiến trình dùng DB rồi phục hồi cả trạng thái nhất quán; không ghi đè DB đang chạy. Kiểm tra quyền đọc/ghi lại sau khi restore.
 
-Ứng dụng dùng một tài khoản demo cấu hình qua môi trường; đây chưa phải hệ thống quản lý người dùng của cơ sở y tế. Dùng dữ liệu giả lập khi demo công khai; thống nhất bảo vệ truy cập, lưu giữ và việc chuyển dữ liệu tới các API ngoài trước khi dùng phiếu thật.
+Ứng dụng giữ tài khoản admin demo cấu hình qua môi trường và cho phép đăng ký user mới; mỗi tài khoản sở hữu các phiên CBC riêng. Tài khoản mới có thể dùng ngay, nhưng email chưa được xác minh; hiện chưa có đặt lại mật khẩu hay trang quản lý tài khoản. Dùng dữ liệu giả lập khi demo công khai; thống nhất bảo vệ truy cập, lưu giữ và việc chuyển dữ liệu tới các API ngoài trước khi dùng phiếu thật.

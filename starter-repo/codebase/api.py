@@ -12,7 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, Stri
 
 from . import speech, tracing, tts, vision
 from .agent import analyze_report
-from .api_auth import issue_token, require_access
+from .accounts import AccountError, AccountStore
+from .api_auth import ensure_auth_ready, issue_access_token, issue_token, require_access
 from .api_limits import BodyLimitMiddleware
 from .catalog import ANALYTES, DEFAULT_UNITS, GROUPS
 from .service import CBCService
@@ -51,6 +52,15 @@ class Report(Payload):
 class Login(Payload):
     username: Annotated[StrictStr, Field(min_length=1, max_length=100)]
     password: Annotated[StrictStr, Field(min_length=1, max_length=1000)]
+
+
+class Registration(Payload):
+    email: Annotated[StrictStr, Field(min_length=3, max_length=254)]
+    password: Annotated[StrictStr, Field(min_length=10, max_length=1000)]
+
+
+class GoogleLogin(Payload):
+    credential: Annotated[StrictStr, Field(min_length=20, max_length=10000)]
 
 
 class RevisionBody(Payload):
@@ -100,7 +110,13 @@ def _operation(app: FastAPI):
 def create_app(db_path=None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application):
-        application.state.service = CBCService(db_path)
+        service = CBCService(db_path)
+        accounts = AccountStore(service.path)
+        admin = accounts.ensure_admin(os.environ.get("APP_USERNAME", "demo"), os.environ.get("APP_PASSWORD", ""))
+        if admin:
+            service.assign_unowned_sessions(admin["id"])
+        application.state.service = service
+        application.state.accounts = accounts
         yield
 
     application = FastAPI(title="CBC Assistant API", version="1.0.0", lifespan=lifespan)
@@ -136,7 +152,48 @@ def create_app(db_path=None) -> FastAPI:
 
     @application.post("/v1/auth/login")
     def login(body: Login):
-        return issue_token(body.username, body.password)
+        accounts = application.state.accounts
+        user = accounts.authenticate_password(body.username, body.password)
+        if user is None:
+            # Retain the exact legacy account behavior when the database has
+            # not yet been initialized by the application lifespan.
+            return issue_token(body.username, body.password)
+        return issue_access_token(user)
+
+    @application.post("/v1/auth/register", status_code=201)
+    def register(body: Registration):
+        ensure_auth_ready()
+        try:
+            user = application.state.accounts.register(body.email, body.password)
+        except AccountError as exception:
+            raise HTTPException(exception.status_code, str(exception)) from None
+        return issue_access_token(user)
+
+    @application.post("/v1/auth/google")
+    def google_login(body: GoogleLogin):
+        client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+        if not client_id:
+            raise HTTPException(503, "Đăng nhập Google chưa được cấu hình trên server.")
+        try:
+            from google.auth.transport.requests import Request as GoogleRequest
+            from google.oauth2 import id_token
+
+            identity = id_token.verify_oauth2_token(body.credential, GoogleRequest(), client_id)
+        except Exception:
+            raise HTTPException(401, "Không xác thực được tài khoản Google.") from None
+        if identity.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+            raise HTTPException(401, "Token Google không hợp lệ.")
+        if identity.get("email_verified") is not True or not identity.get("sub") or not identity.get("email"):
+            raise HTTPException(401, "Tài khoản Google cần có email đã xác minh.")
+        ensure_auth_ready()
+        accounts = application.state.accounts
+        user = accounts.get_by_google_sub(identity["sub"])
+        if user is None:
+            try:
+                user = accounts.create_google_user(identity["email"], identity.get("name", ""), identity["sub"])
+            except AccountError as exception:
+                raise HTTPException(exception.status_code, str(exception)) from None
+        return issue_access_token(user)
 
     router = APIRouter(prefix="/v1", dependencies=[Depends(require_access)])
 
@@ -173,39 +230,41 @@ def create_app(db_path=None) -> FastAPI:
         return Response(audio, media_type="audio/wav")
 
     @router.post("/sessions", status_code=201)
-    def create_session():
+    def create_session(user: dict = Depends(require_access)):
         service = application.state.service
-        return service.get_session(service.create_session())
+        session_id = service.create_session(user["id"])
+        return service.get_session(session_id, user["id"])
 
     @router.get("/sessions/{session_id}")
-    def get_session(session_id: str):
-        return application.state.service.get_session(session_id)
+    def get_session(session_id: str, user: dict = Depends(require_access)):
+        return application.state.service.get_session(session_id, user["id"])
 
     @router.delete("/sessions/{session_id}", status_code=204)
-    def delete_session(session_id: str):
+    def delete_session(session_id: str, user: dict = Depends(require_access)):
         service = application.state.service
-        service.get_session(session_id)
-        service.delete_session(session_id)
+        service.get_session(session_id, user["id"])
+        service.delete_session(session_id, user["id"])
         return Response(status_code=204)
 
     @router.put("/sessions/{session_id}/report")
-    def confirm(session_id: str, body: ConfirmBody):
+    def confirm(session_id: str, body: ConfirmBody, user: dict = Depends(require_access)):
         service = application.state.service
         with _operation(application):
             saved = service.confirm_report(session_id, body.report.model_dump(), confirmed=body.confirmed,
-                                           expected_revision=body.expected_revision)
+                                           expected_revision=body.expected_revision, owner_id=user["id"])
             state = saved["session"]
             return {**state, "analysis": analyze_report(state["report"])}
 
     @router.post("/sessions/{session_id}/invalidate")
-    def invalidate(session_id: str, body: RevisionBody):
+    def invalidate(session_id: str, body: RevisionBody, user: dict = Depends(require_access)):
         service = application.state.service
-        service.get_session(session_id)
-        return service.invalidate_report(session_id, expected_revision=body.expected_revision)
+        service.get_session(session_id, user["id"])
+        return service.invalidate_report(session_id, expected_revision=body.expected_revision, owner_id=user["id"])
 
     @router.get("/sessions/{session_id}/analysis")
-    def analysis(session_id: str, expected_revision: Annotated[int, Query(ge=0)]):
-        state = application.state.service.get_session(session_id)
+    def analysis(session_id: str, expected_revision: Annotated[int, Query(ge=0)],
+                 user: dict = Depends(require_access)):
+        state = application.state.service.get_session(session_id, user["id"])
         if state["revision"] != expected_revision:
             raise HTTPException(409, "Phiếu đã thay đổi. Hãy tải lại dữ liệu.")
         if state["report"] is None:
@@ -214,16 +273,16 @@ def create_app(db_path=None) -> FastAPI:
             return analyze_report(state["report"])
 
     @router.get("/sessions/{session_id}/history")
-    def history(session_id: str):
+    def history(session_id: str, user: dict = Depends(require_access)):
         service = application.state.service
-        service.get_session(session_id)
-        return {"messages": service.history(session_id)}
+        service.get_session(session_id, user["id"])
+        return {"messages": service.history(session_id, user["id"])}
 
     @router.post("/sessions/{session_id}/chat")
-    def chat(session_id: str, body: ChatBody):
+    def chat(session_id: str, body: ChatBody, user: dict = Depends(require_access)):
         with _operation(application) as usage:
             result = application.state.service.ask(session_id, body.question, expected_revision=body.expected_revision,
-                                                    request_id=body.request_id)
+                                                    request_id=body.request_id, owner_id=user["id"])
         return {**result, "usage": usage, "revision": body.expected_revision}
 
     application.include_router(router)

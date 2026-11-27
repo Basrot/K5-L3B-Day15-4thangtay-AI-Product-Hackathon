@@ -109,6 +109,18 @@ export function createApiClient(
         }
       ),
 
+    register: (email: string, password: string) =>
+      request<{ access_token: string; token_type: string; expires_in: number }>(
+        "/v1/auth/register",
+        { method: "POST", body: JSON.stringify({ email, password }) }
+      ),
+
+    loginWithGoogle: (credential: string) =>
+      request<{ access_token: string; token_type: string; expires_in: number }>(
+        "/v1/auth/google",
+        { method: "POST", body: JSON.stringify({ credential }) }
+      ),
+
     getCatalog: () => request<CatalogItem[]>("/v1/catalog"),
 
     createSession: () =>
