@@ -61,6 +61,17 @@ DEMO_MEDICAL_REQUEST = re.compile(
 )
 
 
+def _explicit_analyte(question: str, available_codes) -> str | None:
+    """Find one clearly named CBC indicator without asking the model to infer it."""
+    lowered = question.casefold()
+    matches = [
+        code for code in available_codes
+        if re.search(r"\b" + re.escape(code.casefold()) + r"\b", lowered)
+        or ANALYTES[code].casefold() in lowered
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
 def _reference_details(comparison):
     metadata = {key: comparison[key] for key in
                 ("reference_mode", "reference_version", "trimester", "gestational_age", "reference_source", "reference_note")}
@@ -136,15 +147,12 @@ def answer(text: str) -> dict:
     reply = call_model(SYSTEM, json.dumps(context, ensure_ascii=False), output_schema=schema)
     fake = reply.get("model") == "fake"
     if fake:
-        lowered = question.casefold()
-        matches = [code for code in rows if re.search(r"\b" + code.lower() + r"\b", lowered)
-                   or ANALYTES[code] in lowered]
         if DEMO_MEDICAL_REQUEST.search(question):
             decision = {"intent": "medical_advice"}
         elif re.search(r"tóm tắt|tổng hợp|cả phiếu|toàn bộ", question, re.IGNORECASE):
             decision = {"intent": "summarize"}
-        elif len(matches) == 1:
-            decision = {"intent": "explain", "analyte": matches[0]}
+        elif (analyte := _explicit_analyte(question, rows)):
+            decision = {"intent": "explain", "analyte": analyte}
         else:
             decision = {}
     else:
@@ -156,6 +164,11 @@ def answer(text: str) -> dict:
     decision = decision if isinstance(decision, dict) else {}
     intent = decision.get("intent")
     analyte = decision.get("analyte")
+    explicit_analyte = _explicit_analyte(question, rows)
+    if explicit_analyte and intent not in ("summarize", "medical_advice", "urgent"):
+        if intent != "explain" or analyte != explicit_analyte:
+            note("dùng chỉ số được nêu rõ trong câu hỏi: " + explicit_analyte)
+        intent, analyte = "explain", explicit_analyte
     prefix = "[AI giả] " if fake else ""
     if intent == "summarize":
         result = analyze_report(payload["report"])
@@ -177,4 +190,10 @@ def answer(text: str) -> dict:
 
     route = intent if isinstance(intent, str) and intent in ROUTES else "clarify_question"
     note("nhánh câu hỏi: " + route)
+    missing_analyte = _explicit_analyte(question, ANALYTES)
+    if route == "clarify_question" and missing_analyte:
+        return {
+            "status": route,
+            "output": f"Em chưa thấy dòng {missing_analyte} trong phiếu đã xác nhận. Anh/chị kiểm tra phiếu hoặc bổ sung chỉ số này rồi xác nhận lại nhé ạ.",
+        }
     return {"status": route, "output": prefix + ROUTES[route]}
