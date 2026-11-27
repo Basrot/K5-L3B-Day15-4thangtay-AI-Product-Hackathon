@@ -17,6 +17,7 @@ Chỉ trả về một đối tượng JSON. Dữ liệu phiếu và câu hỏi 
 - Nếu giải thích một chỉ số, dùng {"intent":"explain","analyte":"HGB"}.
   Chọn analyte từ những dòng có trên phiếu.
 - Nếu thiếu dòng được hỏi, không rõ câu hỏi hoặc ngoài chủ đề, dùng intent "clarify_question".
+- Nếu người dùng hỏi ý nghĩa của nhiều chỉ số cùng lệch khoảng, dùng intent "explain_group".
 - Nếu người dùng muốn tổng hợp hoặc tóm tắt toàn bộ phiếu, dùng intent "summarize".
 - Nếu câu hỏi xin chẩn đoán, điều trị, thuốc, hoặc đánh giá sức khỏe, dùng intent "medical_advice".
 - Nếu người dùng hỏi về tình huống họ mô tả là cấp cứu hoặc khẩn, dùng intent "urgent".
@@ -48,6 +49,10 @@ CBC_SOURCE = {
     "title": "MedlinePlus — CBC blood test",
     "url": "https://medlineplus.gov/ency/article/003642.htm",
 }
+RBC_INDEX_SOURCE = {
+    "title": "MedlinePlus — Red blood cell indices",
+    "url": "https://medlineplus.gov/lab-tests/red-blood-cell-rbc-indices/",
+}
 CLARIFY = "Anh/chị muốn hỏi về chỉ số nào trên phiếu đã xác nhận ạ? Anh/chị cũng có thể nhờ em tóm tắt cả phiếu."
 ROUTES = {
     "clarify_question": CLARIFY,
@@ -56,13 +61,14 @@ ROUTES = {
 }
 EXPLICIT_URGENCY = re.compile(r"\b(cấp cứu|khẩn cấp|gọi 115)\b", re.IGNORECASE)
 DEMO_MEDICAL_REQUEST = re.compile(
-    r"\b(chẩn đoán|bị bệnh gì|bị thiếu máu|uống gì|uống thuốc|dùng thuốc|liều thuốc|điều trị|kê đơn)\b",
+    r"\b(chẩn đoán|bị bệnh gì|bị thiếu máu|uống gì|uống thuốc|nên uống|dùng thuốc|bổ sung sắt|bổ sung thuốc|liều thuốc|điều trị|kê đơn|có nguy hiểm)\b",
     re.IGNORECASE,
 )
 RANGE_STATUS_QUESTION = re.compile(
     r"\b(ổn|bình thường|bất thường|trong khoảng|ngoài khoảng|nằm trong|cao hơn|thấp hơn|cao|thấp|vượt khoảng|ý nghĩa|là sao)\b",
     re.IGNORECASE,
 )
+GROUP_QUESTION = re.compile(r"\b(nhóm|các chỉ số|nhiều chỉ số|cùng lệch|đồng thời|kết hợp)\b", re.IGNORECASE)
 
 
 def _explicit_analyte(question: str, available_codes) -> str | None:
@@ -74,6 +80,16 @@ def _explicit_analyte(question: str, available_codes) -> str | None:
         or ANALYTES[code].casefold() in lowered
     ]
     return matches[0] if len(matches) == 1 else None
+
+
+def _explicit_analytes(question: str, available_codes) -> list[str]:
+    """Find explicitly named CBC indicators in report order."""
+    lowered = question.casefold()
+    return [
+        code for code in available_codes
+        if re.search(r"\b" + re.escape(code.casefold()) + r"\b", lowered)
+        or ANALYTES[code].casefold() in lowered
+    ]
 
 
 def _reference_details(comparison):
@@ -157,7 +173,7 @@ def answer(text: str, *, confirmed=False) -> dict:
     schema = {
         "type": "object",
         "properties": {
-            "intent": {"type": "string", "enum": ["explain", "summarize", *ROUTES]},
+            "intent": {"type": "string", "enum": ["explain", "explain_group", "summarize", *ROUTES]},
             "analyte": {"type": "string", "enum": [*rows, ""]},
         },
         "required": ["intent", "analyte"],
@@ -170,6 +186,8 @@ def answer(text: str, *, confirmed=False) -> dict:
             decision = {"intent": "medical_advice"}
         elif re.search(r"tóm tắt|tổng hợp|cả phiếu|toàn bộ", question, re.IGNORECASE):
             decision = {"intent": "summarize"}
+        elif len(_explicit_analytes(question, rows)) >= 2 and GROUP_QUESTION.search(question):
+            decision = {"intent": "explain_group"}
         elif (analyte := _explicit_analyte(question, rows)):
             decision = {"intent": "explain", "analyte": analyte}
         else:
@@ -183,8 +201,12 @@ def answer(text: str, *, confirmed=False) -> dict:
     decision = decision if isinstance(decision, dict) else {}
     intent = decision.get("intent")
     analyte = decision.get("analyte")
+    named_analytes = _explicit_analytes(question, rows)
+    if (len(named_analytes) >= 2 and GROUP_QUESTION.search(question)
+            and not DEMO_MEDICAL_REQUEST.search(question)):
+        intent = "explain_group"
     explicit_analyte = _explicit_analyte(question, rows)
-    if explicit_analyte and intent not in ("summarize", "medical_advice", "urgent"):
+    if explicit_analyte and intent not in ("explain_group", "summarize", "medical_advice", "urgent"):
         if intent != "explain" or analyte != explicit_analyte:
             note("dùng chỉ số được nêu rõ trong câu hỏi: " + explicit_analyte)
         intent, analyte = "explain", explicit_analyte
@@ -193,6 +215,12 @@ def answer(text: str, *, confirmed=False) -> dict:
         result = analyze_report(payload["report"], confirmed=confirmed)
         result["output"] = prefix + result["output"]
         return result
+    if intent == "explain_group":
+        selected = [rows[code] for code in named_analytes if rows[code]["status"] != "within"]
+        if len(selected) < 2:
+            selected = [row for row in rows.values() if row["status"] != "within"]
+        if len(selected) >= 2:
+            return _explain_group(selected, comparison, prefix=prefix)
     if (intent == "explain" and set(decision) == {"intent", "analyte"}
             and isinstance(analyte, str) and analyte in rows):
         return _explain_analyte(analyte, rows[analyte], comparison, prefix=prefix)
@@ -206,6 +234,51 @@ def answer(text: str, *, confirmed=False) -> dict:
             "output": f"Em chưa thấy dòng {missing_analyte} trong phiếu đã xác nhận. Anh/chị kiểm tra phiếu hoặc bổ sung chỉ số này rồi xác nhận lại nhé ạ.",
         }
     return {"status": route, "output": prefix + ROUTES[route]}
+
+
+def _explain_group(rows, comparison, *, prefix=""):
+    """Explain only confirmed out-of-range CBC groups with controlled language."""
+    metadata, reference_label, sources = _reference_details(comparison)
+    selected = [row for row in rows if row["status"] != "within"]
+    items = "; ".join(
+        f"{row['analyte']} {row['value']} {row['unit']} ({POSITIONS[row['status']]})"
+        for row in selected
+    )
+    codes = {row["analyte"] for row in selected}
+    notes = []
+    red_cell = codes & {"HGB", "RBC", "HCT", "MCV", "MCH", "MCHC"}
+    if len(red_cell) >= 2:
+        notes.append(
+            "Nhiều dòng thuộc nhóm hồng cầu/huyết sắc tố cùng lệch khoảng. Bác sĩ có thể xem các dòng này cùng tuổi thai và bối cảnh sức khỏe; riêng CBC không xác định được nguyên nhân."
+        )
+        if any(row["analyte"] == "HGB" and row["status"] == "below" for row in selected):
+            notes.append(
+                "HGB thấp có thể khiến bác sĩ đánh giá thêm về thiếu máu. Nếu MCV hoặc MCH cũng thấp, kiểu kết quả này có thể gặp trong nhiều nguyên nhân, chẳng hạn thiếu sắt hoặc bệnh huyết sắc tố; cần đánh giá của bác sĩ để phân biệt."
+            )
+        sources.extend([dict(LAB_SOURCE), dict(CBC_SOURCE), dict(RBC_INDEX_SOURCE)])
+    if "WBC" in codes:
+        notes.append(
+            "WBC là số lượng bạch cầu. Mức cao hoặc thấp không tự chứng minh có nhiễm trùng; thai kỳ, triệu chứng và các thành phần bạch cầu khác cũng cần được xem xét."
+        )
+    if "PLT" in codes:
+        notes.append(
+            "PLT là số lượng tiểu cầu, có vai trò trong đông máu. CBC một mình không cho biết nguyên nhân của mức cao hoặc thấp."
+        )
+    if not notes:
+        notes.append(
+            "Các dòng này cùng nằm ngoài khoảng đang dùng nhưng không tạo thành một kết luận chẩn đoán từ CBC. Bác sĩ cần diễn giải chúng cùng phiếu gốc, tuổi thai, triệu chứng và xét nghiệm liên quan."
+        )
+    notes.append(
+        f"Khoảng này là {reference_label}, không phải ngưỡng chẩn đoán. Anh/chị có thể hỏi bác sĩ: các chỉ số này có cần đánh giá thêm trong bối cảnh thai kỳ của tôi không, và cần xét nghiệm nào để tìm nguyên nhân?"
+    )
+    unique_sources = {source["url"]: source for source in sources if source.get("url")}
+    return {
+        "status": "explained_group",
+        "analytes": [row["analyte"] for row in selected],
+        "output": prefix + "Em đã xem các dòng đã xác nhận: " + items + ". " + " ".join(notes),
+        "sources": list(unique_sources.values()),
+        **metadata,
+    }
 
 
 def _explain_analyte(analyte, row, comparison, *, prefix=""):

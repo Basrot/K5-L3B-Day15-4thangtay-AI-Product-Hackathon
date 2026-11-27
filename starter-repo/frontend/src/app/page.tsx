@@ -214,6 +214,7 @@ export default function HomePage() {
   const [formExpanded, setFormExpanded] = useState(true);
   const formRef = useRef<HTMLElement>(null);
   const assistantRef = useRef<HTMLDivElement | null>(null);
+  const doctorPromptRef = useRef<HTMLDivElement | null>(null);
 
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -715,13 +716,14 @@ export default function HomePage() {
     }
   }
 
-  async function handleAskAI(e?: React.FormEvent) {
+  async function handleAskAI(e?: React.FormEvent, questionOverride?: string) {
     if (e) e.preventDefault();
-    const q = question.trim();
+    const q = (questionOverride ?? question).trim();
     if (!q || !analysis) return;
     const requestEpoch = authEpochRef.current;
 
     setBannerError("");
+    setQuestion(q);
     setLoadingAction("chat");
     const controller = new AbortController();
     abortRef.current = controller;
@@ -790,6 +792,9 @@ export default function HomePage() {
       analysis.reference_note || "",
       analysis.reference_source?.title || "",
       analysis.reference_source?.url || "",
+      rowsToReview.length >= 2 ? "\nCÁC DÒNG CẦN TRAO ĐỔI VỚI BÁC SĨ:" : "",
+      ...rowsToReview.map((row) => `- ${row.analyte}: ${row.value} ${row.unit} — ${STATUS_META[row.status].label}`),
+      doctorPrompt ? `\nCÂU HỎI GỢI Ý CHO BÁC SĨ:\n${doctorPrompt}` : "",
     ];
     const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -834,6 +839,52 @@ export default function HomePage() {
       ? `${label} của tôi có ổn không?`
       : `${label} ${row.status === "below" ? "thấp" : "cao"} hơn khoảng có ý nghĩa gì?`;
   });
+  const flaggedGroups = [
+    { title: "Hồng cầu và huyết sắc tố", codes: ["HGB", "RBC", "HCT", "MCV", "MCH", "MCHC"] },
+    { title: "Bạch cầu", codes: ["WBC"] },
+    { title: "Tiểu cầu", codes: ["PLT"] },
+  ].map((group) => ({
+    ...group,
+    rows: rowsToReview.filter((row) => group.codes.includes(row.analyte)),
+  })).filter((group) => group.rows.length > 0);
+  const groupQuestion = `Hãy giải thích nhóm chỉ số CBC đã xác nhận: ${rowsToReview.map((row) => `${row.analyte} ${row.value} ${row.unit} ${STATUS_META[row.status].label}`).join("; ")}. Nhóm kết quả này có thể gợi ý điều gì cần trao đổi với bác sĩ? Nêu rõ điều gì chưa thể kết luận chỉ từ CBC, không chẩn đoán hoặc hướng dẫn điều trị.`;
+
+  function showDoctorPrompt(prompt: string) {
+    setDoctorPrompt(prompt);
+    requestAnimationFrame(() => doctorPromptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }
+
+  function makeDoctorQuestion(row: (typeof resultRows)[number]) {
+    const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
+    const age = draft.gestational_age ? `Tuổi thai lúc lấy mẫu: ${draft.gestational_age}. ` : "";
+    return `${age}Kết quả ${info?.name || row.analyte} (${row.analyte}) của tôi là ${row.value} ${row.unit}, ${STATUS_META[row.status].label.toLowerCase()} theo khoảng đang dùng. Bác sĩ sẽ xem thêm thông tin nào để giải thích kết quả này trong bối cảnh thai kỳ của tôi?`;
+  }
+
+  function makeDoctorSummary() {
+    const context = [
+      draft.gestational_age ? `Tuổi thai lúc lấy mẫu: ${draft.gestational_age}.` : "",
+      draft.specimen_date ? `Ngày lấy mẫu: ${draft.specimen_date}.` : "",
+    ].filter(Boolean);
+    const findings = rowsToReview.map((row) =>
+      `${row.analyte} ${row.value} ${row.unit}: ${STATUS_META[row.status].label}`
+    );
+    return [
+      ...context,
+      ...findings,
+      "",
+      "Bác sĩ có thể giải thích các kết quả này khi xem cùng triệu chứng và thông tin sức khỏe của tôi không? Tôi có cần đánh giá thêm điều gì không?",
+    ].join("\n");
+  }
+
+  async function copyDoctorPrompt() {
+    if (!doctorPrompt) return;
+    try {
+      await navigator.clipboard.writeText(doctorPrompt);
+      setBannerError("");
+    } catch {
+      setBannerError("Không sao chép được câu hỏi. Bạn có thể chọn và sao chép nội dung trên màn hình.");
+    }
+  }
   const otherSavedReports = useMemo(
     () => reportHistory.filter((item) => item.session_id !== sessionId),
     [reportHistory, sessionId]
@@ -1430,11 +1481,27 @@ export default function HomePage() {
                   )}
 
                   {rowsToReview.length > 0 && (
-                    <section className="rounded-xl border border-[#f3d9a7] bg-[#fffbeb] p-3 space-y-2">
+                    <section className="rounded-xl border border-[#f3d9a7] bg-[#fffbeb] p-3 space-y-3" role="status" aria-live="polite">
                       <div>
-                        <h3 className="text-sm font-semibold text-[var(--foreground)]">Các dòng nên trao đổi thêm</h3>
-                        <p className="text-xs text-[var(--muted)]">Đây là gợi ý để bạn hỏi bác sĩ, không phải dấu hiệu đã được chẩn đoán bất thường.</p>
+                        <h3 className="text-sm font-semibold text-[var(--foreground)]">{rowsToReview.length >= 2 ? "Nhóm chỉ số cần trao đổi với bác sĩ" : "Chỉ số cần trao đổi với bác sĩ"}</h3>
+                        <p className="text-xs text-[var(--muted)]">Các dòng dưới đây nằm ngoài khoảng đang dùng. Đây là cảnh báo để xem lại cùng bác sĩ, không phải kết luận có bệnh.</p>
                       </div>
+                      {rowsToReview.length >= 2 && (
+                        <div className="space-y-2">
+                          {flaggedGroups.map((group) => (
+                            <div key={group.title} className="rounded-lg bg-white/80 p-2.5 text-xs">
+                              <p className="font-semibold">{group.title} · {group.rows.length} dòng cần xem</p>
+                              <p className="mt-1 text-[var(--muted)]">
+                                {group.title.startsWith("Hồng cầu")
+                                  ? "Các chỉ số này mô tả số lượng và đặc điểm hồng cầu. Nếu HGB thấp, bác sĩ có thể đánh giá thêm về thiếu máu và nguyên nhân; riêng CBC không xác định được nguyên nhân."
+                                  : group.title === "Bạch cầu"
+                                    ? "Bạch cầu tham gia bảo vệ cơ thể. Kết quả cao/thấp không tự chứng minh có nhiễm trùng; cần xem thêm thai kỳ, triệu chứng và các dòng bạch cầu khác."
+                                    : "Tiểu cầu tham gia đông máu. Con số ngoài khoảng cần được xem cùng mức độ, diễn biến và bối cảnh sức khỏe."}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <ul className="space-y-2">
                         {rowsToReview.map((row) => {
                           const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
@@ -1453,9 +1520,7 @@ export default function HomePage() {
                               <button
                                 type="button"
                                 className="mt-1 text-[var(--primary)] underline underline-offset-2"
-                                onClick={() => setDoctorPrompt(
-                                  `Lúc thai ${draft.gestational_age}, kết quả ${info?.name || row.analyte} (${row.analyte}) của tôi là ${row.value} ${row.unit}, đang ${STATUS_META[row.status].label.toLowerCase()} theo khoảng này. Bác sĩ sẽ xem thêm những thông tin nào để giải thích kết quả?`
-                                )}
+                                onClick={() => showDoctorPrompt(makeDoctorQuestion(row))}
                               >
                                 Soạn câu hỏi cho bác sĩ
                               </button>
@@ -1463,7 +1528,25 @@ export default function HomePage() {
                           );
                         })}
                       </ul>
+                      <div className="flex flex-wrap gap-2">
+                        {rowsToReview.length >= 2 && (
+                          <button type="button" className="btn-primary min-h-10 px-3 text-xs" disabled={loadingAction === "chat"} onClick={() => { assistantRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); void handleAskAI(undefined, groupQuestion); }}>
+                            {loadingAction === "chat" ? "Đang xem nhóm chỉ số..." : "Nhờ AI giải thích nhóm chỉ số"}
+                          </button>
+                        )}
+                        <button type="button" className="btn-outline min-h-10 px-3 text-xs" onClick={() => showDoctorPrompt(makeDoctorSummary())}>
+                          Soạn tóm tắt cho bác sĩ
+                        </button>
+                      </div>
                     </section>
+                  )}
+
+                  {doctorPrompt && (
+                    <div ref={doctorPromptRef} className="rounded-xl border border-[var(--primary)] bg-[var(--primary-light)] p-3 space-y-2 scroll-mt-4" role="status" aria-live="polite" tabIndex={-1}>
+                      <p className="text-xs font-semibold">Câu hỏi để trao đổi với bác sĩ</p>
+                      <p className="text-xs whitespace-pre-line">{doctorPrompt}</p>
+                      <button type="button" className="btn-outline min-h-9 px-3 text-xs" onClick={() => void copyDoctorPrompt()}><Copy className="h-3.5 w-3.5" /> Sao chép câu hỏi</button>
+                    </div>
                   )}
 
                   <details className="rounded-xl border border-[var(--border-strong)]">
@@ -1506,12 +1589,7 @@ export default function HomePage() {
                                     <button
                                       type="button"
                                       className="mt-1 text-[10px] text-[var(--primary)] underline underline-offset-2"
-                                      onClick={() => {
-                                        const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
-                                        setDoctorPrompt(
-                                          `Lúc thai ${draft.gestational_age}, kết quả ${info?.name || row.analyte} (${row.analyte}) của tôi là ${row.value} ${row.unit}, đang ${STATUS_META[row.status].label.toLowerCase()} theo khoảng này. Bác sĩ sẽ xem thêm những thông tin nào để giải thích kết quả?`
-                                        );
-                                      }}
+                                      onClick={() => showDoctorPrompt(makeDoctorQuestion(row))}
                                     >
                                       Soạn câu hỏi cho bác sĩ
                                     </button>
@@ -1692,19 +1770,13 @@ export default function HomePage() {
                             .filter((row) => row.delta !== "0")
                             .map((row) => `${row.analyte}: ${row.prior_normalized_value} ${row.normalized_unit} → ${row.current_normalized_value} ${row.normalized_unit}`)
                             .join("; ");
-                          setDoctorPrompt(
+                          showDoctorPrompt(
                             `So với phiếu ngày ${comparison.prior.specimen_date}, phiếu ngày ${comparison.current.specimen_date} có các thay đổi số liệu sau: ${changedValues || (comparableRows.length > 0 ? "các chỉ số so sánh được không thay đổi về giá trị" : "không có dòng nào so sánh trực tiếp được")}. Bác sĩ sẽ xem các thay đổi này cùng những thông tin nào để giải thích?`
                           );
                         }}
                       >
                         Soạn câu hỏi về thay đổi giữa hai phiếu
                       </button>
-                    </div>
-                  )}
-                  {doctorPrompt && (
-                    <div className="rounded-xl border border-[var(--border-strong)] bg-[#f8fafa] p-3 space-y-1.5">
-                      <p className="text-xs font-medium">Câu hỏi để mang tới buổi khám</p>
-                      <p className="text-xs text-[var(--muted)]">{doctorPrompt}</p>
                     </div>
                   )}
                 </div>
@@ -1797,6 +1869,19 @@ export default function HomePage() {
                       <p className="text-[13px] whitespace-pre-line">
                         {reply.output}
                       </p>
+                      {reply.sources && reply.sources.length > 0 && (
+                        <div className="border-t border-[var(--border-strong)] pt-2 text-xs text-[var(--muted)]">
+                          <span className="font-medium">Nguồn tham khảo: </span>
+                          {reply.sources.map((source, index) => (
+                            <React.Fragment key={source.url || source.title}>
+                              {index > 0 ? "; " : ""}
+                              {source.url
+                                ? <a href={source.url} target="_blank" rel="noreferrer" className="text-[var(--primary)] underline underline-offset-2">{source.title}</a>
+                                : source.title}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      )}
                       {audioUrl && (
                         <audio controls autoPlay src={audioUrl} className="w-full h-9" />
                       )}
