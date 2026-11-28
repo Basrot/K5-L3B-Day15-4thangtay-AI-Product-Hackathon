@@ -71,6 +71,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             "Chị bị thiếu máu.",
             "Em chẩn đoán thiếu máu.",
             "Chẩn đoán: thiếu máu.",
+            "WBC nằm trong khoảng nên không có dấu hiệu viêm hoặc nhiễm trùng rõ ràng.",
             "Kết quả HGB là 99.",
         ):
             with self.subTest(text=text), patch.object(agent, "call_model", return_value={
