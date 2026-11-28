@@ -109,7 +109,14 @@ def _validate_result(data: object) -> dict:
                 raise ExtractionError("field")
             elif isinstance(value, float) and not math.isfinite(value):
                 raise ExtractionError("field")
-    return {"rows": rows, "warnings": notices}
+    if __package__:
+        from .tools import result_unit_issue
+    else:
+        from tools import result_unit_issue
+    unit_warnings = [issue for row in rows
+                     if row.get("unit") is not None
+                     for issue in [result_unit_issue(row["analyte"], row["unit"])] if issue]
+    return {"rows": rows, "warnings": (unit_warnings + notices)[:8]}
 
 
 def extract_document(content: bytes, mime_type: str) -> dict:
@@ -152,6 +159,9 @@ def _extract_images(images: list[bytes]) -> dict:
         "Do not confuse measured results with reference bounds. Keep absolute differential counts "
         "(_ABS) distinct from percentages (_PCT), RDW-CV (RDW) distinct from RDW-SD (RDW_SD). "
         "For ref_unit use the result unit only when the printed range clearly shares that unit; otherwise null. "
+        "Check each unit against its own row, never borrow the HGB or MCHC unit for WBC or PLT. "
+        "RBC may be printed as T/L, and WBC/PLT as G/L; keep those exact abbreviations and case. "
+        "If the cell-count unit is not legible, use null, never guess g/dL or a count unit. "
         "Return only the schema JSON with rows and warnings (short Vietnamese transcription warnings). "
         f"Supported analyte codes for this demo: {names}."
     )

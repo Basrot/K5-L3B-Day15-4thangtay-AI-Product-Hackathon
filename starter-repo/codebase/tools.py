@@ -52,10 +52,30 @@ def _unit(analyte, raw):
     text = str(raw)
     for superscript, exponent in (("¹²", "^12"), ("⁹", "^9"), ("⁶", "^6"), ("³", "^3")):
         text = text.replace(superscript, exponent)
-    key = unicodedata.normalize("NFKC", text).lower()
-    key = "".join(key.split()).removeprefix("×").removeprefix("x")
+    compact = "".join(unicodedata.normalize("NFKC", text).split())
+    # Preserve SI prefix case: G/L is a count abbreviation on CBC reports;
+    # g/L is a mass concentration and must not become a WBC/PLT count.
+    count_alias = {"T/L": "10^12/l", "T/l": "10^12/l",
+                   "G/L": "10^9/l", "G/l": "10^9/l"}.get(compact)
+    if count_alias and count_alias in UNITS[analyte]:
+        return UNITS[analyte][count_alias]
+    key = compact.lower().removeprefix("×").removeprefix("x")
     key = key.replace("ul", "μl")
     return UNITS[analyte].get(key)
+
+
+def result_unit_issue(analyte, raw):
+    """Explain an unsupported result unit without guessing or changing it."""
+    if analyte not in ANALYTES or _unit(analyte, raw) is not None:
+        return None
+    if analyte in {"RBC", "WBC", "PLT"} or analyte.endswith("_ABS"):
+        examples = "T/L hoặc 10^12/L" if analyte == "RBC" else "G/L hoặc 10^9/L"
+        mass = "".join(str(raw).split()).lower() in {"g/dl", "g/l"}
+        explanation = "Đơn vị nồng độ khối lượng không dùng cho số lượng tế bào. " if mass else ""
+        return (f"{analyte}: kiểm tra đơn vị kết quả. {explanation}"
+                f"Chị đối chiếu phiếu gốc; các cách viết được hỗ trợ gồm {examples}. "
+                "Không tự đổi đơn vị nếu phiếu chưa ghi rõ.")
+    return f"{analyte}: kiểm tra đơn vị kết quả trên phiếu gốc."
 
 
 def _format_decimal(value):
@@ -234,8 +254,8 @@ def compare_cbc(report: dict) -> dict:
         result_unit = _unit(analyte, raw.get("unit"))
         ref_unit = _unit(analyte, reference.get("ref_unit"))
         if result_unit is None or ref_unit is None:
-            issues.append(f"{analyte}: kiểm tra đơn vị kết quả." if study else
-                          f"{analyte}: kiểm tra đơn vị kết quả và đơn vị khoảng tham chiếu trên phiếu.")
+            issues.append(result_unit_issue(analyte, raw.get("unit")) if result_unit is None else
+                          f"{analyte}: kiểm tra đơn vị khoảng tham chiếu trên phiếu gốc.")
             continue
         try:
             value = _decimal(raw.get("value"))
