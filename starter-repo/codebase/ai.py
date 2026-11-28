@@ -93,6 +93,7 @@ def call_model(system: str, user: str, *, output_schema: dict | None = None,
         "stream": False,
         "format": output_schema or "json",
         "think": False,
+        "keep_alive": "30m",
         "options": {"temperature": 0, "num_predict": max_tokens or 180},
     }
     endpoint = "http://127.0.0.1:11434/api/chat"

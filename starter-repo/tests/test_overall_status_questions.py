@@ -30,6 +30,45 @@ def ask(text, report_data=None, history=None):
 
 
 class ConversationalStatusQuestionTest(unittest.TestCase):
+    def test_safe_diagnostic_disclaimer_is_not_treated_as_a_diagnosis(self):
+        for text in (
+            "RBC phản ánh số lượng hồng cầu. Kết quả nằm trong khoảng tham chiếu, nhưng không thể chẩn đoán sức khỏe chỉ từ riêng chỉ số này.",
+            "RBC nằm trong khoảng đang dùng. Điều này không thay thế chẩn đoán của bác sĩ.",
+        ):
+            with self.subTest(text=text), patch.object(agent, "call_model", return_value={
+                "text": json.dumps({"answer": text, "analytes": ["HGB"], "needs_clarification": False})
+            }):
+                result = ask("Giải thích kết quả nhé")
+            self.assertEqual(result["status"], "explained")
+            self.assertEqual(result["output"], text)
+
+    def test_disclaimer_does_not_hide_a_following_diagnosis_or_drug_advice(self):
+        for text in (
+            "Em không thể chẩn đoán. Anh/chị bị thiếu máu.",
+            "Điều này không thay thế chẩn đoán của bác sĩ. Anh/chị nên uống thuốc sắt.",
+            "Anh/chị bị thiếu máu.",
+            "Kết quả HGB là 99.",
+        ):
+            with self.subTest(text=text), patch.object(agent, "call_model", return_value={
+                "text": json.dumps({"answer": text, "analytes": ["HGB"], "needs_clarification": False})
+            }):
+                self.assertEqual(ask("Giải thích kết quả nhé")["status"], "clarify_question")
+
+    def test_chat_context_omits_long_reference_notice_and_limits_history(self):
+        history = [{"question": "HGB?", "output": "Giải thích ngắn."} for _ in range(8)]
+
+        def respond(system, user, **kwargs):
+            context = json.loads(user)
+            self.assertNotIn("reference_note", context["reference_context"])
+            self.assertEqual(len(context["recent_conversation"]), 4)
+            self.assertLess(len(system), 2000)
+            self.assertLessEqual(kwargs["max_tokens"], 220)
+            return {"text": json.dumps({"answer": "Em sẽ giải thích tiếp về HGB.",
+                                       "analytes": ["HGB"], "needs_clarification": False})}
+
+        with patch.object(agent, "call_model", side_effect=respond):
+            self.assertEqual(ask("Giải thích thêm nhé", history=history)["status"], "explained")
+
     def test_named_analyte_status_is_generated_and_facts_remain_server_verified(self):
         def respond(_system, user, *, output_schema, **_kwargs):
             context = json.loads(user)
