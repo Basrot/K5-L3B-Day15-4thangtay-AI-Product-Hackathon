@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   AlertCircle,
   Check,
@@ -1039,9 +1040,7 @@ export default function HomePage() {
       <main className="min-h-screen flex items-center justify-center p-4">
         <div className="soft-card w-full max-w-md p-6 space-y-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--primary)] text-white flex items-center justify-center">
-              <HeartPulse className="w-5 h-5" />
-            </div>
+            <Image src="/images/doctor-cat.png" alt="" width={80} height={92} priority className="h-24 w-20 shrink-0 object-contain" />
             <div>
               <h1 className="font-semibold text-lg leading-tight">
                 Đọc phiếu CBC thai kỳ
@@ -1171,9 +1170,7 @@ export default function HomePage() {
       <header className="bg-white/95 backdrop-blur border-b border-[var(--border-strong)] px-4 sm:px-6 py-3">
         <div className="max-w-[1280px] mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-white flex items-center justify-center shrink-0">
-              <HeartPulse className="w-5 h-5" />
-            </div>
+            <Image src="/images/doctor-cat.png" alt="" width={56} height={64} priority className="h-16 w-14 shrink-0 object-contain" />
             <div>
               <h1 className="font-semibold text-base leading-tight">
                 Đọc phiếu CBC thai kỳ
