@@ -16,7 +16,7 @@ except ImportError:  # pragma: no cover
     api = None
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from codebase import agent
+from codebase import agent, references, tools, tts
 from codebase.service import CBCService
 
 
@@ -125,6 +125,36 @@ class ChatbotUpgradeTest(unittest.TestCase):
         with patch.object(agent, "call_model", side_effect=RuntimeError("Điền API_KEY trong .env để gọi model qua API.")):
             with self.assertRaises(RuntimeError):
                 agent.answer(json.dumps(payload, ensure_ascii=False), confirmed=True)
+
+    def test_vietnamese_gestational_age_plausibility_guardrails_and_tts(self):
+        self.assertEqual(references.age_context("21 tuần 3 ngày"), {"gestational_age": "21w3d", "trimester": 2})
+        self.assertEqual(references.age_context("thai 24 tuần"), {"gestational_age": "24w0d", "trimester": 2})
+        self.assertEqual(references.age_context("32w"), {"gestational_age": "32w0d", "trimester": 3})
+        for bad_age in ("12w7d", "12 tuần 7 ngày", "0 tuần", "45 tuần"):
+            with self.subTest(bad_age=bad_age), self.assertRaises(ValueError):
+                references.age_context(bad_age)
+
+        for bad_row in (
+            {"analyte": "HGB", "value": "126", "unit": "g/dL"},
+            {"analyte": "MCHC", "value": "332", "unit": "g/dL"},
+            {"analyte": "HCT", "value": "33.5", "unit": "L/L"},
+            {"analyte": "PLT", "value": "250,000", "unit": "10^9/L"},
+        ):
+            with self.subTest(bad_row=bad_row):
+                res = tools.compare_cbc({
+                    "pregnancy_status": "pregnant",
+                    "adult_confirmed": True,
+                    "gestational_age": "21 tuần 3 ngày",
+                    "reference_mode": "study",
+                    "rows": [bad_row],
+                })
+                self.assertEqual(res["status"], "needs_input")
+
+        spoken = tts.speech_text("WBC 11.9 G/L ở TCN2 (21w3d). Xem https://doi.org/10.1186/s12884-023-06106-2")
+        self.assertIn("tam cá nguyệt 2", spoken)
+        self.assertIn("21 tuần 3 ngày", spoken)
+        self.assertIn("nhân mười mũ chín trên lít", spoken)
+        self.assertNotIn("https://", spoken)
 
 
 @unittest.skipIf(TestClient is None, "FastAPI TestClient not installed in current interpreter")

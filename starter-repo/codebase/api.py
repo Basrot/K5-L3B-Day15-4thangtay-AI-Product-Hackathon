@@ -50,7 +50,7 @@ class Report(Payload):
     reference_version: Annotated[StrictStr, Field(min_length=1, max_length=64)] | None = None
     pregnancy_status: Literal["pregnant", "not_pregnant", "unknown"] | None = None
     adult_confirmed: StrictBool | None = None
-    gestational_age: Annotated[StrictStr, Field(max_length=10)] | None = None
+    gestational_age: Annotated[StrictStr, Field(max_length=32)] | None = None
     specimen_date: Annotated[StrictStr, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")] | None = None
     rows: Annotated[list[LabRow], Field(min_length=1, max_length=8)]
 
@@ -404,7 +404,7 @@ def create_app(db_path=None) -> FastAPI:
                 for code in SUPPORTED_ANALYTES]
 
     @router.get("/references")
-    def references(gestational_age: Annotated[str, Query(min_length=1, max_length=10)]):
+    def references(gestational_age: Annotated[str, Query(min_length=1, max_length=32)]):
         return study_references(gestational_age)
 
     @router.get("/reports/history")

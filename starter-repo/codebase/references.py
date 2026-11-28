@@ -9,6 +9,10 @@ else:
     from reference_data import REFERENCE_INTERVALS, STUDY_SOURCE, SCOPE_NOTE, REFERENCE_VERSION
 
 GESTATIONAL_AGE = re.compile(r"([0-9]{1,2})w([0-6])d", re.IGNORECASE)
+FLEXIBLE_GESTATIONAL_AGE = re.compile(
+    r"(?:thai\s*)?([0-9]{1,2})\s*(?:w|tuần|tuan|t)\s*(?:([0-9]{1,2})\s*(?:d|ngày|ngay|n)?)?",
+    re.IGNORECASE,
+)
 LAB_SOURCE = {"title": "Khoảng tham chiếu ghi trên phiếu, do người dùng xác nhận"}
 SUPPORTED_ANALYTES = ("HGB", "RBC", "HCT", "MCV", "MCH", "MCHC", "WBC", "PLT")
 
@@ -20,10 +24,18 @@ def supported_analyte_codes(rows):
 
 
 def age_context(age):
-    match = GESTATIONAL_AGE.fullmatch(age.strip()) if isinstance(age, str) else None
-    if not match:
-        raise ValueError("Bổ sung hoặc kiểm tra tuổi thai lúc xét nghiệm, ví dụ 21w3d.")
-    week, day = int(match[1]), int(match[2])
+    cleaned = " ".join(age.strip().split()) if isinstance(age, str) else ""
+    match = GESTATIONAL_AGE.fullmatch(cleaned)
+    if match:
+        week, day = int(match[1]), int(match[2])
+    else:
+        flex = FLEXIBLE_GESTATIONAL_AGE.fullmatch(cleaned) if cleaned else None
+        if not flex:
+            raise ValueError("Bổ sung hoặc kiểm tra tuổi thai lúc xét nghiệm, ví dụ 21w3d hoặc 21 tuần 3 ngày.")
+        week = int(flex[1])
+        day = int(flex[2]) if flex[2] is not None else 0
+        if not 0 <= day <= 6:
+            raise ValueError("Số ngày lẻ trong tuổi thai phải từ 0 đến 6 (ví dụ 21w3d hoặc 21 tuần 3 ngày).")
     # Product input bounds, not an assertion about the study's observed age range.
     if not 1 <= week <= 42:
         raise ValueError("Bản thử nghiệm nhận tuổi thai từ 1w0d đến 42w6d; kiểm tra lại tuổi thai lúc xét nghiệm.")

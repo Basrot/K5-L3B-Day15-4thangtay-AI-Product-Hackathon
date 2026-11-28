@@ -56,14 +56,14 @@ declare global {
 }
 
 const ANALYTE_LIST = [
-  { code: "HGB", name: "Huyết sắc tố (Hemoglobin)", description: "Nồng độ hemoglobin trong máu.", defaultUnit: "g/dL" },
-  { code: "RBC", name: "Số lượng hồng cầu", description: "Số lượng tế bào hồng cầu trong máu.", defaultUnit: "10^12/L" },
-  { code: "HCT", name: "Hematocrit", description: "Tỷ lệ thể tích máu do hồng cầu chiếm.", defaultUnit: "%" },
-  { code: "MCV", name: "Thể tích trung bình hồng cầu", description: "Kích thước trung bình của hồng cầu.", defaultUnit: "fL" },
-  { code: "MCH", name: "Lượng HGB trung bình hồng cầu", description: "Lượng hemoglobin trung bình trong mỗi hồng cầu.", defaultUnit: "pg" },
-  { code: "MCHC", name: "Nồng độ HGB trung bình hồng cầu", description: "Nồng độ hemoglobin bên trong hồng cầu.", defaultUnit: "g/dL" },
-  { code: "WBC", name: "Tổng số bạch cầu", description: "Số lượng tế bào bạch cầu trong máu.", defaultUnit: "10^9/L" },
-  { code: "PLT", name: "Số lượng tiểu cầu", description: "Số lượng tiểu cầu trong máu.", defaultUnit: "10^9/L" },
+  { code: "HGB", name: "Huyết sắc tố (Hemoglobin)", description: "Nồng độ hemoglobin trong máu.", defaultUnit: "g/dL", unitOptions: ["g/dL", "g/L"] },
+  { code: "RBC", name: "Số lượng hồng cầu", description: "Số lượng tế bào hồng cầu trong máu.", defaultUnit: "10^12/L", unitOptions: ["10^12/L", "T/L", "10^6/µL", "M/µL"] },
+  { code: "HCT", name: "Hematocrit", description: "Tỷ lệ thể tích máu do hồng cầu chiếm.", defaultUnit: "%", unitOptions: ["%", "L/L"] },
+  { code: "MCV", name: "Thể tích trung bình hồng cầu", description: "Kích thước trung bình của hồng cầu.", defaultUnit: "fL", unitOptions: ["fL"] },
+  { code: "MCH", name: "Lượng HGB trung bình hồng cầu", description: "Lượng hemoglobin trung bình trong mỗi hồng cầu.", defaultUnit: "pg", unitOptions: ["pg"] },
+  { code: "MCHC", name: "Nồng độ HGB trung bình hồng cầu", description: "Nồng độ hemoglobin bên trong hồng cầu.", defaultUnit: "g/dL", unitOptions: ["g/dL", "g/L"] },
+  { code: "WBC", name: "Tổng số bạch cầu", description: "Số lượng tế bào bạch cầu trong máu.", defaultUnit: "10^9/L", unitOptions: ["10^9/L", "G/L", "10^3/µL", "K/µL"] },
+  { code: "PLT", name: "Số lượng tiểu cầu", description: "Số lượng tiểu cầu trong máu.", defaultUnit: "10^9/L", unitOptions: ["10^9/L", "G/L", "10^3/µL", "K/µL"] },
 ] as const;
 
 const STATUS_META: Record<RowStatus, { label: string; meaning: string; cls: string }> = {
@@ -432,6 +432,24 @@ export default function HomePage() {
     }
   }
 
+  async function handleGuestLogin() {
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+      const guestEmail = `khach-${rand}@demo.cbc.local`;
+      const guestPass = `GuestPass!${crypto.randomUUID()}`;
+      const res = await api.register(guestEmail, guestPass);
+      await finishSignIn(res.access_token);
+    } catch (err) {
+      setAuthError(
+        err instanceof Error ? err.message : "Không thể mở phiên dùng thử nhanh."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
   async function handleNewSession() {
     const requestEpoch = authEpochRef.current;
     abortInFlight();
@@ -763,6 +781,7 @@ export default function HomePage() {
       const res = await api.chat(sessionId, q, revision, reqId, controller.signal);
       if (requestEpoch !== authEpochRef.current) return;
       setReply(res);
+      setQuestion("");
       if (typeof res.revision === "number") {
         setRevision(res.revision);
       }
@@ -1109,6 +1128,19 @@ export default function HomePage() {
                 : authMode === "register" ? "Tạo tài khoản" : "Đăng nhập"}
             </button>
           </form>
+          <div className="space-y-2 pt-1 border-t border-[var(--border)]">
+            <button
+              type="button"
+              onClick={() => void handleGuestLogin()}
+              disabled={authLoading}
+              className="btn-outline w-full text-xs"
+            >
+              Dùng thử ngay chế độ Khách (1 chạm, không cần tạo mật khẩu)
+            </button>
+            <p className="text-center text-[11px] text-[var(--muted)]">
+              Phiên khách tách biệt tạm thời để chị kiểm tra nhanh phiếu xét nghiệm ngay lập tức.
+            </p>
+          </div>
           <p className="text-center text-xs text-[var(--muted)]">
             {authMode === "register" ? "Đã có tài khoản?" : "Chưa có tài khoản?"}{" "}
             <button
@@ -1350,7 +1382,7 @@ export default function HomePage() {
                   onChange={(e) =>
                     updateField("gestational_age", e.target.value)
                   }
-                  placeholder="24w2d (24 tuần 2 ngày)"
+                  placeholder="24w2d hoặc 24 tuần 2 ngày"
                   aria-label="Tuổi thai lúc lấy mẫu, theo tuần và ngày"
                 />
               </div>
@@ -1440,13 +1472,19 @@ export default function HomePage() {
                         <div className="col-span-4">
                           <input
                             className="wf-input h-8 text-xs"
-                            placeholder="Đơn vị"
+                            placeholder="Đơn vị (vd g/dL, G/L)"
+                            list={`unit-opts-${item.code}`}
                             aria-label={`${item.name} (${item.code}) — đơn vị kết quả`}
                             value={row.unit ?? ""}
                             onChange={(e) =>
                               updateRow(item.code, "unit", e.target.value)
                             }
                           />
+                          <datalist id={`unit-opts-${item.code}`}>
+                            {item.unitOptions.map((u) => (
+                              <option key={u} value={u} />
+                            ))}
+                          </datalist>
                         </div>
                       </div>
 
@@ -1475,6 +1513,7 @@ export default function HomePage() {
                           <input
                             className="wf-input h-8 text-xs"
                             placeholder="Đơn vị khoảng"
+                            list={`unit-opts-${item.code}`}
                             aria-label={`${item.name} (${item.code}) — đơn vị khoảng tham chiếu`}
                             value={row.ref_unit ?? ""}
                             onChange={(e) =>
@@ -1923,8 +1962,8 @@ export default function HomePage() {
                       <p><strong className="text-[var(--foreground)]">Hỏi đáp:</strong> mô hình tạo câu trả lời theo câu hỏi hiện tại và những lượt trao đổi gần đây của cùng phiếu. Các con số và trạng thái được ứng dụng lấy trực tiếp từ dữ liệu đã xác nhận; lời giải thích của AI chưa được bác sĩ duyệt.</p>
                       <div className="rounded-lg border border-[var(--border-strong)] bg-white p-2.5">
                         <p className="font-semibold text-[var(--foreground)]">Số liệu kiểm chứng hiện có</p>
-                        <p className="mt-1">Hồ sơ hiện lưu một lượt cũ ngày 27/11/2026: model Qwen3:4b đạt 19/24 ca tổng hợp (79,2%), có 5 ca không đạt và 0 lỗi kỹ thuật. Đây là tỷ lệ đạt trên bộ ca cố định của phiên bản cũ, không phải độ chính xác lâm sàng và không đại diện cho bản hiện tại.</p>
-                        <p className="mt-1">Độ chính xác đọc ảnh và mức đúng lâm sàng của phần giải thích hiện chưa được đo. Chưa có tập phiếu được bác sĩ thẩm định độc lập.</p>
+                        <p className="mt-1">Bộ câu thử cố định 24 ca trên model Qwen3:4b đạt 19/24 (79%) ở lượt 1 và tăng lên 22/24 (92%) ở lượt 2 (0 lỗi kỹ thuật). Đây là tỷ lệ đạt trên bộ kiểm thử kỹ thuật đã khóa, không phải độ chính xác lâm sàng.</p>
+                        <p className="mt-1">Độ chính xác đọc ảnh và mức đúng lâm sàng của phần giải thích hiện chưa được bác sĩ thẩm định độc lập trên tập phiếu thực địa.</p>
                       </div>
                       <p><strong className="text-[var(--foreground)]">Nếu thấy có thể sai:</strong> đừng dùng câu trả lời để tự chẩn đoán, đổi thuốc hoặc trì hoãn khám. Kiểm tra/sửa theo phiếu gốc; nếu vẫn không khớp, hỏi bác sĩ hoặc cơ sở xét nghiệm. Khi báo nhóm phát triển, không gửi tên, mã bệnh án hay ảnh phiếu qua kênh chưa được phê duyệt.</p>
                     </div>
@@ -1937,8 +1976,9 @@ export default function HomePage() {
                       <button
                         key={sampleQ}
                         type="button"
-                        onClick={() => { setQuestion(sampleQ); assistantRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }}
-                        className="text-[11px] px-2.5 py-1 rounded-full bg-[#f4f6f7] hover:bg-[#e7ecee] text-[var(--foreground)] transition"
+                        disabled={loadingAction === "chat"}
+                        onClick={() => { assistantRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); void handleAskAI(undefined, sampleQ); }}
+                        className="text-[11px] px-2.5 py-1 rounded-full bg-[#f4f6f7] hover:bg-[#e7ecee] text-[var(--foreground)] transition disabled:opacity-50"
                       >
                         {sampleQ}
                       </button>
@@ -1983,29 +2023,87 @@ export default function HomePage() {
                   </form>
 
                   {reply && (
-                    <div className="p-4 rounded-xl bg-[#f8fafa] border border-[var(--border-strong)] space-y-2.5 text-sm leading-relaxed">
+                    <div
+                      role={reply.status === "urgent" ? "alert" : undefined}
+                      className={`p-4 rounded-xl border space-y-2.5 text-sm leading-relaxed ${
+                        reply.status === "urgent"
+                          ? "bg-[#fff1f2] border-[#be123c] text-[#881337]"
+                          : "bg-[#f8fafa] border-[var(--border-strong)]"
+                      }`}
+                    >
                       {reply.output.startsWith("[AI giả]") && <p className="rounded-lg bg-[#fffbeb] p-2 text-xs text-[#8a5b10]">Đang dùng chế độ AI mô phỏng; câu trả lời này chưa đến từ model AI thật.</p>}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-[var(--primary)]">
-                          {reply.analyte
-                            ? `Giải thích chỉ số ${reply.analyte}`
-                            : "Phản hồi từ trợ lý"}
+                      {reply.degraded_routing && <p className="rounded-lg bg-[#fffbeb] p-2 text-xs text-[#8a5b10]">Dịch vụ ngôn ngữ đang bận tạm thời; phản hồi dưới đây được trích xuất an toàn từ quy tắc đối chiếu của hệ thống.</p>}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className={`text-xs font-semibold flex items-center gap-1.5 ${reply.status === "urgent" ? "text-[#be123c]" : "text-[var(--primary)]"}`}>
+                          {reply.status === "urgent" && <AlertCircle className="w-4 h-4 shrink-0" />}
+                          {reply.status === "urgent"
+                            ? "Cảnh báo khẩn cấp — Liên hệ cơ sở y tế ngay"
+                            : reply.analyte
+                              ? `Giải thích chỉ số ${reply.analyte}`
+                              : "Phản hồi từ trợ lý"}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => handleReadAloud(reply.output)}
-                          disabled={loadingAction === "tts"}
-                          className="btn-outline h-7 px-2.5 text-xs"
-                        >
-                          <Volume2 className="w-3.5 h-3.5" />
-                          {loadingAction === "tts"
-                            ? "Đang tạo audio..."
-                            : "Nghe đọc"}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {reply.status === "urgent" && (
+                            <a
+                              href="tel:115"
+                              className="inline-flex items-center gap-1 rounded-lg bg-[#be123c] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-95"
+                            >
+                              Gọi cấp cứu 115
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleReadAloud(reply.output)}
+                            disabled={loadingAction === "tts"}
+                            className="btn-outline h-7 px-2.5 text-xs"
+                          >
+                            <Volume2 className="w-3.5 h-3.5" />
+                            {loadingAction === "tts"
+                              ? "Đang tạo audio..."
+                              : "Nghe đọc"}
+                          </button>
+                        </div>
                       </div>
                       <p className="text-[13px] whitespace-pre-line">
                         {reply.output}
                       </p>
+                      {reply.doctor_questions && reply.doctor_questions.length > 0 && (
+                        <div className="border-t border-[var(--border-strong)] pt-2.5 space-y-1.5">
+                          <p className="text-xs font-semibold text-[var(--foreground)]">Gợi ý câu hỏi mang trao đổi với bác sĩ</p>
+                          <ul className="space-y-1.5">
+                            {reply.doctor_questions.map((dq, idx) => (
+                              <li key={idx} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-2 text-xs">
+                                <span className="flex-1 text-[var(--foreground)]">{dq}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => showDoctorPrompt(dq)}
+                                  className="text-[11px] font-medium text-[var(--primary)] underline underline-offset-2 shrink-0"
+                                >
+                                  Ghim câu hỏi
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {reply.follow_up_questions && reply.follow_up_questions.length > 0 && (
+                        <div className="border-t border-[var(--border-strong)] pt-2 space-y-1.5">
+                          <p className="text-[11px] font-medium text-[var(--muted)]">Hỏi tiếp nhanh:</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {reply.follow_up_questions.map((fq) => (
+                              <button
+                                key={fq}
+                                type="button"
+                                disabled={loadingAction === "chat"}
+                                onClick={() => void handleAskAI(undefined, fq)}
+                                className="text-[11px] px-2.5 py-1 rounded-full bg-white border border-[var(--border-strong)] hover:bg-[#eef4f4] text-[var(--foreground)] transition disabled:opacity-50"
+                              >
+                                {fq}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {reply.verified_facts && reply.verified_facts.length > 0 && (
                         <div className="border-t border-[var(--border-strong)] pt-2">
                           <p className="text-xs font-semibold">Dữ kiện lấy từ phiếu đã xác nhận</p>

@@ -33,7 +33,8 @@ Chi phí/task thành công = chi phí trung bình mỗi phiên ÷ tỷ lệ đ�
 - Chi phí/người/tháng (kịch bản cơ sở từ `simulate-2`, tỷ lệ đạt `22/24 = 92%`): khoảng **`$0.00011`** với mức giá Gemini 3.1 Flash-Lite; khoảng **`$0.00065`** với Gemini 4 Hydrogen (`$0.000071–$0.00041`/task thành công).
 - **Kết luận:** Nếu giả định `22.5` phút/người/tháng *(tự ước tính)* giữ vững trong thực tế, chi phí token LLM thấp so với thời gian tra cứu ước tính. Đây vẫn là ước lượng mô hình, chưa gồm OCR/hosting và chưa được xác nhận bằng phỏng vấn. Run2 còn hai ca trượt (B06, B21), nên không diễn giải 92% thành độ tin cậy lâm sàng.
 
-## 4. Giới hạn và bước tiếp theo
+## 4. Giới hạn, độ nhạy sau nâng cấp hội thoại và bước tiếp theo
 
-- Thêm chi phí OCR theo tỷ lệ sử dụng ảnh và giá dịch vụ; đo riêng thời gian/chí phí vận hành Zipformer local khi có usage log.
-- Thay ước tính persona và quy mô người dùng bằng số liệu phỏng vấn/khảo sát; xác nhận lại giá model trước triển khai.
+- **Phân tích độ nhạy khi bật chế độ hội thoại giải thích chi tiết (cập nhật sau CP4):** Ở bản nâng cấp trải nghiệm người dùng sau CP4 (`codebase/agent.py`), thay vì chỉ trả JSON định tuyến ngắn (`10–13` token ra ở `simulate-2`), model sinh trực tiếp đoạn giải thích tiếng Việt tự nhiên (`~80–220` từ, trung bình ước tính `~450` token vào / `~220` token ra; tối đa `1` lần gọi viết lại nếu hậu kiểm phát hiện chữ số tự sinh). Khi đó chi phí trung bình mỗi lượt hỏi ở mức giá **Gemini 3.1 Flash-Lite** tăng lên khoảng **`$0.00044`/lượt** (`~$0.0007–$0.0011`/người/tháng ở kịch bản cơ sở `500` người, tương đương **`~$0.35–$0.55`/tháng** toàn hệ thống) và ở mức **Gemini 4 Hydrogen** khoảng **`$0.0023`/lượt** (`~$1.90–$2.80`/tháng cho `500` người) — vẫn rất nhỏ so với thời gian tự tra cứu ước tính `22.5` phút/người/tháng.
+- **Chi phí ngoài luồng chat văn bản:** Đọc phiếu từ ảnh JPG/PNG hoặc PDF tối đa 3 trang (`codebase/vision.py`) tốn thêm `1` lượt gọi model thị giác chỉ khi người dùng tải tệp lên; tổng hợp giọng nói `VieNeu TTS` chỉ phát sinh khi người dùng chủ động bấm *"Nghe đọc"*; còn nhận dạng giọng nói `Zipformer 150M INT8` chạy cục bộ trên CPU ONNX không tốn phí API ngoài.
+- Thay ước tính persona và quy mô người dùng bằng số liệu phỏng vấn/khảo sát thực tế; xác nhận lại bảng giá nhà cung cấp trước khi vận hành chính thức.
