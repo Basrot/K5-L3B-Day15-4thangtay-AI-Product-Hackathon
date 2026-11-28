@@ -391,7 +391,7 @@ def create_app(db_path=None) -> FastAPI:
     def extract(file: UploadFile):
         content = _upload(file, IMAGE_LIMIT)
         with _operation(application):
-            return vision.extract_report(content, file.content_type or "")
+            return vision.extract_document(content, file.content_type or "")
 
     @router.post("/speech/transcribe")
     def transcribe(file: UploadFile):

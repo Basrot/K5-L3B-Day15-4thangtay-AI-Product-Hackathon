@@ -85,8 +85,8 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             context = json.loads(user)
             self.assertNotIn("reference_note", context["reference_context"])
             self.assertEqual(len(context["recent_conversation"]), 4)
-            self.assertLess(len(system), 2000)
-            self.assertLessEqual(kwargs["max_tokens"], 220)
+            self.assertLess(len(system), 3000)
+            self.assertLessEqual(kwargs["max_tokens"], 800)
             return {"text": json.dumps({"answer": "Em sẽ giải thích tiếp về HGB.",
                                        "analytes": ["HGB"], "needs_clarification": False})}
 
@@ -99,7 +99,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             hgb = next(row for row in context["report_facts"] if row["analyte"] == "HGB")
             self.assertEqual(hgb["status"], "below")
             self.assertEqual(hgb["value"], "9.5")
-            self.assertEqual(output_schema["properties"]["answer"]["maxLength"], 1200)
+            self.assertEqual(output_schema["properties"]["answer"]["maxLength"], 4000)
             return {"text": json.dumps({
                 "answer": "Phiếu cho thấy HGB đang thấp hơn khoảng đã chọn. Điều này là một dấu hiệu để bác sĩ cân nhắc thêm, nhưng riêng kết quả này chưa cho biết nguyên nhân.",
                 "analytes": ["HGB"], "needs_clarification": False,

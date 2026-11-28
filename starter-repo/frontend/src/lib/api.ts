@@ -46,7 +46,7 @@ function friendlyErrorMessage(status: number, detail: unknown, retryAfter?: stri
     case 409:
       return "Phiếu đã thay đổi ở nơi khác. Hệ thống cần tải lại phiên bản mới nhất trước khi tiếp tục.";
     case 413:
-      return "Tệp tải lên vượt quá giới hạn (ảnh tối đa 10 MB, WAV tối đa 3 MB).";
+      return "Tệp tải lên vượt quá giới hạn (ảnh/PDF tối đa 10 MB, WAV tối đa 3 MB).";
     case 422:
       return detailText || "Dữ liệu phiếu chưa hợp lệ. Vui lòng kiểm tra lại các trường đã nhập.";
     case 429:
@@ -56,7 +56,7 @@ function friendlyErrorMessage(status: number, detail: unknown, retryAfter?: stri
     case 502:
       return detailText || "Dịch vụ AI hoặc giọng nói chưa sẵn sàng. Dữ liệu bạn nhập vẫn được giữ nguyên.";
     case 503:
-      return "Máy chủ đang giới hạn kết nối hoặc chưa cấu hình tài khoản demo.";
+      return detailText || "Máy chủ chưa sẵn sàng. Chị thử lại sau ít phút.";
     default:
       return detailText || `Lỗi kết nối máy chủ (HTTP ${status}).`;
   }

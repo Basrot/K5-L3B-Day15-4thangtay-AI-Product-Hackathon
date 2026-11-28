@@ -70,6 +70,9 @@ Mở `http://localhost:3000`. Sau lần `npm install` đầu tiên, các lần s
 - Google login chỉ hiện khi cấu hình `NEXT_PUBLIC_GOOGLE_CLIENT_ID` cho Next.js và `GOOGLE_CLIENT_ID` cho backend, đồng thời cho phép origin `http://localhost:3000` trong Google OAuth.
 - Tài khoản, phiếu và lịch sử local được lưu trong SQLite tại `runtime/cbc.sqlite3`; chúng tách biệt với Railway. Hãy đăng ký tài khoản local mới.
 - `qwen3:4b` chạy hỏi đáp và `gemma3:4b` xử lý ảnh trên máy. Lần tải model cần Internet; sau khi tải, Ollama xử lý cục bộ. Độ chính xác của giải thích y khoa không được bảo đảm chỉ bằng việc chạy model local.
+- Nút **Chọn ảnh / PDF** nhận JPG/PNG hoặc PDF không đặt mật khẩu, tối đa 10 MB và ba trang của cùng một phiếu. PDF được chuyển thành ảnh trong bộ nhớ rồi gửi model đọc ảnh; không tự xác nhận dữ liệu. Sau khi tải, kiểm tra các con số, đơn vị, tuổi thai và ngày lấy mẫu rồi mới xác nhận. Tải lỗi hoặc không tìm thấy chỉ số sẽ giữ dữ liệu cũ.
+- Cần cài lại `requirements-api.txt` khi nâng cấp để có `pypdfium2`. Nếu dùng OpenAI, đặt `VISION_MODEL=gpt-4.1-mini` và `VISION_API_BASE=https://api.openai.com/v1`; mặc định dùng cùng `API_KEY` với hỏi đáp. Nếu để trống `VISION_MODEL`, backend thử dùng `MODEL_NAME`, nên model đó cần hỗ trợ ảnh.
+- Hỏi về phiếu cá nhân sẽ nhận giải thích chi tiết hơn, khoảng 150–220 từ. Câu hỏi khái niệm ngắn hơn; thời gian chờ tăng theo độ dài câu trả lời, đặc biệt khi chạy model bằng CPU.
 - Nhận dạng giọng nói cần `ZIPFORMER_BACKEND=onnx`, `ZIPFORMER_MODEL_DIR` trỏ đúng thư mục chứa `encoder.int8.onnx`, `decoder.onnx`, `joiner.int8.onnx` và `tokens.txt`. Chỉ tải Qwen/Gemma không cung cấp các file Zipformer này.
 - VieNeu TTS local là tùy chọn riêng. Cài `vieneu==3.8.5` trong đúng `.venv` ở `starter-repo`, rồi đặt `VIENEU_TTS_BACKEND=local`. Nếu SDK chưa cài/nạp model được, tắt đọc giọng trong lúc thử các chức năng khác.
 

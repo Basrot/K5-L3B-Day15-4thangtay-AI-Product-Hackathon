@@ -585,12 +585,18 @@ export default function HomePage() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    if (!["image/jpeg", "image/png", "application/pdf"].includes(file.type)) {
+      setBannerError("Chị chọn ảnh JPG/PNG hoặc PDF của một phiếu xét nghiệm.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setBannerError("Ảnh hoặc PDF tối đa 10 MB. Chị chọn tệp nhỏ hơn nhé.");
+      return;
+    }
     const requestEpoch = authEpochRef.current;
     setFormExpanded(true);
     setVisitBriefOpen(false);
 
-    await invalidateIfConfirmed();
-    if (requestEpoch !== authEpochRef.current) return;
     setBannerError("");
     setOcrWarnings([]);
     setLoadingAction("ocr");
@@ -599,6 +605,13 @@ export default function HomePage() {
     abortRef.current = controller;
     try {
       const extracted = await api.extractReport(file, controller.signal);
+      if (requestEpoch !== authEpochRef.current) return;
+      if (!extracted.rows?.length) {
+        setOcrWarnings(extracted.warnings || []);
+        setBannerError("Chưa đọc được chỉ số CBC từ tệp. Chị thử ảnh rõ hơn hoặc PDF của đúng một phiếu; dữ liệu cũ vẫn được giữ.");
+        return;
+      }
+      await invalidateIfConfirmed();
       if (requestEpoch !== authEpochRef.current) return;
       setOcrWarnings(extracted.warnings || []);
       setDraft((prev) => ({
@@ -610,7 +623,7 @@ export default function HomePage() {
     } catch (err) {
       if (requestEpoch === authEpochRef.current && (err as Error).name !== "AbortError") {
         setBannerError(
-          err instanceof Error ? err.message : "Đọc ảnh thất bại."
+          err instanceof Error ? err.message : "Chưa đọc được tệp phiếu xét nghiệm."
         );
       }
     } finally {
@@ -1295,18 +1308,18 @@ export default function HomePage() {
                 </div>
                 <div>
                   <div className="text-xs font-medium">
-                    Đọc ảnh phiếu xét nghiệm (JPG/PNG)
+                    Tải phiếu xét nghiệm (JPG, PNG hoặc PDF)
                   </div>
                   <div className="text-[11px] text-[var(--muted)]">
-                    Ảnh được gửi tới dịch vụ AI để điền nháp; bạn kiểm lại trước khi xác nhận
+                    Tối đa 10 MB · PDF tối đa 3 trang của cùng một phiếu. AI điền nháp; chị so lại với phiếu gốc trước khi xác nhận.
                   </div>
                 </div>
               </div>
               <label className="btn-outline h-8 px-3 text-xs shrink-0 cursor-pointer">
-                {loadingAction === "ocr" ? "Đang đọc..." : "Chọn ảnh"}
+                {loadingAction === "ocr" ? "Đang đọc phiếu..." : "Chọn ảnh / PDF"}
                 <input
                   type="file"
-                  accept="image/png,image/jpeg"
+                  accept="image/png,image/jpeg,application/pdf,.pdf"
                   className="hidden"
                   onChange={handleImageUpload}
                   disabled={loadingAction === "ocr"}
@@ -1316,7 +1329,7 @@ export default function HomePage() {
 
             {ocrWarnings.length > 0 && (
               <div className="p-3 rounded-xl bg-[#fffbeb] text-[#b45309] text-xs space-y-1">
-                <div className="font-medium">Lưu ý khi đọc ảnh:</div>
+                <div className="font-medium">Lưu ý khi đọc phiếu:</div>
                 <ul className="list-disc pl-4 space-y-0.5">
                   {ocrWarnings.map((w, idx) => (
                     <li key={idx}>{w}</li>
