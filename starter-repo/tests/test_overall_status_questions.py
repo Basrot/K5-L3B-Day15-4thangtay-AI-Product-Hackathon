@@ -54,6 +54,8 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             "RBC phản ánh số lượng hồng cầu. Kết quả nằm trong khoảng tham chiếu, nhưng không thể chẩn đoán sức khỏe chỉ từ riêng chỉ số này.",
             "RBC nằm trong khoảng đang dùng. Điều này không thay thế chẩn đoán của bác sĩ.",
             "Khoảng tham chiếu không phải là ngưỡng chẩn đoán bệnh.",
+            "Kết quả này chỉ dùng để đối chiếu, không có giá trị chẩn đoán bệnh riêng lẻ.",
+            "RBC nằm trong khoảng nghiên cứu; bác sĩ cần thêm thông tin để chẩn đoán.",
         ):
             with self.subTest(text=text), patch.object(agent, "call_model", return_value={
                 "text": json.dumps({"answer": text, "analytes": ["HGB"], "needs_clarification": False})
@@ -67,6 +69,8 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             "Em không thể chẩn đoán. Chị bị thiếu máu.",
             "Điều này không thay thế chẩn đoán của bác sĩ. Chị nên uống thuốc sắt.",
             "Chị bị thiếu máu.",
+            "Em chẩn đoán thiếu máu.",
+            "Chẩn đoán: thiếu máu.",
             "Kết quả HGB là 99.",
         ):
             with self.subTest(text=text), patch.object(agent, "call_model", return_value={
