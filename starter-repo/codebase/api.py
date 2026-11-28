@@ -1,5 +1,7 @@
 """HTTP interface for the shared CBC service; one process and one inference slot."""
+import logging
 import os
+import re
 import threading
 from datetime import date, datetime, timedelta, timezone
 from contextlib import asynccontextmanager, contextmanager
@@ -24,6 +26,7 @@ from .references import study_references, SUPPORTED_ANALYTES
 
 IMAGE_LIMIT = 10 * 1024 * 1024
 WAV_LIMIT = 3 * 1024 * 1024
+logger = logging.getLogger(__name__)
 Text100 = Annotated[StrictStr, Field(max_length=100)]
 LabValue = Text100 | StrictInt | StrictFloat | None
 Revision = Annotated[StrictInt, Field(ge=0)]
@@ -138,6 +141,33 @@ def _operation(app: FastAPI):
         app.state.model_lock.release()
 
 
+def _upstream_error_detail(path: str, exception: RuntimeError) -> str:
+    """Return a safe, endpoint-specific explanation without exposing provider payloads or secrets."""
+    message = str(exception)
+    if path.endswith("/speech/synthesize"):
+        match = re.fullmatch(r"VieNeu API trả HTTP (\d+); kiểm tra API key, quyền giọng và hạn mức\.", message)
+        if match:
+            status = int(match.group(1))
+            if status in (401, 403):
+                return "VieNeu từ chối yêu cầu đọc giọng (HTTP %d). Kiểm tra API key và quyền dùng giọng đã chọn." % status
+            if status == 429:
+                return "VieNeu đang giới hạn lượt đọc (HTTP 429). Chờ một chút rồi thử lại."
+        return "Không tạo được giọng đọc từ VieNeu. Kiểm tra API key, tên giọng và hạn mức VieNeu."
+
+    component = "đọc ảnh" if path.endswith("/reports/extract") else "hỏi đáp"
+    match = re.fullmatch(r"Dịch vụ AI trả HTTP (\d+)\. Kiểm tra model, khóa API và hạn mức\.", message)
+    if match:
+        status = int(match.group(1))
+        if status in (401, 403):
+            return "Nhà cung cấp AI từ chối yêu cầu (HTTP %d). Kiểm tra API_KEY và quyền truy cập model." % status
+        if status == 429:
+            return "Nhà cung cấp AI đang giới hạn lượt gọi (HTTP 429). Chờ một chút rồi thử lại."
+        if status == 400:
+            return "Nhà cung cấp AI không nhận cấu hình yêu cầu (HTTP 400). Kiểm tra MODEL_NAME, LLM_API_BASE và hỗ trợ JSON Schema của model."
+        return "Dịch vụ AI %s trả HTTP %d. Kiểm tra cấu hình model và trạng thái nhà cung cấp." % (component, status)
+    return "Dịch vụ AI %s chưa phản hồi. Kiểm tra cấu hình model/API hoặc trạng thái nhà cung cấp rồi thử lại." % component
+
+
 def create_app(db_path=None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application):
@@ -174,8 +204,11 @@ def create_app(db_path=None) -> FastAPI:
         return JSONResponse(status_code=409 if stale else 422, content={"detail": message})
 
     @application.exception_handler(RuntimeError)
-    async def upstream(_request, _exception):
-        return JSONResponse(status_code=502, content={"detail": "Dịch vụ AI hoặc âm thanh chưa phản hồi. Hãy thử lại sau."})
+    async def upstream(request, exception):
+        detail = _upstream_error_detail(request.url.path, exception)
+        logger.warning("Upstream request failed: path=%s error_type=%s detail=%s",
+                       request.url.path, type(exception).__name__, detail)
+        return JSONResponse(status_code=502, content={"detail": detail})
 
     @application.get("/health")
     def health():
