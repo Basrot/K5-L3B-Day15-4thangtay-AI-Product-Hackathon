@@ -30,10 +30,30 @@ def ask(text, report_data=None, history=None):
 
 
 class ConversationalStatusQuestionTest(unittest.TestCase):
+    def test_reference_concept_answer_with_negated_diagnosis_passes(self):
+        text = "Trong khoảng tham chiếu nghĩa là kết quả nằm giữa giới hạn dưới và trên đang dùng để đối chiếu. Đây không phải là chẩn đoán và không khẳng định chị hoàn toàn khỏe mạnh."
+        with patch.object(agent, "call_model", return_value={"text": json.dumps({
+            "answer": text, "analytes": [], "needs_clarification": False,
+        })}):
+            result = ask("Thế nào là trong khoảng tham chiếu?")
+        self.assertEqual(result["status"], "explained")
+        self.assertEqual(result["output"], text)
+
+    def test_rejected_numeric_explanation_gets_one_checked_rephrase(self):
+        replies = [{"text": json.dumps({"answer": text, "analytes": [], "needs_clarification": False})}
+                   for text in ("Khoảng tham chiếu chứa 95% kết quả của quần thể.",
+                                "Đó là khoảng dùng để so sánh kết quả với các giới hạn tham chiếu, không tự khẳng định sức khỏe.")]
+        with patch.object(agent, "call_model", side_effect=replies) as model:
+            result = ask("Thế nào là trong khoảng tham chiếu?")
+        self.assertEqual(model.call_count, 2)
+        self.assertEqual(result["status"], "explained")
+        self.assertIn("Đó là khoảng", result["output"])
+
     def test_safe_diagnostic_disclaimer_is_not_treated_as_a_diagnosis(self):
         for text in (
             "RBC phản ánh số lượng hồng cầu. Kết quả nằm trong khoảng tham chiếu, nhưng không thể chẩn đoán sức khỏe chỉ từ riêng chỉ số này.",
             "RBC nằm trong khoảng đang dùng. Điều này không thay thế chẩn đoán của bác sĩ.",
+            "Khoảng tham chiếu không phải là ngưỡng chẩn đoán bệnh.",
         ):
             with self.subTest(text=text), patch.object(agent, "call_model", return_value={
                 "text": json.dumps({"answer": text, "analytes": ["HGB"], "needs_clarification": False})

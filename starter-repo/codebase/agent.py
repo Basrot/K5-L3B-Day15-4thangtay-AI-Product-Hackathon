@@ -89,8 +89,9 @@ UNSAFE_GENERATED_ANSWER = re.compile(
     re.IGNORECASE,
 )
 DIAGNOSTIC_DISCLAIMER = re.compile(
-    r"\b(?:không\s+(?:(?:thể|đủ\s+để|tự|nhằm)\s+)*chẩn\s+đoán|"
-    r"không\s+thay\s+thế\s+(?:việc\s+)?chẩn\s+đoán)\b",
+    r"\b(?:không\s+(?:(?:thể|đủ\s+để|tự|nhằm|dùng\s+để|đưa\s+ra|phải|là|một)\s+)*chẩn\s+đoán|"
+    r"không\s+thay\s+thế\s+(?:việc\s+)?chẩn\s+đoán|"
+    r"không\s+phải\s+(?:là\s+)?(?:ngưỡng|kết\s+luận|tiêu\s+chuẩn)\s+(?:để\s+)?chẩn\s+đoán)\b",
     re.IGNORECASE,
 )
 
@@ -103,6 +104,24 @@ def _unsafe_answer_reason(answer_text):
     if UNSAFE_GENERATED_ANSWER.search(checked_text):
         return "medical_claim_or_treatment"
     return None
+
+
+def _parse_generated_reply(reply, rows):
+    try:
+        result = json.loads(reply["text"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if (not isinstance(result, dict)
+            or set(result) != {"answer", "analytes", "needs_clarification"}
+            or not isinstance(result["answer"], str)
+            or not result["answer"].strip()
+            or len(result["answer"]) > 1200
+            or not isinstance(result["analytes"], list)
+            or type(result["needs_clarification"]) is not bool
+            or any(not isinstance(code, str) or code not in rows for code in result["analytes"])
+            or len(set(result["analytes"])) != len(result["analytes"])):
+        return None
+    return result
 
 
 RANGE_STATUS_QUESTION = re.compile(
@@ -296,19 +315,8 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
             "output": "[AI giả] Chế độ hiện tại chưa có model tạo hội thoại tự do. Hãy bật Ollama và chọn model để hỏi tiếp theo ngữ cảnh.",
         }
 
-    try:
-        generated = json.loads(reply["text"])
-    except (KeyError, TypeError, ValueError):
-        generated = None
-    if (not isinstance(generated, dict)
-            or set(generated) != {"answer", "analytes", "needs_clarification"}
-            or not isinstance(generated.get("answer"), str)
-            or not generated["answer"].strip()
-            or len(generated["answer"]) > 1200
-            or not isinstance(generated.get("analytes"), list)
-            or type(generated.get("needs_clarification")) is not bool
-            or any(not isinstance(code, str) or code not in rows for code in generated["analytes"])
-            or any(generated["analytes"].count(code) > 1 for code in generated["analytes"])):
+    generated = _parse_generated_reply(reply, rows)
+    if generated is None:
         note("fallback: cấu trúc câu trả lời AI không hợp lệ")
         return _chat_fallback(
             "Em chưa tạo được lời giải thích phù hợp từ phiếu này. Chị thử hỏi cụ thể hơn về một chỉ số hoặc hỏi bác sĩ theo dõi thai kỳ ạ.",
@@ -317,6 +325,27 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
 
     answer_text = generated["answer"].strip().replace("Anh/chị", "Chị").replace("anh/chị", "chị")
     unsafe_reason = _unsafe_answer_reason(answer_text)
+    if unsafe_reason:
+        # One bounded retry with the original verified context. Never expose
+        # the rejected prose or accept a repair without the same validation.
+        note("rephrase: " + unsafe_reason)
+        repair_context = {**context, "response_correction": (
+            "Viết lại câu trả lời ngắn, trực tiếp cho câu hỏi. Không dùng chữ số, phần trăm, "
+            "đánh số danh sách, kết luận bệnh hoặc lời khuyên dùng thuốc. "
+            "Nếu hỏi khái niệm, giải thích bằng lời. Chỉ nói các giới hạn của riêng CBC."
+        )}
+        try:
+            repaired = _parse_generated_reply(call_model(
+                SYSTEM, json.dumps(repair_context, ensure_ascii=False, separators=(",", ":")),
+                output_schema=schema, max_tokens=220, reasoning_effort="low",
+            ), rows)
+        except RuntimeError:
+            repaired = None
+            note("rephrase: provider_unavailable")
+        if repaired is not None:
+            repaired_text = repaired["answer"].strip().replace("Anh/chị", "Chị").replace("anh/chị", "chị")
+            if _unsafe_answer_reason(repaired_text) is None:
+                generated, answer_text, unsafe_reason = repaired, repaired_text, None
     if unsafe_reason:
         note("fallback: " + unsafe_reason)
         return _chat_fallback(
