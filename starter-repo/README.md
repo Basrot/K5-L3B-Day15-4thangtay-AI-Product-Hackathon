@@ -4,6 +4,8 @@ Tích hợp phần AI đọc phiếu với 8 mã `HGB, RBC, HCT, MCV, MCH, MCHC,
 
 Backend FastAPI cho Railway: [triển khai và SQLite volume](docs/railway-deployment.md). Giao diện frontend Vercel: [hợp đồng API, ví dụ fetch và ghi âm](docs/frontend-api-handoff.md).
 
+Đọc phạm vi và cách đánh giá an toàn: [Độ tin cậy và xử lý khi kết quả có thể sai](docs/quality-and-safety.md). Tỷ lệ trong benchmark là tỷ lệ đạt trên bộ câu cố định, không phải độ chính xác lâm sàng.
+
 Để mở web demo trên Windows, vào `starter-repo/` rồi chạy `./start-voice-demo.ps1`; mở `http://127.0.0.1:8501`. Hỏi đáp mặc định cần Ollama cùng model `qwen3:4b`; đặt `MODEL_PROVIDER=fake` trước khi chạy để thử giao diện không gọi model thật. Đọc ảnh cần model Vision; giọng đọc VieNeu cần `VIENEU_API_KEY`.
 
 **Thành viên, lớp, track:** xem [TEAMS.md](TEAMS.md). **Điền TEAMS.md đúng format**: khi chấm và đánh giá, BTC quét file này để ghép điểm cho từng người.
