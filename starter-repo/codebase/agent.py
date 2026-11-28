@@ -77,7 +77,7 @@ DIRECT_DIAGNOSIS_OR_TREATMENT = re.compile(
     re.IGNORECASE,
 )
 UNSAFE_GENERATED_ANSWER = re.compile(
-    r"\b((?:em|tôi)\s+(?:chẩn đoán|kết luận)|chẩn đoán\s*[:：]|"
+    r"\b((?:em|tôi)\s+(?:chẩn đoán|kết luận)|chẩn đoán\s*[:：]\s*\w+|"
     r"chẩn đoán\s+(?:chị|bạn|anh)\s+(?:bị|mắc)|"
     r"kê đơn|liều thuốc|liều dùng|uống thuốc|uống sắt|thuốc sắt|"
     r"nên uống|hãy uống|nên dùng thuốc|bổ sung sắt|ngừng thuốc|điều trị bằng thuốc|"
