@@ -141,6 +141,16 @@ def _operation(app: FastAPI):
         app.state.model_lock.release()
 
 
+@contextmanager
+def _onnx_operation(app: FastAPI):
+    if not app.state.onnx_lock.acquire(blocking=False):
+        raise HTTPException(429, "Máy chủ đang xử lý nhận dạng giọng nói khác; hãy thử lại.", headers={"Retry-After": "1"})
+    try:
+        yield
+    finally:
+        app.state.onnx_lock.release()
+
+
 def _upstream_error_detail(path: str, exception: RuntimeError) -> str:
     """Return a safe, endpoint-specific explanation without exposing provider payloads or secrets."""
     message = str(exception)
@@ -199,6 +209,7 @@ def create_app(db_path=None) -> FastAPI:
 
     application = FastAPI(title="CBC Assistant API", version="1.0.0", lifespan=lifespan)
     application.state.model_lock = threading.Lock()
+    application.state.onnx_lock = threading.Lock()
     application.add_middleware(BodyLimitMiddleware, max_bytes=11 * 1024 * 1024)
     origins = [origin.strip() for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
     for origin in origins:
@@ -230,6 +241,31 @@ def create_app(db_path=None) -> FastAPI:
     @application.get("/health")
     def health():
         return {"status": "ok"}
+
+    @application.get("/health/ready")
+    def readiness():
+        provider = (os.environ.get("MODEL_PROVIDER") or "fake").strip().lower()
+        model_name = (os.environ.get("MODEL_NAME") or "").strip()
+        vision_model = (os.environ.get("VISION_MODEL") or model_name).strip()
+        llm_ready = (
+            provider == "fake"
+            or (provider == "ollama" and bool(model_name))
+            or (provider == "openai_compatible" and bool(model_name) and bool((os.environ.get("API_KEY") or "").strip()))
+        )
+        vision_ready = provider in ("ollama", "openai_compatible") and bool(vision_model)
+        tts_backend = (os.environ.get("VIENEU_TTS_BACKEND") or "api").strip().lower()
+        tts_ready = tts_backend == "local" or bool((os.environ.get("VIENEU_API_KEY") or "").strip())
+        stt_dir = (os.environ.get("ZIPFORMER_MODEL_DIR") or "").strip()
+        db_ok = hasattr(application.state, "service")
+        return {
+            "status": "ok" if db_ok else "initializing",
+            "database_ready": db_ok,
+            "llm": {"provider": provider, "configured": llm_ready},
+            "vision": {"configured": vision_ready},
+            "tts": {"backend": tts_backend, "configured": tts_ready},
+            "stt": {"backend": (os.environ.get("ZIPFORMER_BACKEND") or "onnx").strip().lower(),
+                    "configured": bool(stt_dir)},
+        }
 
     @application.post("/v1/auth/login")
     def login(body: Login):
@@ -389,8 +425,7 @@ def create_app(db_path=None) -> FastAPI:
     @router.post("/reports/validate")
     def validate(body: Report):
         _validate_specimen_date(body.specimen_date)
-        with _operation(application):
-            return compare_cbc(body.model_dump())
+        return compare_cbc(body.model_dump())
 
     @router.post("/reports/extract")
     def extract(file: UploadFile):
@@ -401,7 +436,7 @@ def create_app(db_path=None) -> FastAPI:
     @router.post("/speech/transcribe")
     def transcribe(file: UploadFile):
         content = _upload(file, WAV_LIMIT)
-        with _operation(application):
+        with _onnx_operation(application):
             return {"text": speech.transcribe_wav(content)}
 
     @router.post("/speech/synthesize", response_class=Response, responses={200: {"content": {"audio/wav": {"schema": {"type": "string", "format": "binary"}}}}})
@@ -445,11 +480,10 @@ def create_app(db_path=None) -> FastAPI:
     def confirm(session_id: str, body: ConfirmBody, user: dict = Depends(require_access)):
         _validate_specimen_date(body.report.specimen_date)
         service = application.state.service
-        with _operation(application):
-            saved = service.confirm_report(session_id, body.report.model_dump(), confirmed=body.confirmed,
-                                           expected_revision=body.expected_revision, owner_id=user["id"])
-            state = saved["session"]
-            return {**state, "analysis": analyze_report(state["report"], confirmed=True)}
+        saved = service.confirm_report(session_id, body.report.model_dump(), confirmed=body.confirmed,
+                                       expected_revision=body.expected_revision, owner_id=user["id"])
+        state = saved["session"]
+        return {**state, "analysis": analyze_report(state["report"], confirmed=True)}
 
     @router.post("/sessions/{session_id}/invalidate")
     def invalidate(session_id: str, body: RevisionBody, user: dict = Depends(require_access)):
@@ -465,8 +499,7 @@ def create_app(db_path=None) -> FastAPI:
             raise HTTPException(409, "Phiếu đã thay đổi. Hãy tải lại dữ liệu.")
         if state["report"] is None:
             raise HTTPException(422, "Xác nhận phiếu CBC trước khi xem phân tích.")
-        with _operation(application):
-            return analyze_report(state["report"], confirmed=True)
+        return analyze_report(state["report"], confirmed=True)
 
     @router.get("/sessions/{session_id}/history")
     def history(session_id: str, user: dict = Depends(require_access)):
