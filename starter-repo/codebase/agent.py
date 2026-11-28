@@ -68,7 +68,17 @@ ROUTES = {
     "medical_advice": "Em hiểu chị muốn biết cho chắc. Riêng phiếu CBC chưa đủ để em xác định bệnh hay hướng dẫn điều trị cho chị. Chị có thể mang phiếu và câu hỏi này trao đổi với bác sĩ theo dõi thai kỳ. Em có thể giúp chị hiểu từng dòng và chuẩn bị điều cần hỏi nhé.",
     "urgent": "Nếu chị đang gặp tình huống khẩn cấp, hãy liên hệ ngay với cơ sở y tế hoặc dịch vụ cấp cứu tại nơi chị đang ở ạ.",
 }
-EXPLICIT_URGENCY = re.compile(r"\b(cấp cứu|khẩn cấp|gọi 115)\b", re.IGNORECASE)
+EXPLICIT_URGENCY = re.compile(
+    r"\b("
+    r"cấp cứu|khẩn cấp|gọi 115|nguy kịch|"
+    r"ra máu|chảy máu âm đạo|chảy máu nhiều|xuất huyết|rỉ ối|vỡ ối|ra nước ối|"
+    r"co giật|ngất xỉu|ngất|lơ mơ|hôn mê|"
+    r"đau đầu dữ dội|mờ mắt|nhìn mờ|phù mặt|"
+    r"khó thở|thở dốc|đau ngực|đau bụng dữ dội|cơn gò liên tục|"
+    r"thai máy yếu|thai ít đạp|thai không đạp|không thấy thai máy|sốt cao"
+    r")\b",
+    re.IGNORECASE,
+)
 DIRECT_DIAGNOSIS_OR_TREATMENT = re.compile(
     r"\b(chẩn đoán|bị bệnh gì|tôi bị thiếu máu|em bị thiếu máu|"
     r"tôi có bị|em có bị|mình có bị|tôi có thiếu máu|em có thiếu máu|"
@@ -76,10 +86,48 @@ DIRECT_DIAGNOSIS_OR_TREATMENT = re.compile(
     r"nghĩa là thiếu máu|là thiếu máu phải không|đây là thiếu máu|"
     r"cho thấy thiếu máu|chứng tỏ thiếu máu|đồng nghĩa với thiếu máu|"
     r"tôi mắc bệnh gì|em mắc bệnh gì|tôi có bệnh gì|em có bệnh gì|"
-    r"uống thuốc gì|uống thuốc|uống sắt|thuốc sắt|bổ sung sắt|bổ sung thuốc|"
-    r"có nên dùng|nên uống|nên dùng thuốc|liều dùng|liều thuốc|kê đơn|"
-    r"điều trị cho tôi|tôi cần dùng thuốc|dùng thuốc)\b",
+    r"uống thuốc gì|uống thuốc|uống sắt|thuốc sắt|viên sắt|ống sắt|bổ sung sắt|bổ sung thuốc|"
+    r"có nên dùng|nên uống|nên dùng thuốc|liều dùng|liều thuốc|liều lượng|tăng liều|giảm liều|đổi thuốc|"
+    r"uống tăng|uống giảm|uống thêm|ngày mấy ống|ngày mấy viên|kê thuốc|kê đơn|"
+    r"tohema|ferrovit|tardyferon|obimin|elevit|hemafer|maltofer|truyền máu|truyền tiểu cầu|"
+    r"điều trị cho tôi|tôi cần dùng thuốc|dùng thuốc)\b"
+    r"|\b\d+\s*(?:ống|viên)\s*sắt\b"
+    r"|(?:thalassemia|tan máu).{0,25}thể nào|thể nào.{0,25}(?:thalassemia|tan máu)",
     re.IGNORECASE,
+)
+COMPARE_QUESTION = re.compile(
+    r"\b(khác|khác nhau|khác gì|phân biệt|so với|so sánh|giống hay khác|điểm nào)\b",
+    re.IGNORECASE,
+)
+PAIRWISE_DISTINCTIONS = {
+    frozenset(("MCH", "MCHC")): (
+        "MCHC cho biết nồng độ hemoglobin (huyết sắc tố) trung bình tính theo thể tích hồng cầu, "
+        "còn MCH cho biết lượng hemoglobin (huyết sắc tố) trung bình chứa trong một hồng cầu."
+    ),
+    frozenset(("HGB", "HCT")): (
+        "HGB đo nồng độ hemoglobin vận chuyển oxy trong máu, "
+        "còn HCT đo tỷ lệ thể tích máu do các tế bào hồng cầu chiếm."
+    ),
+    frozenset(("HGB", "RBC")): (
+        "RBC đếm số lượng tế bào hồng cầu, còn HGB đo nồng độ hemoglobin mang oxy chứa bên trong hồng cầu."
+    ),
+    frozenset(("MCV", "MCH")): (
+        "MCV cho biết thể tích trung bình (kích thước) của hồng cầu, "
+        "còn MCH cho biết lượng hemoglobin trung bình trong mỗi hồng cầu."
+    ),
+    frozenset(("MCV", "MCHC")): (
+        "MCV cho biết thể tích trung bình (kích thước) của hồng cầu, "
+        "còn MCHC cho biết nồng độ hemoglobin trung bình bên trong hồng cầu."
+    ),
+    frozenset(("WBC", "PLT")): (
+        "WBC là tổng số lượng bạch cầu tham gia bảo vệ cơ thể, còn PLT là số lượng tiểu cầu tham gia đông máu."
+    ),
+}
+CONFIG_ERROR_PREFIXES = (
+    "Điền API_KEY",
+    "Điền VISION_API_KEY",
+    "Cấu hình MODEL_PROVIDER",
+    "LLM_API_BASE và VISION_API_BASE",
 )
 UNSAFE_GENERATED_ANSWER = re.compile(
     r"\b((?:em|tôi)\s+(?:chẩn đoán|kết luận)|chẩn đoán\s*[:：]\s*\w+|"
@@ -174,6 +222,65 @@ def _reference_details(comparison):
     return metadata, label, sources
 
 
+def _build_doctor_questions(analyte: str | None, status: str | None, comparison: dict) -> list[str]:
+    """Generate deterministic, context-aware questions for the obstetrician visit."""
+    age = comparison.get("gestational_age") or "hiện tại"
+    mode = comparison.get("reference_mode")
+    questions = []
+    if analyte and status and status != "within":
+        direction = "thấp hơn" if status == "below" else "cao hơn"
+        if mode == "lab" and ((analyte in {"HGB", "RBC", "HCT"} and status == "below")
+                              or (analyte == "WBC" and status == "above")):
+            questions.append(
+                f"Khoảng tham chiếu in trên phiếu cho {analyte} là ngưỡng người trưởng thành chung hay đã điều chỉnh theo tuổi thai {age}?"
+            )
+        else:
+            questions.append(
+                f"Mức {analyte} {direction} khoảng tham chiếu ở tuần thai {age} có ý nghĩa gì trong bối cảnh thai kỳ của em?"
+            )
+        if analyte in {"HGB", "MCV", "MCH", "MCHC", "RBC", "HCT"} and status == "below":
+            questions.append(
+                "Em có cần làm thêm xét nghiệm đánh giá dự trữ sắt (như ferritin huyết thanh) hoặc xét nghiệm chuyên sâu khác không?"
+            )
+        elif analyte == "WBC":
+            questions.append(
+                "Kết quả WBC này có phù hợp với thay đổi sinh lý thai kỳ không, hay cần theo dõi thêm triệu chứng và công thức bạch cầu?"
+            )
+        elif analyte == "PLT":
+            questions.append(
+                f"Với mức tiểu cầu (PLT) này ở tuần thai {age}, lịch xét nghiệm kiểm tra lại và các dấu hiệu cần theo dõi tại nhà là gì?"
+            )
+    elif analyte:
+        questions.append(
+            f"Kết quả {analyte} ở tuần thai {age} khi đặt cạnh các dòng CBC khác có cần lưu ý gì cho lần khám tới không?"
+        )
+    else:
+        questions.append(
+            f"Tổng thể các chỉ số CBC ở tuần thai {age} có điểm nào cần theo dõi thêm hoặc xét nghiệm bổ sung không?"
+        )
+    questions.append(
+        "Chế độ dinh dưỡng và lịch tái khám hiện tại của em có cần lưu ý gì thêm dựa trên phiếu xét nghiệm này không?"
+    )
+    return questions[:3]
+
+
+def _build_follow_up_questions(current_analyte: str | None, rows: dict) -> list[str]:
+    """Suggest safe, natural follow-up prompts grounded in the confirmed report."""
+    suggestions = []
+    if current_analyte:
+        suggestions.append(f"Với chỉ số {current_analyte} này, mình nên hỏi bác sĩ câu gì?")
+        pair_map = {"MCHC": "MCH", "MCH": "MCHC", "HGB": "HCT", "HCT": "HGB", "MCV": "MCH", "RBC": "HGB"}
+        partner = pair_map.get(current_analyte)
+        if partner:
+            suggestions.append(f"{current_analyte} khác {partner} ở điểm nào?")
+    other_flagged = [code for code, row in rows.items() if code != current_analyte and row["status"] != "within"]
+    if other_flagged:
+        suggestions.append(f"Giải thích giúp mình chỉ số {other_flagged[0]} trên phiếu.")
+    if len(rows) > 1:
+        suggestions.append("Tóm tắt toàn bộ phiếu CBC này giúp mình.")
+    return suggestions[:3]
+
+
 def analyze_report(report: dict, *, confirmed=False) -> dict:
     """Trả bảng đối chiếu toàn bộ chỉ số và tóm tắt sau khi người dùng xác nhận."""
     comparison = confirmed_comparison(report) if confirmed else compare_cbc(report)
@@ -200,10 +307,24 @@ def analyze_report(report: dict, *, confirmed=False) -> dict:
                  "không tự kết luận có hay không có bệnh; kể cả nằm trong khoảng cũng không loại trừ bệnh.")
     lines.append("Chị có thể dùng những dòng thấp hơn hoặc cao hơn khoảng để hỏi bác sĩ theo dõi thai kỳ; "
                  "bác sĩ sẽ xem thêm tuổi thai, triệu chứng và các thông tin sức khỏe ạ.")
-    return {"status": "analyzed", "rows": rows, "counts": counts,
-            "output": " ".join(lines), "sources": sources,
-            "issues": [f"{code}: {issue['reason']}" for code, issue in row_errors.items()],
-            "row_errors": row_errors, **metadata}
+    rows_by_code = {row["analyte"]: row for row in rows}
+    first_flagged = next((row for row in rows if row["status"] != "within"), None)
+    return {
+        "status": "analyzed",
+        "rows": rows,
+        "counts": counts,
+        "output": " ".join(lines),
+        "sources": sources,
+        "doctor_questions": _build_doctor_questions(
+            first_flagged["analyte"] if first_flagged else None,
+            first_flagged["status"] if first_flagged else None,
+            comparison,
+        ),
+        "follow_up_questions": _build_follow_up_questions(None, rows_by_code),
+        "issues": [f"{code}: {issue['reason']}" for code, issue in row_errors.items()],
+        "row_errors": row_errors,
+        **metadata,
+    }
 
 
 def answer(text: str, *, confirmed=False, history=None) -> dict:
@@ -229,15 +350,15 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
 
     rows = {row["analyte"]: row for row in comparison["rows"]}
     flagged_count = sum(row["status"] != "within" for row in rows.values())
+    current_codes = _explicit_analytes(question, rows)
     if DIRECT_DIAGNOSIS_OR_TREATMENT.search(question):
         note("dừng trước model: yêu cầu chẩn đoán hoặc điều trị cá nhân")
-        return {"status": "medical_advice", "output": ROUTES["medical_advice"]}
-    missing_analytes = [code for code in _explicit_analytes(question, ANALYTES) if code not in rows]
-    if missing_analytes:
-        missing_analyte = missing_analytes[0]
+        primary = current_codes[0] if len(current_codes) == 1 else None
         return {
-            "status": "clarify_question",
-            "output": f"Em chưa thấy dòng {missing_analyte} trong phiếu đã xác nhận. Chị kiểm tra phiếu hoặc bổ sung chỉ số này rồi xác nhận lại nhé ạ.",
+            "status": "medical_advice",
+            "output": ROUTES["medical_advice"],
+            "doctor_questions": _build_doctor_questions(primary, rows[primary]["status"] if primary else None, comparison),
+            "follow_up_questions": _build_follow_up_questions(primary, rows),
         }
 
     bounded_history = []
@@ -251,13 +372,35 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
                     "question": question_text[:500],
                     "answer": output_text[:500],
                 })
-    current_codes = _explicit_analytes(question, rows)
     latest_history_codes = []
     if bounded_history:
         latest_turn = bounded_history[-1]
-        latest_history_codes = _explicit_analytes(
-            latest_turn["question"] + " " + latest_turn["answer"], rows
+        latest_history_codes = (
+            _explicit_analytes(latest_turn["question"], rows)
+            or _explicit_analytes(latest_turn["answer"], rows)
         )
+
+    catalog_codes = _explicit_analytes(question, ANALYTES)
+    missing_analytes = [code for code in catalog_codes if code not in rows]
+    is_concept_comparison = bool(
+        COMPARE_QUESTION.search(question)
+        and (len(catalog_codes) >= 2 or (len(catalog_codes) == 1 and latest_history_codes))
+        and (current_codes or latest_history_codes)
+    )
+    compare_codes = list(dict.fromkeys(
+        ([latest_history_codes[0]] + catalog_codes)
+        if (len(catalog_codes) == 1 and latest_history_codes and latest_history_codes[0] != catalog_codes[0]
+            and COMPARE_QUESTION.search(question))
+        else catalog_codes
+    ))
+    if missing_analytes and not is_concept_comparison:
+        missing_analyte = missing_analytes[0]
+        return {
+            "status": "clarify_question",
+            "output": f"Em chưa thấy dòng {missing_analyte} trong phiếu đã xác nhận. Chị kiểm tra phiếu hoặc bổ sung chỉ số này rồi xác nhận lại nhé ạ.",
+            "follow_up_questions": _build_follow_up_questions(None, rows),
+        }
+
     fallback_codes = current_codes or latest_history_codes
     reference_metadata, _reference_label, _known_sources = _reference_details(comparison)
     # Long provenance notices stay in the UI; the model only needs the mode
@@ -286,6 +429,13 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
         "question": question.strip(),
         "recent_conversation": bounded_history,
     }
+    if is_concept_comparison and len(compare_codes) >= 2:
+        pair_key = frozenset(compare_codes[:2]) if len(compare_codes) == 2 else frozenset()
+        context["concept_comparison"] = {
+            "compared_indicators": {code: ANALYTE_EXPLANATIONS.get(code, ANALYTES[code]) for code in compare_codes if code in ANALYTES},
+            "missing_on_report": missing_analytes,
+            "distinction_hint": PAIRWISE_DISTINCTIONS.get(pair_key, ""),
+        }
     schema = {
         "type": "object",
         "properties": {
@@ -297,43 +447,35 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
         "required": ["answer", "analytes", "needs_clarification"],
         "additionalProperties": False,
     }
-    reply = call_model(
-        SYSTEM, json.dumps(context, ensure_ascii=False, separators=(",", ":")), output_schema=schema,
-        max_tokens=800, reasoning_effort="low",
-    )
-    fake = reply.get("model") == "fake"
-    if fake:
-        if re.search(r"tóm tắt|tổng hợp|cả phiếu|toàn bộ", question, re.IGNORECASE):
-            result = analyze_report(payload["report"], confirmed=confirmed)
-            result["output"] = "[AI giả] " + result["output"]
-            result["verified_facts"] = _verified_facts(rows.values())
-            return result
-        if not current_codes and OVERALL_STATUS_QUESTION.search(question):
-            result = _answer_overall_status(rows, comparison)
-            result["output"] = "[AI giả] " + result["output"]
-            return result
-        analyte = _explicit_analyte(question, rows) or (
-            latest_history_codes[0] if len(latest_history_codes) == 1 else None
+    degraded_routing = False
+    try:
+        reply = call_model(
+            SYSTEM, json.dumps(context, ensure_ascii=False, separators=(",", ":")), output_schema=schema,
+            max_tokens=800, reasoning_effort="low",
         )
-        if analyte:
-            result = _explain_analyte(analyte, rows[analyte], comparison, prefix="[AI giả] ")
-            result["analytes"] = [analyte]
-            result["verified_facts"] = _verified_facts([rows[analyte]])
-            return result
-        if (GROUP_QUESTION.search(question) or RANGE_STATUS_QUESTION.search(question)) and flagged_count:
-            selected = [row for row in rows.values() if row["status"] != "within"]
-            if selected:
-                result = _explain_group(selected, comparison, prefix="[AI giả] ")
-                result["verified_facts"] = _verified_facts(selected)
-                return result
-        return {
-            "status": "clarify_question",
-            "output": "[AI giả] Chế độ hiện tại chưa có model tạo hội thoại tự do. Hãy bật Ollama và chọn model để hỏi tiếp theo ngữ cảnh.",
-        }
+    except RuntimeError as exc:
+        if not confirmed or any(str(exc).startswith(prefix) for prefix in CONFIG_ERROR_PREFIXES):
+            raise
+        note("fallback định tuyến tất định do lỗi tạm thời từ dịch vụ AI")
+        degraded_routing = True
+        reply = {"text": "", "model": "fallback"}
+
+    fake = reply.get("model") == "fake"
+    if fake or degraded_routing:
+        prefix = "[AI giả] " if fake else ""
+        result = _deterministic_route_reply(
+            payload, question, rows, comparison, current_codes, latest_history_codes,
+            compare_codes, is_concept_comparison, flagged_count, confirmed=confirmed, prefix=prefix,
+        )
+        if degraded_routing:
+            result["degraded_routing"] = True
+        return result
 
     generated = _parse_generated_reply(reply, rows)
     if generated is None:
         note("fallback: cấu trúc câu trả lời AI không hợp lệ")
+        if is_concept_comparison and len(compare_codes) >= 2:
+            return _compare_analytes(compare_codes, rows, comparison)
         return _chat_fallback(
             "Em chưa diễn giải được câu này rõ và đúng dữ kiện nên không muốn làm chị rối thêm. Chị có thể hỏi lại theo cách khác; em sẽ cùng chị xem từng phần của phiếu nhé.",
             rows, comparison, fallback_codes,
@@ -364,6 +506,8 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
                 generated, answer_text, unsafe_reason = repaired, repaired_text, None
     if unsafe_reason:
         note("fallback: " + unsafe_reason)
+        if is_concept_comparison and len(compare_codes) >= 2:
+            return _compare_analytes(compare_codes, rows, comparison)
         return _chat_fallback(
             "Em chưa kiểm tra chắc được lời giải thích vừa tạo nên không muốn đưa chị thông tin có thể sai. Các dữ kiện từ phiếu vẫn ở bên dưới. Mình có thể xem lại từng dòng hoặc chuẩn bị câu hỏi cho bác sĩ nhé chị.",
             rows, comparison, current_codes or generated["analytes"] or latest_history_codes,
@@ -375,9 +519,10 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
         selected_codes = list(rows)
     selected_rows = [rows[code] for code in selected_codes]
     metadata, _reference_label, sources = _reference_details(comparison)
-    if set(selected_codes) & {"HGB", "MCV", "MCH", "MCHC"}:
+    if set(selected_codes) & {"HGB", "MCV", "MCH", "MCHC"} or set(compare_codes) & {"MCV", "MCH", "MCHC"}:
         sources.append(dict(RBC_INDEX_SOURCE))
     unique_sources = {source["url"]: source for source in sources if source.get("url")}
+    primary = selected_codes[0] if len(selected_codes) == 1 else (selected_codes[0] if selected_codes else None)
     note("trả lời giải thích được tạo từ ngữ cảnh phiếu và hội thoại")
     return {
         "status": "clarify_question" if generated["needs_clarification"] else "explained",
@@ -386,8 +531,106 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
         "analytes": selected_codes,
         "verified_facts": _verified_facts(selected_rows),
         "sources": list(unique_sources.values()),
+        "doctor_questions": _build_doctor_questions(primary, rows[primary]["status"] if primary else None, comparison),
+        "follow_up_questions": _build_follow_up_questions(primary, rows),
         **metadata,
     }
+
+
+def _deterministic_route_reply(
+    payload, question, rows, comparison, current_codes, latest_history_codes,
+    compare_codes, is_concept_comparison, flagged_count, *, confirmed=False, prefix=""
+):
+    if is_concept_comparison and len(compare_codes) >= 2:
+        return _compare_analytes(compare_codes, rows, comparison, prefix=prefix)
+    if re.search(r"tóm tắt|tổng hợp|cả phiếu|toàn bộ", question, re.IGNORECASE):
+        result = analyze_report(payload["report"], confirmed=confirmed)
+        result["output"] = prefix + result["output"]
+        result["verified_facts"] = _verified_facts(rows.values())
+        return result
+    if not current_codes and OVERALL_STATUS_QUESTION.search(question):
+        result = _answer_overall_status(rows, comparison)
+        result["output"] = prefix + result["output"]
+        return result
+    analyte = _explicit_analyte(question, rows) or (
+        latest_history_codes[0] if len(latest_history_codes) == 1 else None
+    )
+    if analyte:
+        result = _explain_analyte(analyte, rows[analyte], comparison, rows=rows, prefix=prefix)
+        result["analytes"] = [analyte]
+        result["verified_facts"] = _verified_facts([rows[analyte]])
+        return result
+    if len(current_codes) >= 2:
+        return _compare_analytes(current_codes, rows, comparison, prefix=prefix)
+    if (GROUP_QUESTION.search(question) or RANGE_STATUS_QUESTION.search(question)) and flagged_count:
+        selected = [row for row in rows.values() if row["status"] != "within"]
+        if selected:
+            result = _explain_group(selected, comparison, prefix=prefix)
+            result["verified_facts"] = _verified_facts(selected)
+            return result
+    if prefix:
+        return {
+            "status": "clarify_question",
+            "output": prefix + "Chế độ hiện tại chưa có model tạo hội thoại tự do. Hãy bật Ollama và chọn model để hỏi tiếp theo ngữ cảnh.",
+            "follow_up_questions": _build_follow_up_questions(None, rows),
+        }
+    return _chat_fallback(CLARIFY, rows, comparison, current_codes or latest_history_codes)
+
+
+def _compare_analytes(codes: list[str], rows: dict, comparison: dict, *, prefix=""):
+    """Compare two or more CBC indicators accurately and link to confirmed rows on the report."""
+    ordered = [code for code in dict.fromkeys(codes) if code in ANALYTES]
+    metadata, reference_label, sources = _reference_details(comparison)
+    if any(code in {"MCV", "MCH", "MCHC"} for code in ordered):
+        sources.append(dict(RBC_INDEX_SOURCE))
+    unique_sources = list({source["url"]: source for source in sources if source.get("url")}.values())
+
+    pair_key = frozenset(ordered[:2]) if len(ordered) == 2 else frozenset()
+    distinction = PAIRWISE_DISTINCTIONS.get(pair_key) or " ".join(
+        ANALYTE_EXPLANATIONS.get(code, f"{code} là chỉ số {ANALYTES[code]} trong công thức máu CBC.")
+        for code in ordered
+    )
+    present_codes = [code for code in ordered if code in rows]
+    missing_codes = [code for code in ordered if code not in rows]
+    present_parts = []
+    for code in present_codes:
+        row = rows[code]
+        status = {
+            "below": "thấp hơn khoảng tham chiếu",
+            "within": "nằm trong khoảng tham chiếu",
+            "above": "cao hơn khoảng tham chiếu",
+        }[row["status"]]
+        present_parts.append(
+            f"kết quả {code} của chị là {row['value']} {row['unit']}, {status} {reference_label} "
+            f"({row['ref_low']}–{row['ref_high']} {row['unit']})"
+        )
+    sheet_sentence = ("Trên phiếu đã xác nhận, " + "; ".join(present_parts) + ".") if present_parts else ""
+    if missing_codes:
+        sheet_sentence += (
+            " Hiện phiếu đã xác nhận chưa có dòng " + ", ".join(missing_codes)
+            + " nên em nêu thêm khái niệm của chỉ số này để chị dễ phân biệt."
+        )
+    primary = present_codes[0] if present_codes else ordered[0]
+    primary_row = rows.get(primary)
+    output = (
+        f"{distinction} {sheet_sentence} "
+        "Trạng thái đối chiếu chỉ mô tả vị trí con số so với khoảng đang dùng; không tự kết luận có hay không có bệnh "
+        "và bác sĩ sẽ xem kết hợp các chỉ số cùng tuổi thai, triệu chứng cụ thể ạ."
+    )
+    result = {
+        "status": "explained",
+        "analyte": present_codes[0] if len(present_codes) == 1 else None,
+        "analytes": present_codes,
+        "verified_facts": _verified_facts(rows[code] for code in present_codes),
+        "output": prefix + " ".join(output.split()),
+        "sources": unique_sources,
+        "doctor_questions": _build_doctor_questions(primary, primary_row["status"] if primary_row else None, comparison),
+        "follow_up_questions": _build_follow_up_questions(primary, rows),
+        **metadata,
+    }
+    if primary_row is not None:
+        result["comparison"] = primary_row
+    return result
 
 
 def _verified_facts(rows):
@@ -518,7 +761,7 @@ def _explain_group(rows, comparison, *, prefix=""):
     }
 
 
-def _explain_analyte(analyte, row, comparison, *, prefix=""):
+def _explain_analyte(analyte, row, comparison, *, rows=None, prefix=""):
     metadata, reference_label, sources = _reference_details(comparison)
     explanation = ANALYTE_EXPLANATIONS.get(
         analyte, f"{ANALYTES[analyte].capitalize()} là một chỉ số trong công thức máu CBC."
@@ -566,5 +809,14 @@ def _explain_analyte(analyte, row, comparison, *, prefix=""):
         "Trạng thái này chỉ mô tả vị trí của con số so với khoảng đang dùng; không tự kết luận có hay không có bệnh. "
         "Bác sĩ sẽ xem thêm tuổi thai, triệu chứng và thông tin sức khỏe để đánh giá trong bối cảnh cụ thể ạ."
     )
-    return {"status": "explained", "analyte": analyte, "output": prefix + output,
-            "comparison": row, "sources": sources, **metadata}
+    all_rows = rows or {analyte: row}
+    return {
+        "status": "explained",
+        "analyte": analyte,
+        "output": prefix + output,
+        "comparison": row,
+        "sources": sources,
+        "doctor_questions": _build_doctor_questions(analyte, row["status"], comparison),
+        "follow_up_questions": _build_follow_up_questions(analyte, all_rows),
+        **metadata,
+    }

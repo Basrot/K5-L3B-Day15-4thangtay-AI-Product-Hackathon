@@ -51,6 +51,8 @@ export interface AnalysisResult {
   reference_source?: ReferenceSource;
   reference_note?: string;
   sources?: ReferenceSource[];
+  doctor_questions?: string[];
+  follow_up_questions?: string[];
   issues?: string[];
   row_errors?: Record<string, { reason: string; value: string; unit: string }>;
 }
@@ -105,6 +107,9 @@ export interface ChatResult {
   analyte?: string;
   analytes?: string[];
   verified_facts?: AnalysisRow[];
+  doctor_questions?: string[];
+  follow_up_questions?: string[];
+  degraded_routing?: boolean;
   reference_mode?: ReferenceMode;
   trimester?: number;
   reference_source?: ReferenceSource;

@@ -83,11 +83,14 @@ class CBCService:
             if "specimen_date" not in session_columns:
                 db.execute("ALTER TABLE sessions ADD COLUMN specimen_date TEXT")
             db.execute("CREATE INDEX IF NOT EXISTS idx_sessions_owner ON sessions(owner_id)")
+            db.execute("PRAGMA journal_mode = WAL")
 
     @contextmanager
     def _connection(self):
         db = sqlite3.connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
+        db.execute("PRAGMA busy_timeout = 5000")
+        db.execute("PRAGMA synchronous = NORMAL")
         db.execute("PRAGMA foreign_keys = ON")
         db.execute("PRAGMA secure_delete = ON")
         try:
