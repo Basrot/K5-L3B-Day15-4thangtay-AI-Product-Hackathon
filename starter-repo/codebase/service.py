@@ -3,6 +3,7 @@
 import json
 import sqlite3
 import os
+from datetime import datetime, timedelta, timezone
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
@@ -54,6 +55,27 @@ class CBCService:
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(session_id, revision, request_id)
                 );
+                CREATE TABLE IF NOT EXISTS report_shares (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                    patient_id TEXT NOT NULL,
+                    doctor_id TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    revoked_at TEXT,
+                    UNIQUE(session_id, doctor_id, created_at)
+                );
+                CREATE INDEX IF NOT EXISTS idx_report_shares_patient ON report_shares(patient_id, revoked_at);
+                CREATE INDEX IF NOT EXISTS idx_report_shares_doctor ON report_shares(doctor_id, revoked_at);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_report_shares_active_pair
+                    ON report_shares(session_id, doctor_id) WHERE revoked_at IS NULL;
+                CREATE TABLE IF NOT EXISTS report_share_audit (
+                    id INTEGER PRIMARY KEY,
+                    share_id TEXT NOT NULL,
+                    actor_id TEXT NOT NULL,
+                    action TEXT NOT NULL CHECK (action IN ('shared', 'viewed', 'revoked')),
+                    created_at TEXT NOT NULL
+                );
             """)
             session_columns = {row["name"] for row in db.execute("PRAGMA table_info(sessions)")}
             if "owner_id" not in session_columns:
@@ -73,6 +95,19 @@ class CBCService:
                 yield db
         finally:
             db.close()
+
+    @staticmethod
+    def _revoke_session_shares(db, session_id, now):
+        shares = db.execute(
+            "SELECT id, patient_id FROM report_shares WHERE session_id = ? AND revoked_at IS NULL",
+            (session_id,),
+        ).fetchall()
+        db.execute("UPDATE report_shares SET revoked_at = ? WHERE session_id = ? AND revoked_at IS NULL",
+                   (now, session_id))
+        db.executemany(
+            "INSERT INTO report_share_audit(share_id, actor_id, action, created_at) VALUES (?, ?, 'revoked', ?)",
+            [(share["id"], share["patient_id"], now) for share in shares],
+        )
 
     def assign_unowned_sessions(self, owner_id):
         with self._connection() as db:
@@ -181,6 +216,7 @@ class CBCService:
                 )
             if cursor.rowcount != 1:
                 raise KeyError("Không tìm thấy phiên CBC.")
+            self._revoke_session_shares(db, session_id, datetime.now(timezone.utc).isoformat(timespec="seconds"))
             if date_only_change:
                 db.execute(
                     "UPDATE messages SET revision = ? WHERE session_id = ? AND revision = ?",
@@ -253,6 +289,7 @@ class CBCService:
                 )
             if cursor.rowcount != 1:
                 raise ValueError("Phiếu đã thay đổi hoặc phiên đã bị xóa.")
+            self._revoke_session_shares(db, session_id, datetime.now(timezone.utc).isoformat(timespec="seconds"))
             db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
         return {"session_id": session_id, "revision": expected_revision + 1, "report": None}
 
@@ -325,3 +362,97 @@ class CBCService:
                 db.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
             else:
                 db.execute("DELETE FROM sessions WHERE id = ? AND owner_id = ?", (session_id, owner_id))
+
+    def share_report(self, session_id, patient_id, doctor_id):
+        now = datetime.now(timezone.utc)
+        share_id = uuid4().hex
+        created_at = now.isoformat(timespec="seconds")
+        expires_at = (now + timedelta(days=30)).isoformat(timespec="seconds")
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            report = db.execute("SELECT report FROM sessions WHERE id = ? AND owner_id = ?",
+                                (session_id, patient_id)).fetchone()
+            if report is None or report["report"] is None:
+                raise KeyError("Chỉ có thể chia sẻ phiếu đã xác nhận của chính bạn.")
+            db.execute("""
+                UPDATE report_shares SET revoked_at = ?
+                WHERE session_id = ? AND doctor_id = ? AND revoked_at IS NULL AND expires_at <= ?
+            """, (created_at, session_id, doctor_id, created_at))
+            active = db.execute("""
+                SELECT id FROM report_shares
+                WHERE session_id = ? AND doctor_id = ? AND revoked_at IS NULL
+            """, (session_id, doctor_id)).fetchone()
+            if active:
+                raise ValueError("Phiếu này đã được chia sẻ với bác sĩ. Thu hồi quyền hiện tại trước khi cấp lại.")
+            db.execute("""
+                INSERT INTO report_shares(id, session_id, patient_id, doctor_id, created_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (share_id, session_id, patient_id, doctor_id, created_at, expires_at))
+            db.execute("INSERT INTO report_share_audit(share_id, actor_id, action, created_at) VALUES (?, ?, 'shared', ?)",
+                       (share_id, patient_id, created_at))
+        return {"share_id": share_id, "session_id": session_id, "doctor_id": doctor_id,
+                "created_at": created_at, "expires_at": expires_at, "revoked_at": None}
+
+    def list_report_shares(self, patient_id):
+        with self._connection() as db:
+            rows = db.execute("""
+                SELECT rs.id AS share_id, rs.session_id, rs.created_at, rs.expires_at, rs.revoked_at,
+                       u.email AS doctor_email, d.full_name AS doctor_name, d.specialty,
+                       (SELECT MAX(a.created_at) FROM report_share_audit a
+                        WHERE a.share_id = rs.id AND a.action = 'viewed') AS last_viewed_at,
+                       (SELECT COUNT(*) FROM report_share_audit a
+                        WHERE a.share_id = rs.id AND a.action = 'viewed') AS access_count
+                FROM report_shares rs JOIN users u ON u.id = rs.doctor_id
+                JOIN doctor_profiles d ON d.user_id = rs.doctor_id
+                WHERE rs.patient_id = ? ORDER BY rs.created_at DESC
+            """, (patient_id,)).fetchall()
+        return [dict(row) for row in rows]
+
+    def revoke_report_share(self, share_id, patient_id):
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            cursor = db.execute("""
+                UPDATE report_shares SET revoked_at = ?
+                WHERE id = ? AND patient_id = ? AND revoked_at IS NULL
+            """, (now, share_id, patient_id))
+            if cursor.rowcount != 1:
+                raise KeyError("Không tìm thấy quyền chia sẻ còn hiệu lực.")
+            db.execute("INSERT INTO report_share_audit(share_id, actor_id, action, created_at) VALUES (?, ?, 'revoked', ?)",
+                       (share_id, patient_id, now))
+
+    def list_doctor_shared_reports(self, doctor_id):
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with self._connection() as db:
+            rows = db.execute("""
+                SELECT rs.id AS share_id, rs.session_id, rs.created_at AS shared_at, rs.expires_at,
+                       s.specimen_date, p.email AS patient_email, p.display_name AS patient_name,
+                       json_extract(s.report, '$.gestational_age') AS gestational_age,
+                       json_array_length(json_extract(s.report, '$.rows')) AS row_count
+                FROM report_shares rs JOIN sessions s ON s.id = rs.session_id
+                JOIN users p ON p.id = rs.patient_id
+                WHERE rs.doctor_id = ? AND rs.revoked_at IS NULL AND rs.expires_at > ? AND s.report IS NOT NULL
+                ORDER BY s.specimen_date DESC, rs.created_at DESC
+            """, (doctor_id, now)).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_doctor_shared_report(self, share_id, doctor_id):
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("""
+                SELECT rs.id AS share_id, rs.session_id, rs.expires_at, s.revision, s.specimen_date,
+                       s.report, p.display_name AS patient_name, p.email AS patient_email
+                FROM report_shares rs JOIN sessions s ON s.id = rs.session_id
+                JOIN users p ON p.id = rs.patient_id
+                WHERE rs.id = ? AND rs.doctor_id = ? AND rs.revoked_at IS NULL
+                  AND rs.expires_at > ? AND s.report IS NOT NULL
+            """, (share_id, doctor_id, now)).fetchone()
+            if row is None:
+                raise KeyError("Phiếu không tồn tại hoặc quyền xem đã hết hạn/được thu hồi.")
+            db.execute("INSERT INTO report_share_audit(share_id, actor_id, action, created_at) VALUES (?, ?, 'viewed', ?)",
+                       (share_id, doctor_id, now))
+        return {"share_id": row["share_id"], "session_id": row["session_id"],
+                "revision": row["revision"], "specimen_date": row["specimen_date"],
+                "expires_at": row["expires_at"], "patient": {"name": row["patient_name"], "email": row["patient_email"]},
+                "report": json.loads(row["report"])}

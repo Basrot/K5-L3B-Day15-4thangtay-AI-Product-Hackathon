@@ -22,6 +22,8 @@ import {
   X,
 } from "lucide-react";
 import { ApiError, createApiClient } from "@/lib/api";
+import { AdminDoctorQueue, DoctorApplication, DoctorPortal, ReportSharePanel } from "./portals";
+import { SymptomSafetyCheck } from "./symptom-safety";
 import { toWav16k } from "@/lib/audio";
 import type {
   AnalysisResult,
@@ -202,6 +204,10 @@ export default function HomePage() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [currentUser, setCurrentUser] = useState<{
+    id: string; email: string | null; display_name: string | null; role: string;
+    doctor_status: "pending" | "active" | "rejected" | null;
+  } | null>(null);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
@@ -282,6 +288,7 @@ export default function HomePage() {
     abortInFlight();
     clearAccountData();
     setToken("");
+    setCurrentUser(null);
   }, [clearAccountData]);
 
   const api = useMemo(() => {
@@ -388,8 +395,10 @@ export default function HomePage() {
     });
     const session = await client.createSession();
     const savedReports = await client.getReportHistory();
+    const profile = await client.getCurrentUser();
     if (requestEpoch !== authEpochRef.current) return;
     setToken(accessToken);
+    setCurrentUser(profile);
     setSessionId(session.session_id);
     setRevision(session.revision);
     setReportHistory(savedReports.reports || []);
@@ -817,6 +826,23 @@ export default function HomePage() {
     URL.revokeObjectURL(url);
   }
 
+  async function handleDownloadFhir() {
+    if (!analysis || !sessionId) return;
+    setBannerError("");
+    try {
+      const bundle = await api.getFhirBundle(sessionId);
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/fhir+json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `cbc-${draft.specimen_date || "phieu"}.fhir.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (reason) {
+      setBannerError(reason instanceof Error ? reason.message : "Chưa xuất được tệp FHIR.");
+    }
+  }
+
   function updateField<K extends keyof CBCReport>(key: K, value: CBCReport[K]) {
     if (key !== "specimen_date") invalidateIfConfirmed();
     setDoctorPrompt("");
@@ -1097,6 +1123,11 @@ export default function HomePage() {
     );
   }
 
+  if (currentUser?.doctor_status === "active" || currentUser?.doctor_status === "pending") {
+    return <DoctorPortal api={api} onLogout={handleLogout} status={currentUser.doctor_status}
+      onStatusChange={(status) => setCurrentUser((user) => user ? { ...user, doctor_status: status } : user)} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -1154,6 +1185,8 @@ export default function HomePage() {
       </header>
 
       <main className="flex-1 max-w-[1000px] w-full mx-auto px-4 sm:px-6 py-5 space-y-4">
+        {currentUser?.role === "admin" && <AdminDoctorQueue api={api} />}
+        <SymptomSafetyCheck />
         {bannerError && (
           <div className="p-3.5 rounded-xl bg-[#fff1f2] text-[#be123c] text-sm flex items-start justify-between gap-3">
             <div className="flex items-start gap-2">
@@ -1492,6 +1525,7 @@ export default function HomePage() {
                       <button type="button" onClick={() => setFormExpanded(true)} className="btn-outline h-8 px-3 text-xs" aria-controls="report-form">Sửa thông tin phiếu</button>
                       <button type="button" onClick={openVisitBrief} className="btn-primary h-8 px-3 text-xs">Chuẩn bị nội dung buổi khám</button>
                       <button type="button" onClick={handleDownloadTxt} className="btn-outline h-8 px-3 text-xs"><Download className="w-3.5 h-3.5" /> Tải kết quả</button>
+                      <button type="button" onClick={() => void handleDownloadFhir()} className="btn-outline h-8 px-3 text-xs" title="Xuất dữ liệu FHIR R4 cho phiếu đã xác nhận">Xuất FHIR</button>
                     </div>
                   </div>
 
@@ -2012,6 +2046,20 @@ export default function HomePage() {
             </section>
           )}
         </div>
+
+        <ReportSharePanel api={api} sessionId={sessionId} revision={revision} enabled={Boolean(analysis && sessionId)} />
+
+        {currentUser?.doctor_status === "rejected" && <DoctorApplication api={api} onSubmitted={async () => {
+          try { setCurrentUser(await api.getCurrentUser()); }
+          catch { setBannerError("Đã gửi hồ sơ, nhưng chưa tải được trạng thái mới."); }
+        }} />}
+        {currentUser?.doctor_status == null && <details className="soft-card p-4">
+          <summary className="cursor-pointer text-sm font-medium">Bạn là bác sĩ? Đăng ký cổng bác sĩ</summary>
+          <div className="mt-3"><DoctorApplication api={api} onSubmitted={async () => {
+            try { setCurrentUser(await api.getCurrentUser()); }
+            catch { setBannerError("Đã gửi hồ sơ, nhưng chưa tải được trạng thái mới."); }
+          }} /></div>
+        </details>}
 
         <section className="soft-card p-4 sm:p-5 space-y-3">
           <div>

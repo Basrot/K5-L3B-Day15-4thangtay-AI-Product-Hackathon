@@ -123,6 +123,53 @@ export function createApiClient(
         { method: "POST", body: JSON.stringify({ credential }) }
       ),
 
+    getCurrentUser: () => request<{
+      id: string; email: string | null; display_name: string | null;
+      role: string; doctor_status: "pending" | "active" | "rejected" | null;
+    }>("/v1/auth/me"),
+
+    applyAsDoctor: (profile: { full_name: string; license_number: string; specialty: string; workplace: string }) =>
+      request<{ user_id: string; full_name: string; specialty: string; workplace: string; status: string }>(
+        "/v1/doctor/apply", { method: "POST", body: JSON.stringify(profile) }
+      ),
+
+    getPendingDoctors: () => request<{ doctors: Array<{
+      user_id: string; full_name: string; license_number: string; specialty: string;
+      workplace: string; created_at: string; email: string;
+    }> }>("/v1/admin/doctors/pending"),
+
+    reviewDoctor: (doctorId: string, approved: boolean) =>
+      request<{ user_id: string; status: string }>(`/v1/admin/doctors/${encodeURIComponent(doctorId)}/review`, {
+        method: "PUT", body: JSON.stringify({ approved }),
+      }),
+
+    getDoctorReports: () => request<{ reports: Array<{
+      share_id: string; session_id: string; shared_at: string; expires_at: string;
+      specimen_date: string | null; patient_email: string; patient_name: string;
+      gestational_age: string | null; row_count: number | null;
+    }> }>("/v1/doctor/shared-reports"),
+
+    getDoctorReport: (shareId: string) => request<{
+      share_id: string; session_id: string; revision: number; specimen_date: string | null;
+      expires_at: string; patient: { name: string; email: string };
+      report: CBCReport & { analysis_snapshot?: AnalysisResult };
+    }>(`/v1/doctor/shared-reports/${encodeURIComponent(shareId)}`),
+
+    shareReport: (sessionId: string, doctorEmail: string) =>
+      request<{ share_id: string; session_id: string; expires_at: string }>(
+        `/v1/sessions/${encodeURIComponent(sessionId)}/shares`, {
+          method: "POST", body: JSON.stringify({ doctor_email: doctorEmail, consent: true }),
+        }
+      ),
+
+    getReportShares: (sessionId: string) => request<{ shares: Array<{
+      share_id: string; session_id: string; created_at: string; expires_at: string;
+      revoked_at: string | null; doctor_email: string; doctor_name: string; specialty: string;
+      last_viewed_at: string | null; access_count: number;
+    }> }>(`/v1/sessions/${encodeURIComponent(sessionId)}/shares`),
+
+    revokeReportShare: (shareId: string) => request<null>(`/v1/shares/${encodeURIComponent(shareId)}`, { method: "DELETE" }),
+
     getCatalog: () => request<CatalogItem[]>("/v1/catalog"),
 
     getReportHistory: (signal?: AbortSignal) =>
@@ -144,6 +191,10 @@ export function createApiClient(
       request<{ session_id: string; revision: number; report: CBCReport | null }>(
         `/v1/sessions/${encodeURIComponent(sessionId)}`
       ),
+
+    getFhirBundle: (sessionId: string) => request<Record<string, unknown>>(
+      `/v1/sessions/${encodeURIComponent(sessionId)}/fhir`
+    ),
 
     deleteSession: (sessionId: string) =>
       request<null>(`/v1/sessions/${encodeURIComponent(sessionId)}`, {

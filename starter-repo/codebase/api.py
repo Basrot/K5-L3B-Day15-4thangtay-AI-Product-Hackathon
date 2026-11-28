@@ -17,6 +17,7 @@ from .accounts import AccountError, AccountStore
 from .api_auth import ensure_auth_ready, issue_access_token, issue_token, require_access
 from .api_limits import BodyLimitMiddleware
 from .catalog import ANALYTES, DEFAULT_UNITS, GROUPS
+from .fhir import build_cbc_bundle
 from .service import CBCService
 from .tools import compare_cbc
 from .references import study_references, SUPPORTED_ANALYTES
@@ -63,6 +64,22 @@ class Registration(Payload):
 
 class GoogleLogin(Payload):
     credential: Annotated[StrictStr, Field(min_length=20, max_length=10000)]
+
+
+class DoctorApplication(Payload):
+    full_name: Annotated[StrictStr, Field(min_length=1, max_length=200)]
+    license_number: Annotated[StrictStr, Field(min_length=1, max_length=100)]
+    specialty: Annotated[StrictStr, Field(min_length=1, max_length=150)]
+    workplace: Annotated[StrictStr, Field(max_length=200)] = ""
+
+
+class DoctorReview(Payload):
+    approved: StrictBool
+
+
+class ShareReport(Payload):
+    doctor_email: Annotated[StrictStr, Field(min_length=3, max_length=254)]
+    consent: StrictBool
 
 
 class RevisionBody(Payload):
@@ -204,12 +221,96 @@ def create_app(db_path=None) -> FastAPI:
         user = accounts.get_by_google_sub(identity["sub"])
         if user is None:
             try:
-                user = accounts.create_google_user(identity["email"], identity.get("name", ""), identity["sub"])
+                user = accounts.link_google_account(identity["email"], identity["sub"])
+                if user is None:
+                    user = accounts.create_google_user(identity["email"], identity.get("name", ""), identity["sub"])
             except AccountError as exception:
                 raise HTTPException(exception.status_code, str(exception)) from None
         return issue_access_token(user)
 
     router = APIRouter(prefix="/v1", dependencies=[Depends(require_access)])
+
+    def require_doctor(user: dict):
+        profile = application.state.accounts.get_doctor_profile(user["id"])
+        if profile is None or profile["status"] != "active":
+            raise HTTPException(403, "Tài khoản bác sĩ chưa được quản trị viên xác minh.")
+        return profile
+
+    def require_admin(user: dict):
+        if user.get("role") != "admin":
+            raise HTTPException(403, "Chức năng này chỉ dành cho quản trị viên.")
+        return user
+
+    @router.get("/auth/me")
+    def current_user(user: dict = Depends(require_access)):
+        profile = application.state.accounts.get_doctor_profile(user["id"])
+        return {"id": user["id"], "email": user.get("email"), "display_name": user.get("display_name"),
+                "role": user.get("role"), "doctor_status": profile["status"] if profile else None}
+
+    @router.post("/doctor/apply", status_code=201)
+    def apply_as_doctor(body: DoctorApplication, user: dict = Depends(require_access)):
+        try:
+            profile = application.state.accounts.submit_doctor_request(
+                user["id"], body.full_name, body.license_number, body.specialty, body.workplace)
+        except AccountError as exception:
+            raise HTTPException(exception.status_code, str(exception)) from None
+        return {key: profile[key] for key in ("user_id", "full_name", "specialty", "workplace", "status", "reviewed_at")}
+
+    @router.get("/admin/doctors/pending")
+    def pending_doctors(user: dict = Depends(require_access)):
+        require_admin(user)
+        return {"doctors": application.state.accounts.list_pending_doctors()}
+
+    @router.put("/admin/doctors/{doctor_id}/review")
+    def review_doctor(doctor_id: str, body: DoctorReview, user: dict = Depends(require_access)):
+        require_admin(user)
+        try:
+            profile = application.state.accounts.review_doctor(doctor_id, user["id"], body.approved)
+        except AccountError as exception:
+            raise HTTPException(exception.status_code, str(exception)) from None
+        return {key: profile[key] for key in ("user_id", "full_name", "specialty", "workplace", "status", "reviewed_at")}
+
+    @router.get("/doctor/shared-reports")
+    def doctor_shared_reports(user: dict = Depends(require_access)):
+        require_doctor(user)
+        return {"reports": application.state.service.list_doctor_shared_reports(user["id"])}
+
+    @router.get("/doctor/shared-reports/{share_id}")
+    def doctor_shared_report(share_id: str, user: dict = Depends(require_access)):
+        require_doctor(user)
+        try:
+            return application.state.service.get_doctor_shared_report(share_id, user["id"])
+        except KeyError:
+            raise HTTPException(404, "Phiếu không tồn tại hoặc quyền xem đã hết hạn/được thu hồi.") from None
+
+    @router.post("/sessions/{session_id}/shares", status_code=201)
+    def share_report(session_id: str, body: ShareReport, user: dict = Depends(require_access)):
+        if body.consent is not True:
+            raise HTTPException(422, "Cần xác nhận đồng ý chia sẻ phiếu này với bác sĩ.")
+        doctor = application.state.accounts.get_verified_doctor_by_email(body.doctor_email)
+        if doctor is None:
+            raise HTTPException(404, "Không tìm thấy tài khoản bác sĩ đã được xác minh với email này.")
+        try:
+            return application.state.service.share_report(session_id, user["id"], doctor["id"])
+        except KeyError:
+            raise HTTPException(404, "Chỉ có thể chia sẻ phiếu đã xác nhận của chính bạn.") from None
+
+    @router.get("/sessions/{session_id}/shares")
+    def report_shares(session_id: str, user: dict = Depends(require_access)):
+        try:
+            application.state.service.get_session(session_id, user["id"])
+        except KeyError:
+            raise HTTPException(404, "Không tìm thấy phiếu CBC của bạn.") from None
+        return {"shares": [item for item in application.state.service.list_report_shares(user["id"])
+                           if item["session_id"] == session_id]}
+
+    @router.delete("/shares/{share_id}", status_code=204)
+    def revoke_report_share(share_id: str, user: dict = Depends(require_access)):
+        try:
+            application.state.service.revoke_report_share(share_id, user["id"])
+        except KeyError:
+            raise HTTPException(404, "Không tìm thấy quyền chia sẻ còn hiệu lực của bạn.") from None
+        return Response(status_code=204)
 
     @router.get("/catalog")
     def catalog():
@@ -268,6 +369,20 @@ def create_app(db_path=None) -> FastAPI:
     @router.get("/sessions/{session_id}")
     def get_session(session_id: str, user: dict = Depends(require_access)):
         return application.state.service.get_session(session_id, user["id"])
+
+    @router.get("/sessions/{session_id}/fhir")
+    def export_fhir(session_id: str, user: dict = Depends(require_access)):
+        try:
+            state = application.state.service.get_session(session_id, user["id"])
+        except KeyError:
+            raise HTTPException(404, "Không tìm thấy phiếu CBC của bạn.") from None
+        if state["report"] is None:
+            raise HTTPException(422, "Xác nhận phiếu trước khi xuất dữ liệu FHIR.")
+        try:
+            bundle = build_cbc_bundle(state["report"], session_id=session_id)
+        except ValueError as exception:
+            raise HTTPException(422, str(exception)) from None
+        return JSONResponse(content=bundle, media_type="application/fhir+json")
 
     @router.delete("/sessions/{session_id}", status_code=204)
     def delete_session(session_id: str, user: dict = Depends(require_access)):
