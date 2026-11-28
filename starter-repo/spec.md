@@ -55,26 +55,27 @@ Data BTC cấp đã dùng (nếu có — không commit nguyên file): Không dù
   3. Không tự động diễn giải kết quả đọc từ ảnh phiếu hoặc câu hỏi chuyển từ giọng nói khi người dùng chưa kiểm tra và bấm xác nhận.
   4. Không tự suy đoán đơn vị đo bị thiếu hoặc tự bịa khoảng tham chiếu phòng lab khi phiếu chưa cung cấp.
 
-**Phạm vi** tập trung giải thích 8 chỉ số CBC trọng tâm (`HGB, RBC, HCT, MCV, MCH, MCHC, WBC, PLT` — trên nền danh mục `codebase/catalog.py` nhận diện tới 24 mã xét nghiệm). Nhập tay hoặc đọc ảnh JPG/PNG tạo bản nháp để người dùng kiểm tra và xác nhận, sau đó hệ thống đối chiếu với khoảng ghi trên phiếu (`lab`) hoặc khoảng nghiên cứu theo tam cá nguyệt (`study` — *Pham et al., 2023* khi chỉ nhập kết quả và tuổi thai). Các yêu cầu chẩn đoán, điều trị, kê thuốc hoặc tình huống khẩn được chuyển về nhân viên y tế.
+**Phạm vi** tập trung giải thích 8 chỉ số CBC trọng tâm (`HGB, RBC, HCT, MCV, MCH, MCHC, WBC, PLT` — trên nền danh mục `codebase/catalog.py` nhận diện tới 24 mã xét nghiệm). Nhập tay hoặc tải ảnh JPG/PNG / tệp PDF tối đa 3 trang (`extract_document`) tạo bản nháp để người dùng kiểm tra và xác nhận, sau đó hệ thống đối chiếu tất định với khoảng ghi trên phiếu (`lab`) hoặc khoảng nghiên cứu theo tam cá nguyệt (`study` — *Pham et al., 2023* khi chỉ nhập kết quả và tuổi thai). Các yêu cầu chẩn đoán, điều trị, kê thuốc hoặc tình huống khẩn được chuyển về nhân viên y tế.
 
 ```mermaid
 flowchart LR
-    A["Nhập tay hoặc tải ảnh giả lập"] --> B["Phiếu nháp để kiểm và xác nhận"]
+    A["Nhập tay hoặc tải ảnh/PDF phiếu"] --> B["Phiếu nháp để kiểm và xác nhận"]
     C["Nói tiếng Việt"] --> D["Zipformer chuyển thành chữ"]
     D --> E["Sửa bản chép hoặc gõ câu hỏi"]
-    E --> F["Kiểm đầu vào và đối chiếu CBC"]
+    E --> F["Kiểm đầu vào, đơn vị & đối chiếu CBC"]
     B --> F
-    F -->|Thiếu hoặc sai dữ liệu| G["Hỏi bổ sung"]
-    F -->|Đã đối chiếu| H["LLM chọn dòng và dạng câu hỏi gợi ý"]
-    H --> I["Kiểm quyết định và diễn giải từ phiếu"]
-    E -->|Yêu cầu khẩn rõ ràng| J["Hướng người dùng liên hệ y tế"]
+    F -->|Thiếu/sai dữ liệu hoặc nghi nhầm đơn vị| G["Hỏi bổ sung / kiểm lại"]
+    F -->|Đã đối chiếu report_facts| H["LLM diễn giải theo ngữ cảnh & lịch sử phiên"]
+    H --> I["Hậu kiểm cấm số tự sinh/chẩn đoán + gắn thẻ verified_facts"]
+    E -->|Cờ đỏ sản khoa / yêu cầu thuốc| J["Hướng dẫn cấp cứu 115 hoặc hỏi bác sĩ"]
 ```
 
-**Hình dạng.** Workflow cố định. Lý do chọn và vì sao **không** chọn kiến trúc phức tạp hơn: quy trình kiểm tra ngữ cảnh thai kỳ, chặn tình huống khẩn (`urgent`), quy đổi đơn vị bằng `Decimal` và đối chiếu ngưỡng là các bước tất định 100%, nên chỉ cần một lời gọi LLM có schema để chọn nhánh/chỉ số (`explain`, `summarize`, `clarify_question`, `medical_advice`, `urgent`). Nếu dùng 1 agent tự chủ (tool-calling loop) hoặc nhiều agent sẽ làm tăng độ trễ, tốn thêm token và tạo rủi ro model tự quyết định bỏ qua bước kiểm tra đơn vị/ngưỡng trước khi trả lời.
+**Hình dạng.** Workflow cố định. Lý do chọn và vì sao **không** chọn kiến trúc phức tạp hơn: quy trình kiểm tra ngữ cảnh thai kỳ, chặn cờ đỏ khẩn cấp (`urgent`) và yêu cầu thuốc/chẩn đoán (`medical_advice`), quy đổi đơn vị (`g/L ↔ g/dL`, `L/L ↔ %`, `G/L`, `T/L`) bằng `Decimal` và đối chiếu ngưỡng là các bước tất định 100%, nên chỉ gọi LLM trong khuôn khổ dữ kiện `report_facts` đã xác nhận kèm hậu kiểm nghiêm ngặt (`_unsafe_answer_reason` cấm chữ số tự sinh và khẳng định bệnh lý, tối đa 1 vòng sửa có kiểm tra hoặc fallback tất định). Nếu dùng agent tự chủ (tool-calling loop) hoặc nhiều agent sẽ làm tăng độ trễ, tốn thêm token và tạo rủi ro model bỏ qua bước kiểm tra đơn vị/ngưỡng trước khi trả lời.
 
 | Công cụ | Input | Output | Tác động ra ngoài |
 |---|---|---|---|
 | `compare_cbc` | Phiếu CBC đã xác nhận | Trạng thái từng dòng (`within`/`below`/`above`) kèm nguồn khoảng tham chiếu, hoặc trường cần sửa | Chỉ đọc |
+| `extract_document` | Ảnh JPG/PNG hoặc PDF ≤ 3 trang | Bản nháp `rows` + `warnings` để người dùng kiểm tra trước khi xác nhận | Gọi API thị giác, không lưu tệp gốc |
 | `transcribe_wav` | WAV PCM mono 16-bit | Câu hỏi dạng văn bản có thể sửa | Xử lý cục bộ |
 
 **Mức tự động & chỗ người duyệt.** **AI gợi ý, người dùng quyết định.** Chỗ người duyệt: (1) thai phụ tự kiểm tra, chỉnh sửa và bấm xác nhận dữ liệu phiếu nháp / bản chép giọng nói trước khi hệ thống đối chiếu; (2) mọi quyết định lâm sàng, chẩn đoán và bổ sung thuốc thuộc về bác sĩ sản khoa.
@@ -154,3 +155,4 @@ flowchart LR
 | Thời điểm | Đổi gì | Vì sao |
 |---|---|---|
 | 28/11/2026 15:43 | Hợp nhất nâng cấp hội thoại theo ngữ cảnh + đọc PDF phiếu (`origin/main`) và bổ sung gói tăng cường chatbot/backend (`codebase/agent.py`, `codebase/service.py`, `codebase/api.py`, `frontend/src/lib/types.ts`, `tests/test_chatbot_upgrades.py`): (1) mở rộng cổng chặn cờ đỏ sản khoa (`EXPLICIT_URGENCY`) và guardrail liều lượng/biệt dược sắt + phân thể Thalassemia (`DIRECT_DIAGNOSIS_OR_TREATMENT`); (2) mở khóa và giải thích chính xác câu hỏi so sánh cặp chỉ số (`B06`: `MCHC` vs `MCH`) ngay cả khi 1 mã không nằm trên phiếu; (3) bổ sung `doctor_questions`, `follow_up_questions` theo tuần thai và fallback định tuyến tất định (`degraded_routing`) chống lỗi tạm thời `502` trên phiên xác nhận; (4) tách `onnx_lock` khỏi `model_lock`, gỡ khoá cho API thuần Python (`validate`, `confirm`, `analysis`), thêm `/health/ready` và bật SQLite `WAL` | Khắc phục ca `B06` (`eval/report.md`), chặn sớm triệu chứng sản khoa khẩn cấp & câu hỏi tăng liều sắt kiểu `TD08`/`ML14`, và xoá nghẽn `HTTP 429` giữa nhận dạng giọng nói, tổng hợp âm thanh và xác nhận phiếu; giữ nguyên 100% `eval/benchmark.csv`, `run-1.csv`, `run-2.csv` và chuẩn "đạt" §7 |
+| 28/11/2026 16:05 | Triển khai gói nâng cấp toàn diện `P0–P2` sau phiên phản biện đa chân dung: (1) đồng bộ `spec.md` §4, bổ sung phân tích độ nhạy chi phí hội thoại mới trong `cost/cost-estimate.md`, hoàn thiện đủ 4/4 bài `reflection/` và đặt bản sao `TEAMS.md`, `demo-slides.pdf` ở gốc repo; (2) mở rộng nhận diện đơn vị `G/L`, `T/L`, tuổi thai gõ tự nhiên tiếng Việt (`"21 tuần 3 ngày"`, `"24 tuần"`), chặn bẫy nhập nhầm đơn vị 10x–100x (`HGB > 30 g/dL`, `MCHC > 60 g/dL`, `HCT > 1 L/L`, dấu phẩy hàng nghìn `PLT 250,000`) và chuẩn hoá đọc `TCN`/tuổi thai/URL trong `tts.py`; (3) nâng cấp giao diện `frontend/src/app/page.tsx`: thêm nút vào nhanh chế độ Khách 1 chạm, `<datalist>` gợi ý đơn vị chuẩn, thẻ cảnh báo đỏ khẩn cấp kèm nút gọi `115`, chip tương tác 1 chạm cho `doctor_questions` & `follow_up_questions` và đồng bộ số liệu kiểm chứng `19/24 → 22/24 (92%)` | Giải quyết triệt để rào cản nhập liệu thực tế trên phiếu xét nghiệm bệnh viện Việt Nam (`TD02`, `TD79`), tăng an toàn thị giác cho ca cấp cứu và bảo đảm nhất quán 100% giữa tài liệu, giao diện và mã nguồn trước hạn chót `23:59` |

@@ -21,9 +21,15 @@ MAX_AUDIO_BYTES = 20 * 1024 * 1024
 
 def speech_text(text: str) -> str:
     """Đổi ký hiệu CBC sang cách đọc tiếng Việt trước khi tổng hợp."""
+    text = re.sub(r"https?://\S+", "", text)
+    text = re.sub(r"\bTCN\s*([123])\b", r"tam cá nguyệt \1", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b([0-9]{1,2})w0d\b", r"\1 tuần", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b([0-9]{1,2})w([1-6])d\b", r"\1 tuần \2 ngày", text, flags=re.IGNORECASE)
     for code in sorted(ANALYTES, key=len, reverse=True):
         name = ANALYTES[code]
         text = re.sub(r"\b" + code + r"\b", name, text)
+    text = re.sub(r"\bG/[Ll]\b", "nhân mười mũ chín trên lít", text)
+    text = re.sub(r"\bT/[Ll]\b", "nhân mười mũ mười hai trên lít", text)
     text = text.replace("mg/dL", "mi li gam trên đề xi lít")
     text = text.replace("g/dL", "gam trên đề xi lít").replace("g/L", "gam trên lít")
     for unit in ("10⁹/L", "10^9/L"):

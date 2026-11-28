@@ -257,12 +257,28 @@ def compare_cbc(report: dict) -> dict:
             issues.append(result_unit_issue(analyte, raw.get("unit")) if result_unit is None else
                           f"{analyte}: kiểm tra đơn vị khoảng tham chiếu trên phiếu gốc.")
             continue
+        raw_value = raw.get("value")
+        if analyte == "PLT" and isinstance(raw_value, str) and re.fullmatch(r"\s*[1-9][0-9]{1,2},000\s*", raw_value):
+            issues.append(
+                "PLT: dấu phẩy trong giá trị dạng 250,000 có thể là dấu phân cách hàng nghìn; "
+                "chị kiểm tra lại con số và đơn vị G/L hoặc 10^9/L trên phiếu gốc."
+            )
+            continue
         try:
-            value = _decimal(raw.get("value"))
+            value = _decimal(raw_value)
             low, high = (_decimal(reference.get(key)) for key in ("ref_low", "ref_high"))
         except ValueError:
             issues.append(f"{analyte}: kiểm tra giá trị kết quả." if study else
                           f"{analyte}: kiểm tra giá trị và hai giới hạn của khoảng tham chiếu.")
+            continue
+        if analyte == "HGB" and result_unit[0] == "g/dL" and value > Decimal("30"):
+            issues.append("HGB: giá trị vượt mức có thể theo g/dL; chị kiểm tra trên phiếu gốc đơn vị là g/L hay g/dL.")
+            continue
+        if analyte == "MCHC" and result_unit[0] == "g/dL" and value > Decimal("60"):
+            issues.append("MCHC: giá trị vượt mức có thể theo g/dL; chị kiểm tra trên phiếu gốc đơn vị là g/L hay g/dL.")
+            continue
+        if analyte == "HCT" and result_unit[0] == "L/L" and value > Decimal("1"):
+            issues.append("HCT: theo đơn vị L/L (tỷ lệ thể tích) giá trị không vượt quá 1; chị kiểm tra trên phiếu gốc đơn vị là % hay L/L.")
             continue
         if low >= high:
             issues.append(f"{analyte}: giới hạn dưới phải nhỏ hơn giới hạn trên.")
