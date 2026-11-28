@@ -30,6 +30,34 @@ def ask(text, report_data=None, history=None):
 
 
 class ConversationalStatusQuestionTest(unittest.TestCase):
+    def test_in_range_hgb_must_not_be_used_to_exclude_anemia(self):
+        text = "Điều này cho thấy mức huyết sắc tố hiện tại không bị thiếu máu theo tiêu chuẩn xét nghiệm."
+        with patch.object(agent, "call_model", return_value={"text": json.dumps({
+            "answer": text, "analytes": ["HGB"], "needs_clarification": False,
+        })}):
+            result = ask("Nằm trong khoảng có thật sự an toàn không?")
+        self.assertEqual(result["status"], "clarify_question")
+        self.assertNotIn("không bị thiếu máu", result["output"])
+
+    def test_study_interval_cannot_be_presented_as_the_users_lab_interval(self):
+        data = {**report(hgb="10.4"), "reference_mode": "study"}
+        text = "HGB của chị nằm trong khoảng tham chiếu của phòng xét nghiệm cho thai kỳ."
+        with patch.object(agent, "call_model", return_value={"text": json.dumps({
+            "answer": text, "analytes": ["HGB"], "needs_clarification": False,
+        })}):
+            result = ask("HGB trong khoảng có an toàn không?", data)
+        self.assertEqual(result["status"], "clarify_question")
+
+    def test_study_provenance_and_limit_are_explicit_in_model_context(self):
+        def respond(_system, user, **kwargs):
+            context = json.loads(user)
+            self.assertIn("nghiên cứu", context["reference_context"]["label"])
+            self.assertFalse(context["reference_context"]["is_diagnostic_threshold"])
+            return {"text": json.dumps({"answer": "Chưa thể kết luận an toàn chỉ từ nhãn trong khoảng. Đây là khoảng nghiên cứu để đối chiếu, chưa phải kết luận có hay không có bệnh.",
+                                       "analytes": ["HGB"], "needs_clarification": False})}
+        with patch.object(agent, "call_model", side_effect=respond):
+            self.assertEqual(ask("HGB trong khoảng có an toàn không?", {**report(hgb="10.4"), "reference_mode": "study"})["status"], "explained")
+
     def test_reference_concept_answer_with_negated_diagnosis_passes(self):
         text = "Trong khoảng tham chiếu nghĩa là kết quả nằm giữa giới hạn dưới và trên đang dùng để đối chiếu. Đây không phải là chẩn đoán và không khẳng định chị hoàn toàn khỏe mạnh."
         with patch.object(agent, "call_model", return_value={"text": json.dumps({
