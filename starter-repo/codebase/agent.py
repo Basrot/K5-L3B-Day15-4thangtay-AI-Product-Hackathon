@@ -75,6 +75,7 @@ DIRECT_DIAGNOSIS_OR_TREATMENT = re.compile(
     r"tôi có bị|em có bị|mình có bị|tôi có thiếu máu|em có thiếu máu|"
     r"mình có thiếu máu|có bị thiếu máu không|bị thiếu máu không|"
     r"có nguy hiểm không|có đáng lo không|đáng ngại không|kết quả này có sao không|"
+    r"nghĩa là thiếu máu|là thiếu máu phải không|đây là thiếu máu|"
     r"tôi mắc bệnh gì|em mắc bệnh gì|tôi có bệnh gì|em có bệnh gì|"
     r"uống thuốc gì|uống thuốc|uống sắt|thuốc sắt|bổ sung sắt|bổ sung thuốc|"
     r"có nên dùng|nên uống|nên dùng thuốc|liều dùng|liều thuốc|kê đơn|"
@@ -84,6 +85,8 @@ DIRECT_DIAGNOSIS_OR_TREATMENT = re.compile(
 UNSAFE_GENERATED_ANSWER = re.compile(
     r"\b(chẩn đoán|kê đơn|liều thuốc|liều dùng|uống thuốc|uống sắt|thuốc sắt|"
     r"nên uống|hãy uống|nên dùng thuốc|bổ sung sắt|ngừng thuốc|điều trị bằng thuốc|"
+    r"(?:đây|đó|kết quả này).{0,30}(?:là|cho thấy|có thể là).{0,20}(?:thiếu máu|mắc bệnh)|"
+    r"(?:có phải|đúng là).{0,25}(?:thiếu máu|mắc bệnh)|"
     r"anh/chị.{0,35}(?:bị|mắc bệnh)|bạn.{0,35}(?:bị|mắc bệnh)|"
     r"chị.{0,35}(?:bị|mắc bệnh)|anh.{0,35}(?:bị|mắc bệnh)|"
     r"em.{0,35}(?:bị|mắc bệnh)|đang mắc bệnh|chắc chắn mắc|"
@@ -205,6 +208,14 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
                     "question": question_text[:500],
                     "answer": output_text[:500],
                 })
+    current_codes = _explicit_analytes(question, rows)
+    latest_history_codes = []
+    if bounded_history:
+        latest_turn = bounded_history[-1]
+        latest_history_codes = _explicit_analytes(
+            latest_turn["question"] + " " + latest_turn["answer"], rows
+        )
+    fallback_codes = current_codes or latest_history_codes
     reference_metadata, _reference_label, _known_sources = _reference_details(comparison)
     context = {
         "report_facts": [{
@@ -270,21 +281,21 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
             or any(not isinstance(code, str) or code not in rows for code in generated["analytes"])
             or len(set(generated["analytes"])) != len(generated["analytes"])):
         note("fallback: cấu trúc câu trả lời AI không hợp lệ")
-        return {"status": "clarify_question",
-                "output": "Em chưa tạo được lời giải thích phù hợp từ phiếu này. Anh/chị thử hỏi cụ thể hơn về một chỉ số hoặc hỏi bác sĩ theo dõi thai kỳ ạ."}
+        return _chat_fallback(
+            "Em chưa tạo được lời giải thích phù hợp từ phiếu này. Anh/chị thử hỏi cụ thể hơn về một chỉ số hoặc hỏi bác sĩ theo dõi thai kỳ ạ.",
+            rows, comparison, fallback_codes,
+        )
 
     answer_text = generated["answer"].strip()
     answer_numbers = re.findall(r"\d+(?:[.,]\d+)?", answer_text)
     if answer_numbers or UNSAFE_GENERATED_ANSWER.search(answer_text):
         note("fallback: câu trả lời có số liệu chưa xác nhận hoặc nội dung vượt giới hạn an toàn")
-        return {"status": "clarify_question",
-                "output": "Em chưa thể xác nhận lời giải thích này an toàn và đúng dữ kiện. Anh/chị có thể hỏi về một chỉ số cụ thể hoặc trao đổi với bác sĩ theo dõi thai kỳ ạ."}
+        return _chat_fallback(
+            "Em chưa thể xác nhận lời giải thích này an toàn và đúng dữ kiện. Anh/chị có thể hỏi về một chỉ số cụ thể hoặc trao đổi với bác sĩ theo dõi thai kỳ ạ.",
+            rows, comparison, current_codes or generated["analytes"] or latest_history_codes,
+        )
 
-    explicit_codes = _explicit_analytes(question, rows)
-    history_codes = _explicit_analytes(
-        " ".join(turn["question"] + " " + turn["answer"] for turn in bounded_history), rows
-    )
-    selected_codes = explicit_codes or history_codes
+    selected_codes = current_codes or generated["analytes"] or latest_history_codes
     is_summary = bool(re.search(r"tóm tắt|tổng hợp|cả phiếu|toàn bộ", question, re.IGNORECASE))
     if is_summary:
         selected_codes = list(rows)
@@ -310,6 +321,24 @@ def _verified_facts(rows):
     return [{key: row.get(key) for key in
              ("analyte", "value", "unit", "ref_low", "ref_high", "status")}
             for row in rows]
+
+
+def _chat_fallback(message, rows, comparison, codes):
+    """Keep matching, server-derived fact cards visible if answer generation fails."""
+    selected_codes = list(dict.fromkeys(code for code in codes if code in rows))
+    metadata, _reference_label, sources = _reference_details(comparison)
+    if set(selected_codes) & {"HGB", "MCV", "MCH", "MCHC"}:
+        sources.append(dict(RBC_INDEX_SOURCE))
+    unique_sources = {source["url"]: source for source in sources if source.get("url")}
+    return {
+        "status": "clarify_question",
+        "output": message,
+        "analyte": selected_codes[0] if len(selected_codes) == 1 else None,
+        "analytes": selected_codes,
+        "verified_facts": _verified_facts(rows[code] for code in selected_codes),
+        "sources": list(unique_sources.values()),
+        **metadata,
+    }
 
 
 def _explain_group(rows, comparison, *, prefix=""):
