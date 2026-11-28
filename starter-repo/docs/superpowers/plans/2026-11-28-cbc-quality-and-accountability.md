@@ -77,4 +77,4 @@
 - [x] Run `node --test eval/quality-report.test.mjs` and the quality report on the historical run.
 - [x] Run `git diff --check`; inspect the final diff and ensure no benchmark/history/secrets changed.
 - [x] Record unavailable frontend build/runtime verification: `frontend/node_modules` is absent and no global `tsc` is available, so do not claim the web build passed. Python is also not installed in this environment, so no backend suite was run.
-- [ ] Commit and push to the user's fork `main` only after the user-visible scope and static review are complete; do not deploy Railway/Vercel here.
+- [x] Commit and push to the user's fork `main` after the user-visible scope and static review; Railway/Vercel were not deployed.
