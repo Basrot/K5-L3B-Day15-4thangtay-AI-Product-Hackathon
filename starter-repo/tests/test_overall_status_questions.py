@@ -44,9 +44,9 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
 
     def test_disclaimer_does_not_hide_a_following_diagnosis_or_drug_advice(self):
         for text in (
-            "Em không thể chẩn đoán. Anh/chị bị thiếu máu.",
-            "Điều này không thay thế chẩn đoán của bác sĩ. Anh/chị nên uống thuốc sắt.",
-            "Anh/chị bị thiếu máu.",
+            "Em không thể chẩn đoán. Chị bị thiếu máu.",
+            "Điều này không thay thế chẩn đoán của bác sĩ. Chị nên uống thuốc sắt.",
+            "Chị bị thiếu máu.",
             "Kết quả HGB là 99.",
         ):
             with self.subTest(text=text), patch.object(agent, "call_model", return_value={
@@ -95,7 +95,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             context = json.loads(user)
             self.assertEqual(context["question"], "ổn k")
             return {"text": json.dumps({
-                "answer": "Em đã xem các dòng trên phiếu: hiện chúng nằm trong khoảng đang đối chiếu. Đây chỉ là so sánh với khoảng tham chiếu, không thể khẳng định sức khỏe hoàn toàn bình thường; nếu anh/chị đang có triệu chứng thì nên trao đổi với bác sĩ.",
+                "answer": "Em đã xem các dòng trên phiếu: hiện chúng nằm trong khoảng đang đối chiếu. Đây chỉ là so sánh với khoảng tham chiếu, không thể khẳng định sức khỏe hoàn toàn bình thường; nếu chị đang có triệu chứng thì nên trao đổi với bác sĩ.",
                 "analytes": ["HGB", "WBC"], "needs_clarification": False,
             }, ensure_ascii=False)}
 

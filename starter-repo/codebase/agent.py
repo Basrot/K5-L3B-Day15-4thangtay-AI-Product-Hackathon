@@ -12,7 +12,7 @@ else:
     from tools import ANALYTES, compare_cbc, confirmed_comparison
     from tracing import note
 
-SYSTEM = """Trợ lý CBC thai kỳ cho người trưởng thành. Xưng em, gọi anh/chị, trả lời tiếng Việt tự nhiên.
+SYSTEM = """Trợ lý CBC thai kỳ cho người trưởng thành. Xưng em, gọi chị, trả lời tiếng Việt tự nhiên.
 Chỉ JSON: {"answer":"...","analytes":["HGB"],"needs_clarification":false}.
 Trả lời thẳng, ngắn khoảng 50–70 từ. Dùng recent_conversation để hiểu câu nối như “nó”, “vậy thấp do đâu”; đừng lặp định nghĩa đã giải thích. “Ổn k” là hỏi cả phiếu nếu không có chỉ số cụ thể. Chỉ hỏi lại một điều khi cả phiếu và lịch sử chưa đủ rõ.
 report_facts là dữ kiện máy chủ đã đối chiếu: không sửa, tính lại, suy đoán hay thêm số liệu, đơn vị, khoảng, tuổi thai hoặc trạng thái. UI hiển thị số riêng; answer không chứa con số. analytes chỉ gồm mã liên quan có trong report_facts, kể cả khi tóm tắt.
@@ -57,11 +57,11 @@ RBC_INDEX_SOURCE = {
     "title": "MedlinePlus — Red blood cell indices",
     "url": "https://medlineplus.gov/lab-tests/red-blood-cell-rbc-indices/",
 }
-CLARIFY = "Anh/chị muốn hỏi về chỉ số nào trên phiếu đã xác nhận ạ? Anh/chị cũng có thể nhờ em tóm tắt cả phiếu."
+CLARIFY = "Chị muốn hỏi về chỉ số nào trên phiếu đã xác nhận ạ? Chị cũng có thể nhờ em tóm tắt cả phiếu."
 ROUTES = {
     "clarify_question": CLARIFY,
-    "medical_advice": "Em chưa thể chẩn đoán hoặc hướng dẫn điều trị từ phiếu CBC. Anh/chị hãy trao đổi câu hỏi sức khỏe này với bác sĩ theo dõi thai kỳ ạ.",
-    "urgent": "Nếu anh/chị đang gặp tình huống khẩn cấp, hãy liên hệ ngay với cơ sở y tế hoặc dịch vụ cấp cứu tại nơi anh/chị đang ở ạ.",
+    "medical_advice": "Em chưa thể chẩn đoán hoặc hướng dẫn điều trị từ phiếu CBC. Chị hãy trao đổi câu hỏi sức khỏe này với bác sĩ theo dõi thai kỳ ạ.",
+    "urgent": "Nếu chị đang gặp tình huống khẩn cấp, hãy liên hệ ngay với cơ sở y tế hoặc dịch vụ cấp cứu tại nơi chị đang ở ạ.",
 }
 EXPLICIT_URGENCY = re.compile(r"\b(cấp cứu|khẩn cấp|gọi 115)\b", re.IGNORECASE)
 DIRECT_DIAGNOSIS_OR_TREATMENT = re.compile(
@@ -171,7 +171,7 @@ def analyze_report(report: dict, *, confirmed=False) -> dict:
         ) + ".")
     lines.append("Các trạng thái này chỉ cho biết vị trí của con số so với khoảng tham chiếu, "
                  "không tự kết luận có hay không có bệnh; kể cả nằm trong khoảng cũng không loại trừ bệnh.")
-    lines.append("Anh/chị có thể dùng những dòng thấp hơn hoặc cao hơn khoảng để hỏi bác sĩ theo dõi thai kỳ; "
+    lines.append("Chị có thể dùng những dòng thấp hơn hoặc cao hơn khoảng để hỏi bác sĩ theo dõi thai kỳ; "
                  "bác sĩ sẽ xem thêm tuổi thai, triệu chứng và các thông tin sức khỏe ạ.")
     return {"status": "analyzed", "rows": rows, "counts": counts,
             "output": " ".join(lines), "sources": sources,
@@ -210,7 +210,7 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
         missing_analyte = missing_analytes[0]
         return {
             "status": "clarify_question",
-            "output": f"Em chưa thấy dòng {missing_analyte} trong phiếu đã xác nhận. Anh/chị kiểm tra phiếu hoặc bổ sung chỉ số này rồi xác nhận lại nhé ạ.",
+            "output": f"Em chưa thấy dòng {missing_analyte} trong phiếu đã xác nhận. Chị kiểm tra phiếu hoặc bổ sung chỉ số này rồi xác nhận lại nhé ạ.",
         }
 
     bounded_history = []
@@ -311,16 +311,16 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
             or any(generated["analytes"].count(code) > 1 for code in generated["analytes"])):
         note("fallback: cấu trúc câu trả lời AI không hợp lệ")
         return _chat_fallback(
-            "Em chưa tạo được lời giải thích phù hợp từ phiếu này. Anh/chị thử hỏi cụ thể hơn về một chỉ số hoặc hỏi bác sĩ theo dõi thai kỳ ạ.",
+            "Em chưa tạo được lời giải thích phù hợp từ phiếu này. Chị thử hỏi cụ thể hơn về một chỉ số hoặc hỏi bác sĩ theo dõi thai kỳ ạ.",
             rows, comparison, fallback_codes,
         )
 
-    answer_text = generated["answer"].strip()
+    answer_text = generated["answer"].strip().replace("Anh/chị", "Chị").replace("anh/chị", "chị")
     unsafe_reason = _unsafe_answer_reason(answer_text)
     if unsafe_reason:
         note("fallback: " + unsafe_reason)
         return _chat_fallback(
-            "Em chưa thể xác nhận lời giải thích này an toàn và đúng dữ kiện. Anh/chị có thể hỏi về một chỉ số cụ thể hoặc trao đổi với bác sĩ theo dõi thai kỳ ạ.",
+            "Em chưa thể xác nhận lời giải thích này an toàn và đúng dữ kiện. Chị có thể hỏi về một chỉ số cụ thể hoặc trao đổi với bác sĩ theo dõi thai kỳ ạ.",
             rows, comparison, current_codes or generated["analytes"] or latest_history_codes,
         )
 
@@ -381,7 +381,7 @@ def _answer_overall_status(rows, comparison, *, scope="report"):
 
     if not outside:
         subject = (
-            f"{len(all_rows)} chỉ số anh/chị hỏi"
+            f"{len(all_rows)} chỉ số chị hỏi"
             if scope == "selected"
             else f"toàn bộ {len(all_rows)} chỉ số trên phiếu đã xác nhận"
         )
@@ -390,7 +390,7 @@ def _answer_overall_status(rows, comparison, *, scope="report"):
             f"Theo khoảng tham chiếu {reference_label}, các chỉ số hiện đều nằm trong khoảng. "
             "Điều này chỉ cho biết vị trí của các kết quả so với khoảng đang dùng; "
             "không khẳng định sức khỏe hoàn toàn bình thường hay loại trừ bệnh. "
-            "Nếu anh/chị có triệu chứng hoặc vẫn lo lắng, hãy trao đổi phiếu với bác sĩ theo dõi thai kỳ ạ."
+            "Nếu chị có triệu chứng hoặc vẫn lo lắng, hãy trao đổi phiếu với bác sĩ theo dõi thai kỳ ạ."
         )
     else:
         parts = []
@@ -461,7 +461,7 @@ def _explain_group(rows, comparison, *, prefix=""):
             "Các dòng này cùng nằm ngoài khoảng đang dùng nhưng không tạo thành một kết luận chẩn đoán từ CBC. Bác sĩ cần diễn giải chúng cùng phiếu gốc, tuổi thai, triệu chứng và xét nghiệm liên quan."
         )
     notes.append(
-        f"Khoảng này là {reference_label}, không phải ngưỡng chẩn đoán. Anh/chị có thể hỏi bác sĩ: các chỉ số này có cần đánh giá thêm trong bối cảnh thai kỳ của tôi không, và cần xét nghiệm nào để tìm nguyên nhân?"
+        f"Khoảng này là {reference_label}, không phải ngưỡng chẩn đoán. Chị có thể hỏi bác sĩ: các chỉ số này có cần đánh giá thêm trong bối cảnh thai kỳ của tôi không, và cần xét nghiệm nào để tìm nguyên nhân?"
     )
     unique_sources = {source["url"]: source for source in sources if source.get("url")}
     return {
@@ -515,7 +515,7 @@ def _explain_analyte(analyte, row, comparison, *, prefix=""):
     if row["status"] == "within" and "không tự loại trừ" not in context:
         context += " Nằm trong khoảng này không tự loại trừ bệnh và không thay thế đánh giá của bác sĩ."
     output = (
-        f"{explanation} Em ghi nhận kết quả {analyte} của anh/chị là {row['value']} {row['unit']}, {status} "
+        f"{explanation} Em ghi nhận kết quả {analyte} của chị là {row['value']} {row['unit']}, {status} "
         f"{reference_label} ({row['ref_low']}–{row['ref_high']} {row['unit']}). "
         f"{context} "
         "Trạng thái này chỉ mô tả vị trí của con số so với khoảng đang dùng; không tự kết luận có hay không có bệnh. "

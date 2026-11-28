@@ -26,9 +26,9 @@ export function SymptomSafetyCheck() {
     </label>)}</div>
     {selected.length > 0 ? <div role="alert" className="rounded-xl border border-[#e9a3a3] bg-[#fff1f2] p-3 text-sm text-[#8f1d1d] space-y-2">
       <b>Hãy liên hệ cơ sở sản khoa/bác sĩ đang theo dõi ngay để được đánh giá.</b>
-      <p className="text-xs">Nếu triệu chứng nặng hoặc diễn tiến nhanh, đến khoa cấp cứu hoặc gọi số cấp cứu y tế tại nơi anh/chị đang ở. Đừng chờ AI đọc phiếu CBC hay tự trì hoãn việc đi khám.</p>
+      <p className="text-xs">Nếu triệu chứng nặng hoặc diễn tiến nhanh, đến khoa cấp cứu hoặc gọi số cấp cứu y tế tại nơi chị đang ở. Đừng chờ AI đọc phiếu CBC hay tự trì hoãn việc đi khám.</p>
       <p className="text-[10px]">Nguồn: <a className="underline" href="https://www.cdc.gov/hearher/maternal-warning-signs/index.html" target="_blank" rel="noreferrer">CDC Hear Her — dấu hiệu cảnh báo khẩn cấp của mẹ</a>. Danh sách không bao quát mọi tình huống.</p>
-    </div> : <p className="text-[10px] text-[var(--muted)]">Nếu anh/chị vẫn thấy không ổn hoặc lo lắng, hãy liên hệ bác sĩ dù không thấy dấu hiệu trong danh sách.</p>}
+    </div> : <p className="text-[10px] text-[var(--muted)]">Nếu chị vẫn thấy không ổn hoặc lo lắng, hãy liên hệ bác sĩ dù không thấy dấu hiệu trong danh sách.</p>}
     </div>
   </details>;
 }
