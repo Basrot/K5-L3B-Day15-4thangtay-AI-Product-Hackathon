@@ -40,10 +40,10 @@ Mỗi lượt mới phải dùng file `run-N.csv` riêng và giữ nguyên outpu
 | Lượt | Run ID | Model | Cấu hình (prompt / công cụ / thay đổi) | Đạt / tổng | % | Đạt chuẩn? |
 |---|---|---|---|---:|---:|---|
 | 1 | `run-1@20261127-163814` | `qwen3:4b` (Ollama local) | Bản N2 hiện tại trên 24 ca cố định; một lần gọi model tối đa/câu có xử lý công cụ so sánh | 19/24 | 79% | Chưa đạt điều kiện chung: 5 ca trượt; điều kiện metric 100% cũng chưa đạt |
-| 2 | Chưa chạy | — | Chờ N2 xử lý lỗi định tuyến câu hỏi rõ chỉ số/biên và xác nhận cách xử lý thiếu khoảng | — | — | — |
+| 2 | `run-2@20261128-093648` | `qwen3:4b` (Ollama local) | Bản N2 trên `main`; cùng benchmark 24 ca; câu hỏi rõ về một chỉ số/biên được trả theo dữ liệu so sánh | 22/24 | 92% | Đạt tỷ lệ tổng; chưa đạt điều kiện 100% xử lý ca thiếu/sai ngữ cảnh (B21) |
 
-Lượt 1: thường 7/8 (88%), khó 10/14 (71%), từ chối 2/2 (100%). 24/24 hoàn tất kỹ thuật, không có lỗi chạy. Trace và kết quả theo ca nằm trong `traces/run-1.jsonl` và `eval/run-1.csv`.
+Run 1: thường 7/8 (88%), khó 10/14 (71%), từ chối 2/2 (100%). Run 2: thường 7/8 (88%), khó 13/14 (93%), từ chối 2/2 (100%). Cả hai lượt hoàn tất 24/24 kỹ thuật, không có lỗi chạy. Trace và kết quả nằm trong `traces/run-1.jsonl`, `eval/run-1.csv`, `traces/run-2.jsonl` và `eval/run-2.csv`.
 
 ## 6. Lỗi chính
 
-Nhóm lớn nhất là 4 câu có chỉ số và câu hỏi rõ nhưng model hỏi lại chung chung thay vì giải thích: B07, B11, B12, B13. B21 dùng fallback khoảng nghiên cứu dù expected yêu cầu thiếu khoảng lab; input chưa khai báo `reference_mode: lab`, nên đây vừa là lỗi hành vi cần N2 xem xét vừa là điểm mơ hồ của fixture. Chưa có lượt 2 nên chưa thể ghi nhận cải tiến đã sửa.
+So với run 1, bản N2 hiện tại sửa được lỗi hỏi lại chung chung ở B07, B11–B13; tổng điểm tăng từ 19/24 (79%) lên 22/24 (92%). Run 2 còn trượt B06 vì chưa phân biệt MCHC với MCH, và B21 vì dùng khoảng nghiên cứu khi expected yêu cầu thiếu khoảng lab. B21 không khai báo `reference_mode: lab`, nên đầu vào mơ hồ; giữ nguyên fixture và điểm theo expected, không sửa benchmark sau khi đã khóa.
