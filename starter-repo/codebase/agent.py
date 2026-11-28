@@ -7,13 +7,16 @@ if __package__:
     from .ai import call_model
     from .tools import ANALYTES, compare_cbc, confirmed_comparison
     from .tracing import note
+    from .evidence import approved_evidence, source_for_display
 else:
     from ai import call_model
     from tools import ANALYTES, compare_cbc, confirmed_comparison
     from tracing import note
+    from evidence import approved_evidence, source_for_display
 
 SYSTEM = """Trợ lý AI đồng hành đọc phiếu CBC thai kỳ cho người trưởng thành. Xưng em, gọi chị, nói tiếng Việt ấm áp, tôn trọng, gần gũi.
-Chỉ JSON: {"answer":"...","analytes":["HGB"],"needs_clarification":false}.
+Chỉ JSON: {"answer":"...","analytes":["HGB"],"needs_clarification":false,"evidence_ids":["hemoglobin_test"]}.
+Mọi giải thích y khoa phải nằm trong các facts của approved_evidence và report_facts; evidence_ids chỉ chọn nguồn thực sự hỗ trợ điều vừa nói. Không có nguồn phù hợp thì nói nhẹ nhàng rằng em chưa có đủ bằng chứng, chị có thể hỏi bác sĩ trực tiếp, đặt needs_clarification=true. Không tự bịa nghiên cứu hoặc mượn nguồn chung để chứng minh lời khuyên cá nhân. Không đưa kế hoạch ăn uống, kiêng sắt, uống thêm nước hay thay đổi thuốc dựa riêng CBC; hiện chưa có quy tắc khuyến cáo cá nhân đã được thẩm định. Không lấp chỗ thiếu bằng lời khuyên rau xanh chung chung.
 Trả lời thẳng theo câu hỏi. Câu hỏi khái niệm: khoảng 80–120 từ, giải thích và ví dụ bằng lời. Câu hỏi về kết quả cá nhân hoặc hỏi sâu: khoảng 150–220 từ, chia đoạn ngắn theo ý, không nhắc lại định nghĩa đã rõ.
 Dùng recent_conversation để hiểu “nó”, “vậy thấp do đâu”. “Ổn k” là hỏi cả phiếu nếu không có chỉ số cụ thể. Chỉ hỏi lại một điều khi phiếu và lịch sử chưa đủ rõ.
 Khi chị lo lắng hoặc hỏi lại cho chắc: đón nhận nhẹ nhàng, không phán xét, không xem hỏi lặp là phiền; giải thích lại theo cách khác và chia từng ý nhỏ. Có thể nói “Thấy kết quả lạ có thể khiến chị lo. Mình cùng xem từng phần nhé” hoặc “Chị cứ hỏi lại, em sẽ giải thích theo cách dễ theo dõi hơn”. Diễn đạt linh hoạt theo ngữ cảnh, không chèn cùng một câu an ủi vào mọi lượt, không lặp nguyên lời cũ hay nói “em đã nói rồi”. Khi chị đang quá lo, ưu tiên một đến hai đoạn ngắn về điều đã biết, điều chưa biết và một bước tiếp theo; chưa cần giảng dài. Không ép chị phải bớt lo, không gắn nhãn “overthinking”, không tự suy đoán chị đang đau hay có triệu chứng.
@@ -64,9 +67,15 @@ RBC_INDEX_SOURCE = {
     "url": "https://medlineplus.gov/lab-tests/red-blood-cell-rbc-indices/",
 }
 CLARIFY = "Mình cùng xem từng phần nhé chị. Chị muốn em giải thích dòng nào trên phiếu, hay tóm tắt những điểm cần hỏi bác sĩ ạ?"
+INSUFFICIENT_EVIDENCE_REPLY = (
+    "Em hiểu chị muốn biết nên làm gì để chăm sóc bản thân và em bé. "
+    "Với riêng phiếu này, em chưa có đủ bằng chứng để đưa ra khuyến cáo phù hợp cho chị. "
+    "Chị có thể hỏi bác sĩ trực tiếp để được hướng dẫn theo tình trạng cụ thể nhé. "
+    "Nếu chị muốn, em sẽ giúp chị hiểu phần dữ kiện đã xác nhận và soạn câu hỏi để buổi khám dễ trao đổi hơn."
+)
 ROUTES = {
     "clarify_question": CLARIFY,
-    "medical_advice": "Em hiểu chị muốn biết cho chắc. Riêng phiếu CBC chưa đủ để em xác định bệnh hay hướng dẫn điều trị cho chị. Chị có thể mang phiếu và câu hỏi này trao đổi với bác sĩ theo dõi thai kỳ. Em có thể giúp chị hiểu từng dòng và chuẩn bị điều cần hỏi nhé.",
+    "medical_advice": INSUFFICIENT_EVIDENCE_REPLY,
     "urgent": "Nếu chị đang gặp tình huống khẩn cấp, hãy liên hệ ngay với cơ sở y tế hoặc dịch vụ cấp cứu tại nơi chị đang ở ạ.",
 }
 EXPLICIT_URGENCY = re.compile(
@@ -153,37 +162,77 @@ DIAGNOSTIC_DISCLAIMER = re.compile(
     r"không\s+phải\s+(?:là\s+)?(?:ngưỡng|kết\s+luận|tiêu\s+chuẩn)\s+(?:để\s+)?chẩn\s+đoán)\b",
     re.IGNORECASE,
 )
+NUTRITION_QUESTION = re.compile(r"\b(ăn|chế độ ăn|ăn uống|dinh dưỡng|rau xanh|thực phẩm|kiêng|thực đơn|uống(?:\s+thêm|\s+bao nhiêu|\s+ít|\s+nhiều)?\s+nước)\b", re.IGNORECASE)
+SAFE_NUTRITION_CAUTION = re.compile(
+    r"\b(?:không|đừng|chưa nên)\s+(?:nên\s+)?(?:tự ý\s+|tự\s+)?"
+    r"(?:giảm|hạn chế|kiêng|tránh|ngừng|uống|dùng|bổ sung)\s+"
+    r"(?:thực phẩm giàu sắt|thuốc sắt|viên sắt|sắt)\b", re.IGNORECASE,
+)
+UNSUPPORTED_NUTRITION = re.compile(
+    r"\b(?:tránh|kiêng|hạn chế|cắt bỏ|ngừng)\b[^.!?\n]{0,65}\bsắt\b|"
+    r"\bgiảm\s+(?:lượng\s+|ăn\s+|bổ sung\s+)?(?:sắt|thực phẩm giàu sắt)\b|"
+    r"\bmất nước\b[^.!?\n]{0,120}(?:như chị đang gặp|như chị đang|của chị)|"
+    r"\b(?:chị|bạn)\b[^.!?\n]{0,20}(?:đang|bị|có tình trạng)\s+mất nước\b",
+    re.IGNORECASE,
+)
+UNSUPPORTED_PERSONAL_ACTION = re.compile(
+    r"\buống\s+(?:đủ|thêm|nhiều|ít)\s+nước\b|"
+    r"(?:^|[.!?\n])\s*(?:Ngoài ra[, ]+)?(?:Hạn chế|Tránh|Kiêng|Ngừng)\s+(?:(?:các|những)\s+)?(?:ăn|uống|thực phẩm|đồ ăn|thức ăn|đồ uống|thuốc|sắt|muối|đường)\b|"
+    r"\b(?:nên|hãy|cần|phải)\s+(?:ăn|uống|kiêng|bổ sung|tránh|hạn chế|ngừng|tập luyện|tập thể dục|nghỉ ngơi)\b|"
+    r"\b(?:nên|hãy|cần|phải)\s+(?:duy trì|điều chỉnh|áp dụng|chọn)\s+[^.!?\n]{0,25}(?:chế độ ăn|thực đơn|lượng nước|lượng sắt)",
+    re.IGNORECASE,
+)
+
+
+def _needs_personal_care_advice(question):
+    personal_context = re.search(r"\b(tôi|em|mình|chị|nên|cần|bao nhiêu|cao|thấp|phiếu|chỉ số)\b", question, re.IGNORECASE)
+    biomarker_action = re.search(r"\b(?:cách|làm sao|làm thế nào|cải thiện|điều chỉnh|hạ|giảm|tăng)\s+(?:để\s+)?(?:chỉ số|HGB|RBC|HCT|WBC|PLT)\b", question, re.IGNORECASE)
+    care_action = re.search(r"\b(?:ăn gì|uống gì|kiêng gì|thực đơn|chế độ ăn nào|ăn thế nào|ăn ra sao|(?:nên|cần|phải) làm gì|làm gì để)\b", question, re.IGNORECASE)
+    fluid_action = re.search(r"\buống\b[^.!?]{0,25}\b(?:nước|lít|ml)\b", question, re.IGNORECASE)
+    return bool((NUTRITION_QUESTION.search(question) and personal_context) or biomarker_action or care_action or fluid_action)
 
 
 def _unsafe_answer_reason(answer_text, reference_mode=None):
     """Ignore only a narrow negated phrase, never the rest of its sentence."""
     if re.search(r"\d", answer_text):
         return "unverified_numbers"
+    if re.search(r"https?://|www\.", answer_text, re.IGNORECASE):
+        return "unverified_citation"
+    if UNSUPPORTED_NUTRITION.search(SAFE_NUTRITION_CAUTION.sub("", answer_text)):
+        return "unsupported_personal_advice"
+    if UNSUPPORTED_PERSONAL_ACTION.search(SAFE_NUTRITION_CAUTION.sub("", answer_text)):
+        return "unsupported_personal_advice"
     if reference_mode == "study" and re.search(
         r"\b(?:khoảng|giới hạn)\s+(?:tham chiếu\s+)?(?:của\s+|ghi\s+)?(?:phòng xét nghiệm|trên phiếu)\b",
         answer_text, re.IGNORECASE,
     ):
         return "reference_origin_mismatch"
-    checked_text = DIAGNOSTIC_DISCLAIMER.sub("", answer_text)
+    checked_text = DIAGNOSTIC_DISCLAIMER.sub("", SAFE_NUTRITION_CAUTION.sub("", answer_text))
     if UNSAFE_GENERATED_ANSWER.search(checked_text):
         return "medical_claim_or_treatment"
     return None
 
 
-def _parse_generated_reply(reply, rows):
+def _parse_generated_reply(reply, rows, evidence):
     try:
         result = json.loads(reply["text"])
     except (KeyError, TypeError, ValueError):
         return None
     if (not isinstance(result, dict)
-            or set(result) != {"answer", "analytes", "needs_clarification"}
+            or set(result) != {"answer", "analytes", "needs_clarification", "evidence_ids"}
             or not isinstance(result["answer"], str)
             or not result["answer"].strip()
             or len(result["answer"]) > 4000
             or not isinstance(result["analytes"], list)
             or type(result["needs_clarification"]) is not bool
+            or not isinstance(result["evidence_ids"], list)
+            or any(not isinstance(item, str) or item not in evidence for item in result["evidence_ids"])
+            or len(set(result["evidence_ids"])) != len(result["evidence_ids"])
+            or (not result["needs_clarification"] and not result["evidence_ids"])
             or any(not isinstance(code, str) or code not in rows for code in result["analytes"])
             or len(set(result["analytes"])) != len(result["analytes"])):
+        return None
+    if re.search(r"\b(?:ăn|thực phẩm|rau xanh|chế độ ăn|uống nước)\b", result["answer"], re.IGNORECASE) and "pregnancy_nutrition" not in result["evidence_ids"]:
         return None
     return result
 
@@ -359,12 +408,14 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
     rows = {row["analyte"]: row for row in comparison["rows"]}
     flagged_count = sum(row["status"] != "within" for row in rows.values())
     current_codes = _explicit_analytes(question, rows)
-    if DIRECT_DIAGNOSIS_OR_TREATMENT.search(question):
+    if DIRECT_DIAGNOSIS_OR_TREATMENT.search(question) or _needs_personal_care_advice(question):
         note("dừng trước model: yêu cầu chẩn đoán hoặc điều trị cá nhân")
         primary = current_codes[0] if len(current_codes) == 1 else None
         return {
             "status": "medical_advice",
             "output": ROUTES["medical_advice"],
+            "evidence_status": "insufficient_for_personal_advice",
+            "sources": [],
             "doctor_questions": _build_doctor_questions(primary, rows[primary]["status"] if primary else None, comparison),
             "follow_up_questions": _build_follow_up_questions(primary, rows),
         }
@@ -376,6 +427,12 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
                 continue
             question_text, output_text = turn.get("question"), turn.get("output")
             if isinstance(question_text, str) and isinstance(output_text, str):
+                if _unsafe_answer_reason(output_text, comparison["reference_mode"]):
+                    prior_codes = _explicit_analytes(question_text + " " + output_text, rows)
+                    output_text = (
+                        "Lời giải thích trước về " + ", ".join(prior_codes or ["phiếu CBC"])
+                        + " chưa được kiểm tra chắc; không dùng làm bằng chứng. Dựa lại vào dữ kiện và nguồn hiện tại."
+                    )
                 bounded_history.append({
                     "question": question_text[:500],
                     "answer": output_text[:500],
@@ -442,6 +499,8 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
         "question": question.strip(),
         "recent_conversation": bounded_history,
     }
+    evidence = approved_evidence(comparison, include_nutrition=bool(NUTRITION_QUESTION.search(question)))
+    context["approved_evidence"] = evidence
     if re.search(r"an toàn|yên tâm|nguy hiểm", question, re.IGNORECASE):
         context["response_goal"] = (
             "Trả lời thẳng câu hỏi về an toàn trước, khoảng một đến hai đoạn ngắn. "
@@ -463,8 +522,10 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
             "analytes": {"type": "array", "items": {"type": "string", "enum": list(rows)},
                          "maxItems": len(rows), "uniqueItems": True},
             "needs_clarification": {"type": "boolean"},
+            "evidence_ids": {"type": "array", "items": {"type": "string", "enum": list(evidence)},
+                             "maxItems": len(evidence), "uniqueItems": True},
         },
-        "required": ["answer", "analytes", "needs_clarification"],
+        "required": ["answer", "analytes", "needs_clarification", "evidence_ids"],
         "additionalProperties": False,
     }
     degraded_routing = False
@@ -491,13 +552,13 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
             result["degraded_routing"] = True
         return result
 
-    generated = _parse_generated_reply(reply, rows)
-    if generated is None:
+    generated = _parse_generated_reply(reply, rows, evidence)
+    if generated is None or not generated["evidence_ids"]:
         note("fallback: cấu trúc câu trả lời AI không hợp lệ")
         if is_concept_comparison and len(compare_codes) >= 2:
             return _compare_analytes(compare_codes, rows, comparison)
         return _chat_fallback(
-            "Em chưa diễn giải được câu này rõ và đúng dữ kiện nên không muốn làm chị rối thêm. Chị có thể hỏi lại theo cách khác; em sẽ cùng chị xem từng phần của phiếu nhé.",
+            INSUFFICIENT_EVIDENCE_REPLY,
             rows, comparison, fallback_codes,
         )
 
@@ -513,16 +574,18 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
             "Nếu hỏi khái niệm, giải thích bằng lời. Chỉ nói các giới hạn của riêng CBC."
             " Không kết luận không thiếu máu từ nhãn trong khoảng. Dùng đúng label của reference_context, "
             "không đổi khoảng nghiên cứu thành khoảng của phòng xét nghiệm."
+            " Chỉ dùng facts trong approved_evidence, ghi đúng evidence_ids. Không khuyên kiêng thực phẩm giàu sắt "
+            "hoặc uống thêm nước để sửa chỉ số; chưa xác định nguyên nhân cho người dùng."
         )}
         try:
             repaired = _parse_generated_reply(call_model(
                 SYSTEM, json.dumps(repair_context, ensure_ascii=False, separators=(",", ":")),
                 output_schema=schema, max_tokens=800, reasoning_effort="low",
-            ), rows)
+            ), rows, evidence)
         except RuntimeError:
             repaired = None
             note("rephrase: provider_unavailable")
-        if repaired is not None:
+        if repaired is not None and repaired["evidence_ids"]:
             repaired_text = repaired["answer"].strip().replace("Anh/chị", "Chị").replace("anh/chị", "chị")
             if _unsafe_answer_reason(repaired_text, comparison["reference_mode"]) is None:
                 generated, answer_text, unsafe_reason = repaired, repaired_text, None
@@ -531,7 +594,7 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
         if is_concept_comparison and len(compare_codes) >= 2:
             return _compare_analytes(compare_codes, rows, comparison)
         return _chat_fallback(
-            "Em chưa kiểm tra chắc được lời giải thích vừa tạo nên không muốn đưa chị thông tin có thể sai. Các dữ kiện từ phiếu vẫn ở bên dưới. Mình có thể xem lại từng dòng hoặc chuẩn bị câu hỏi cho bác sĩ nhé chị.",
+            INSUFFICIENT_EVIDENCE_REPLY,
             rows, comparison, current_codes or generated["analytes"] or latest_history_codes,
         )
 
@@ -540,9 +603,10 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
     if is_summary:
         selected_codes = list(rows)
     selected_rows = [rows[code] for code in selected_codes]
-    metadata, _reference_label, sources = _reference_details(comparison)
-    if set(selected_codes) & {"HGB", "MCV", "MCH", "MCHC"} or set(compare_codes) & {"MCV", "MCH", "MCHC"}:
-        sources.append(dict(RBC_INDEX_SOURCE))
+    metadata, _reference_label, _sources = _reference_details(comparison)
+    sources = [source_for_display(evidence[key]) for key in generated["evidence_ids"]]
+    if selected_rows and comparison["reference_mode"] == "study":
+        sources.insert(0, source_for_display(evidence["study_interval"]))
     unique_sources = {source["url"]: source for source in sources if source.get("url")}
     primary = selected_codes[0] if len(selected_codes) == 1 else (selected_codes[0] if selected_codes else None)
     note("trả lời giải thích được tạo từ ngữ cảnh phiếu và hội thoại")
@@ -553,6 +617,7 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
         "analytes": selected_codes,
         "verified_facts": _verified_facts(selected_rows),
         "sources": list(unique_sources.values()),
+        "evidence_status": "educational_sources_attached",
         "doctor_questions": _build_doctor_questions(primary, rows[primary]["status"] if primary else None, comparison),
         "follow_up_questions": _build_follow_up_questions(primary, rows),
         **metadata,
@@ -671,6 +736,7 @@ def _chat_fallback(message, rows, comparison, codes):
     unique_sources = {source["url"]: source for source in sources if source.get("url")}
     return {
         "status": "clarify_question",
+        "evidence_status": "insufficient",
         "output": message,
         "analyte": selected_codes[0] if len(selected_codes) == 1 else None,
         "analytes": selected_codes,

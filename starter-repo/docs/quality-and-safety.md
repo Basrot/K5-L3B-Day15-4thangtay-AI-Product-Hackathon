@@ -4,6 +4,8 @@
 
 Ứng dụng là nguyên mẫu hỗ trợ đọc và chuẩn bị trao đổi về CBC thai kỳ. Nó không thay bác sĩ, không chẩn đoán, không kê thuốc và chưa được thẩm định để dùng làm căn cứ chăm sóc lâm sàng.
 
+Giải thích model phải tham chiếu mã nguồn trong danh mục giáo dục `codebase/evidence.py`; API chỉ đính kèm nguồn đã tồn tại và ghi phạm vi hỗ trợ của nguồn. Chưa có quy tắc khuyến cáo cá nhân được chuyên gia thẩm định, nên câu hỏi thay đổi chế độ ăn, lượng nước, thuốc hoặc bổ sung sắt từ phiếu CBC được chuyển sang thông báo chưa đủ bằng chứng, giữ giọng điệu đồng hành và đề nghị hỏi bác sĩ trực tiếp. Mã nguồn hợp lệ không tự chứng minh rằng mọi diễn giải của model đều chính xác hoặc áp dụng được cho một người cụ thể; cần đánh giá lâm sàng độc lập trước khi nới phạm vi khuyến cáo.
+
 | Bước | Thành phần đang làm | Chất lượng đã biết |
 |---|---|---|
 | Đọc ảnh phiếu | Model thị giác tạo bản nháp các giá trị/đơn vị/khoảng | Chưa có kết quả exact-match trên tập ảnh được chấm; bắt buộc người dùng so lại từng ô với phiếu gốc. |

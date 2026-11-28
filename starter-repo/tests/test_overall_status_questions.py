@@ -30,10 +30,44 @@ def ask(text, report_data=None, history=None):
 
 
 class ConversationalStatusQuestionTest(unittest.TestCase):
+    def test_high_hgb_does_not_justify_restricting_iron_or_assuming_dehydration(self):
+        for text in (
+            "Chị nên tránh các thực phẩm giàu sắt quá mức vì huyết sắc tố đang cao.",
+            "Mất nước có thể làm tăng các chỉ số hồng cầu và huyết sắc tố như chị đang gặp.",
+            "Chị đang bị mất nước nên cần uống thêm nước để hạ HGB.",
+        ):
+            with self.subTest(text=text), patch.object(agent, "call_model", return_value={
+                "text": json.dumps({"answer": text, "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"]})
+            }):
+                result = ask("HGB cao có ý nghĩa gì?", report(hgb="17.2"))
+            self.assertEqual(result["status"], "clarify_question")
+            self.assertNotEqual(result["output"], text)
+
+    def test_general_nutrition_caution_is_allowed_and_has_matching_source(self):
+        text = "Ăn cân đối là thông tin sức khỏe chung, không phải cách xử lý riêng cho HGB cao. CBC không đo dự trữ sắt nên chị không tự ý hạn chế thực phẩm giàu sắt từ kết quả này. Mất nước là một khả năng chung, chưa xác định được cho chị. Bác sĩ cần xem thêm bối cảnh và phiếu gốc."
+        with patch.object(agent, "call_model", return_value={"text": json.dumps({
+            "answer": text, "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["pregnancy_nutrition", "hemoglobin_test"],
+        })}):
+            result = ask("Ăn cân đối có ý nghĩa gì nói chung?", report(hgb="17.2"))
+        self.assertEqual(result["status"], "explained")
+        self.assertTrue(any("pregnancy" in item["url"] for item in result["sources"]))
+
+    def test_old_unsafe_advice_is_not_reused_as_conversation_evidence(self):
+        def respond(_system, user, **kwargs):
+            context = json.loads(user)
+            prior = context["recent_conversation"][0]["answer"]
+            self.assertNotIn("nên tránh thực phẩm", prior)
+            self.assertIn("HGB", prior)
+            return {"text": json.dumps({"answer": "Riêng CBC chưa xác định nguyên nhân HGB cao. Mình cùng chuẩn bị câu hỏi cho bác sĩ nhé chị.",
+                                       "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"]})}
+        history = [{"question": "Tôi ăn sao?", "output": "HGB cao, chị nên tránh thực phẩm giàu sắt."}]
+        with patch.object(agent, "call_model", side_effect=respond):
+            self.assertEqual(ask("Giải thích tiếp ý nghĩa HGB nhé", report(hgb="17.2"), history)["status"], "explained")
+
     def test_in_range_hgb_must_not_be_used_to_exclude_anemia(self):
         text = "Điều này cho thấy mức huyết sắc tố hiện tại không bị thiếu máu theo tiêu chuẩn xét nghiệm."
         with patch.object(agent, "call_model", return_value={"text": json.dumps({
-            "answer": text, "analytes": ["HGB"], "needs_clarification": False,
+            "answer": text, "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"],
         })}):
             result = ask("Nằm trong khoảng có thật sự an toàn không?")
         self.assertEqual(result["status"], "clarify_question")
@@ -43,7 +77,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
         data = {**report(hgb="10.4"), "reference_mode": "study"}
         text = "HGB của chị nằm trong khoảng tham chiếu của phòng xét nghiệm cho thai kỳ."
         with patch.object(agent, "call_model", return_value={"text": json.dumps({
-            "answer": text, "analytes": ["HGB"], "needs_clarification": False,
+            "answer": text, "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"],
         })}):
             result = ask("HGB trong khoảng có an toàn không?", data)
         self.assertEqual(result["status"], "clarify_question")
@@ -54,21 +88,21 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             self.assertIn("nghiên cứu", context["reference_context"]["label"])
             self.assertFalse(context["reference_context"]["is_diagnostic_threshold"])
             return {"text": json.dumps({"answer": "Chưa thể kết luận an toàn chỉ từ nhãn trong khoảng. Đây là khoảng nghiên cứu để đối chiếu, chưa phải kết luận có hay không có bệnh.",
-                                       "analytes": ["HGB"], "needs_clarification": False})}
+                                       "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"]})}
         with patch.object(agent, "call_model", side_effect=respond):
             self.assertEqual(ask("HGB trong khoảng có an toàn không?", {**report(hgb="10.4"), "reference_mode": "study"})["status"], "explained")
 
     def test_reference_concept_answer_with_negated_diagnosis_passes(self):
         text = "Trong khoảng tham chiếu nghĩa là kết quả nằm giữa giới hạn dưới và trên đang dùng để đối chiếu. Đây không phải là chẩn đoán và không khẳng định chị hoàn toàn khỏe mạnh."
         with patch.object(agent, "call_model", return_value={"text": json.dumps({
-            "answer": text, "analytes": [], "needs_clarification": False,
+            "answer": text, "analytes": [], "needs_clarification": False, "evidence_ids": ["lab_results"],
         })}):
             result = ask("Thế nào là trong khoảng tham chiếu?")
         self.assertEqual(result["status"], "explained")
         self.assertEqual(result["output"], text)
 
     def test_rejected_numeric_explanation_gets_one_checked_rephrase(self):
-        replies = [{"text": json.dumps({"answer": text, "analytes": [], "needs_clarification": False})}
+        replies = [{"text": json.dumps({"answer": text, "analytes": [], "needs_clarification": False, "evidence_ids": ["lab_results"]})}
                    for text in ("Khoảng tham chiếu chứa 95% kết quả của quần thể.",
                                 "Đó là khoảng dùng để so sánh kết quả với các giới hạn tham chiếu, không tự khẳng định sức khỏe.")]
         with patch.object(agent, "call_model", side_effect=replies) as model:
@@ -86,7 +120,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             "RBC nằm trong khoảng nghiên cứu; bác sĩ cần thêm thông tin để chẩn đoán.",
         ):
             with self.subTest(text=text), patch.object(agent, "call_model", return_value={
-                "text": json.dumps({"answer": text, "analytes": ["HGB"], "needs_clarification": False})
+                "text": json.dumps({"answer": text, "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"]})
             }):
                 result = ask("Giải thích kết quả nhé")
             self.assertEqual(result["status"], "explained")
@@ -104,7 +138,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             "Kết quả HGB là 99.",
         ):
             with self.subTest(text=text), patch.object(agent, "call_model", return_value={
-                "text": json.dumps({"answer": text, "analytes": ["HGB"], "needs_clarification": False})
+                "text": json.dumps({"answer": text, "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"]})
             }):
                 self.assertEqual(ask("Giải thích kết quả nhé")["status"], "clarify_question")
 
@@ -116,10 +150,10 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             self.assertNotIn("reference_note", context["reference_context"])
             self.assertNotIn("gestational_age", context["reference_context"])
             self.assertEqual(len(context["recent_conversation"]), 4)
-            self.assertLess(len(system), 4500)
+            self.assertLess(len(system), 5500)
             self.assertLessEqual(kwargs["max_tokens"], 800)
             return {"text": json.dumps({"answer": "Em sẽ giải thích tiếp về HGB.",
-                                       "analytes": ["HGB"], "needs_clarification": False})}
+                                       "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"]})}
 
         with patch.object(agent, "call_model", side_effect=respond):
             self.assertEqual(ask("Giải thích thêm nhé", history=history)["status"], "explained")
@@ -133,7 +167,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             self.assertEqual(output_schema["properties"]["answer"]["maxLength"], 4000)
             return {"text": json.dumps({
                 "answer": "Phiếu cho thấy HGB đang thấp hơn khoảng đã chọn. Điều này là một dấu hiệu để bác sĩ cân nhắc thêm, nhưng riêng kết quả này chưa cho biết nguyên nhân.",
-                "analytes": ["HGB"], "needs_clarification": False,
+                "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"],
             }, ensure_ascii=False)}
 
         with patch.object(agent, "call_model", side_effect=respond) as model:
@@ -151,7 +185,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             self.assertEqual(context["question"], "ổn k")
             return {"text": json.dumps({
                 "answer": "Em đã xem các dòng trên phiếu: hiện chúng nằm trong khoảng đang đối chiếu. Đây chỉ là so sánh với khoảng tham chiếu, không thể khẳng định sức khỏe hoàn toàn bình thường; nếu chị đang có triệu chứng thì nên trao đổi với bác sĩ.",
-                "analytes": ["HGB", "WBC"], "needs_clarification": False,
+                "analytes": ["HGB", "WBC"], "needs_clarification": False, "evidence_ids": ["lab_results"],
             }, ensure_ascii=False)}
 
         with patch.object(agent, "call_model", side_effect=respond) as model:
@@ -175,7 +209,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             }])
             return {"text": json.dumps({
                 "answer": "Có nhiều khả năng bác sĩ sẽ cân nhắc khi HGB thấp, chẳng hạn tình trạng thiếu sắt hoặc các nguyên nhân khác. Riêng CBC chưa phân biệt được lý do; bác sĩ sẽ xem thêm triệu chứng và xét nghiệm liên quan.",
-                "analytes": ["HGB"], "needs_clarification": False,
+                "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"],
             }, ensure_ascii=False)}
 
         with patch.object(agent, "call_model", side_effect=respond) as model:

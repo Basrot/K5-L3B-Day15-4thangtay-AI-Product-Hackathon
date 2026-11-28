@@ -69,7 +69,7 @@ class CBCWorkflowTest(unittest.TestCase):
     def test_model_selects_row_and_explanation_uses_comparison_data(self):
         model_reply = {"text": json.dumps({
             "answer": "HGB là huyết sắc tố giúp vận chuyển oxy; bác sĩ xem kết quả trong bối cảnh thai kỳ.",
-            "analytes": ["HGB"], "needs_clarification": False,
+            "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"],
         }, ensure_ascii=False)}
         with patch.object(agent, "call_model", return_value=model_reply):
             result = agent.answer(question("Tại sao huyết sắc tố có dấu L?"))
@@ -129,7 +129,7 @@ class CBCWorkflowTest(unittest.TestCase):
             self.assertNotIn("ref_low", user)
             return {"text": json.dumps({
                 "answer": "HGB là dòng được hỏi và cần được hiểu theo khoảng đã xác nhận.",
-                "analytes": ["HGB"], "needs_clarification": False,
+                "analytes": ["HGB"], "needs_clarification": False, "evidence_ids": ["lab_results"],
             }, ensure_ascii=False)}
 
         with patch.object(agent, "call_model", side_effect=respond):

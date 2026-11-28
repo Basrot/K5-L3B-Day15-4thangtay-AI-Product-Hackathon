@@ -112,7 +112,7 @@ class StudyReferenceTest(unittest.TestCase):
         report = study_report(rows=[{"analyte": "RBC", "value": "4.1", "unit": "10^12/L"}])
         with patch.object(agent, "call_model", return_value={
                 "text": json.dumps({"answer": "RBC là số lượng hồng cầu, giúp vận chuyển oxy.",
-                                    "analytes": ["RBC"], "needs_clarification": False}),
+                                    "analytes": ["RBC"], "needs_clarification": False, "evidence_ids": ["cbc_basics", "lab_results"]}),
                 "model": "test-model"}):
             reply = agent.answer(json.dumps({"report": report, "question": "Giải thích chỉ số RBC"}, ensure_ascii=False))
 
@@ -153,7 +153,7 @@ class StudyReferenceTest(unittest.TestCase):
                 report["rows"][0]["unit"] = unit
                 with patch.object(agent, "call_model", return_value={
                         "text": json.dumps({"answer": phrase, "analytes": [code],
-                                            "needs_clarification": False}), "model": "test-model"}):
+                                            "needs_clarification": False, "evidence_ids": ["lab_results"]}), "model": "test-model"}):
                     reply = agent.answer(json.dumps({"report": report, "question": f"Giải thích {code}"}))
                 self.assertEqual(reply["status"], "explained")
                 self.assertIn(phrase, reply["output"].lower())

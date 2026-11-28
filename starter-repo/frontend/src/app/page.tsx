@@ -2006,6 +2006,9 @@ export default function HomePage() {
                       <p className="text-[13px] whitespace-pre-line">
                         {reply.output}
                       </p>
+                      {reply.evidence_status === "insufficient_for_personal_advice" && (
+                        <p className="text-xs text-[var(--muted)]">Chưa đủ căn cứ để đưa ra khuyến cáo cá nhân. Em có thể hỗ trợ chị chuẩn bị câu hỏi cho bác sĩ.</p>
+                      )}
                       {reply.verified_facts && reply.verified_facts.length > 0 && (
                         <div className="border-t border-[var(--border-strong)] pt-2">
                           <p className="text-xs font-semibold">Dữ kiện lấy từ phiếu đã xác nhận</p>
@@ -2033,6 +2036,7 @@ export default function HomePage() {
                               {source.url
                                 ? <a href={source.url} target="_blank" rel="noreferrer" className="text-[var(--primary)] underline underline-offset-2">{source.title}</a>
                                 : source.title}
+                              {source.supports && <span> — {source.supports}</span>}
                             </React.Fragment>
                           ))}
                         </div>

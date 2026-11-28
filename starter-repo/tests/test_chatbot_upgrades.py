@@ -60,7 +60,7 @@ class ChatbotUpgradeTest(unittest.TestCase):
             return {"text": json.dumps({
                 "answer": "MCHC phản ánh nồng độ huyết sắc tố trung bình trong thể tích hồng cầu, còn MCH phản ánh lượng huyết sắc tố trung bình trong mỗi hồng cầu. Trên phiếu đã xác nhận, MCHC của chị nằm trong khoảng đối chiếu.",
                 "analytes": ["MCHC"],
-                "needs_clarification": False,
+                "needs_clarification": False, "evidence_ids": ["lab_results"],
             }, ensure_ascii=False)}
 
         with patch.object(agent, "call_model", side_effect=model_reply):

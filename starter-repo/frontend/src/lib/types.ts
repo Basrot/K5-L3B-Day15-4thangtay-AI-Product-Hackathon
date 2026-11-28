@@ -30,6 +30,7 @@ export interface CBCReport {
 export interface ReferenceSource {
   title: string;
   url?: string | null;
+  supports?: string;
 }
 
 export interface AnalysisRow {
@@ -104,6 +105,7 @@ export interface ReportComparison {
 export interface ChatResult {
   status: string;
   output: string;
+  evidence_status?: string;
   analyte?: string;
   analytes?: string[];
   verified_facts?: AnalysisRow[];
