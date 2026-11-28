@@ -10,6 +10,19 @@ from codebase import ai
 
 
 class CloudModelTest(unittest.TestCase):
+    def test_vision_can_require_strict_structured_output(self):
+        captured = {}
+        def post(request, timeout):
+            captured.update(json.loads(request.data))
+            return io.BytesIO(json.dumps({"choices": [{"message": {"content": "{}"}}],
+                "usage": {"prompt_tokens": 5, "completion_tokens": 2}}).encode())
+        with patch.object(ai, "MODEL_PROVIDER", "openai_compatible"), patch.dict("os.environ", {
+            "API_KEY": "test-key", "LLM_API_BASE": "https://api.openai.com/v1",
+        }), patch.object(ai, "urlopen", side_effect=post):
+            ai.call_model("system", "read", model_name="gpt-4.1-mini", images=[b"image"],
+                          output_schema={"type": "object"}, strict_schema=True)
+        self.assertTrue(captured["response_format"]["json_schema"]["strict"])
+
     def test_image_calls_use_vision_endpoint_and_accounting_from_api(self):
         received = []
 

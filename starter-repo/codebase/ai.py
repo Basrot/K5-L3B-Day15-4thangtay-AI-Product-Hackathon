@@ -68,7 +68,8 @@ def _api_origin(base: str):
 def call_model(system: str, user: str, *, output_schema: dict | None = None,
                images: list[bytes] | None = None, model_name: str | None = None,
                max_tokens: int | None = None,
-               reasoning_effort: str | None = None) -> dict:
+               reasoning_effort: str | None = None,
+               strict_schema: bool = False) -> dict:
     if MODEL_PROVIDER == "fake":
         last = (user.strip().splitlines() or [""])[-1]
         return {"text": "[câu trả lời giả — chưa nối model] " + last[:60], "model": "fake", "tokens_in": 0, "tokens_out": 0}
@@ -136,7 +137,7 @@ def call_model(system: str, user: str, *, output_schema: dict | None = None,
             body["reasoning_effort"] = reasoning_effort
         if output_schema:
             body["response_format"] = {"type": "json_schema", "json_schema": {
-                "name": "cbc_result", "schema": output_schema, "strict": False,
+                "name": "cbc_result", "schema": output_schema, "strict": strict_schema,
             }}
     request = Request(
         endpoint,

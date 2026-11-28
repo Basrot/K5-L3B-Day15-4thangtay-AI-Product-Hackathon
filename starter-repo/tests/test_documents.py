@@ -18,6 +18,15 @@ def pdf_bytes(pages=1):
 
 
 class DocumentTest(unittest.TestCase):
+    def test_failed_extraction_has_a_specific_safe_error_instead_of_provider_outage(self):
+        from codebase.api import _upstream_error_detail
+        with self.assertRaises(RuntimeError) as caught:
+            vision._validate_result({"rows": [{"analyte": "secret-patient-name"}], "warnings": []})
+        message = _upstream_error_detail("/v1/reports/extract", caught.exception)
+        self.assertNotIn("chưa phản hồi", message)
+        self.assertNotIn("secret-patient-name", message)
+        self.assertIn("đọc", message.lower())
+
     def test_pdf_pages_are_rendered_and_sent_in_one_vision_call(self):
         with patch.object(ai, "MODEL_PROVIDER", "openai_compatible"), patch.dict(
                 "os.environ", {"VISION_MODEL": "gpt-4.1-mini"}), patch.object(

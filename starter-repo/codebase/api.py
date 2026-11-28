@@ -144,6 +144,8 @@ def _operation(app: FastAPI):
 def _upstream_error_detail(path: str, exception: RuntimeError) -> str:
     """Return a safe, endpoint-specific explanation without exposing provider payloads or secrets."""
     message = str(exception)
+    if path.endswith("/reports/extract") and isinstance(exception, vision.ExtractionError):
+        return "Đọc phiếu [%s]: %s" % (exception.code, vision.EXTRACTION_ERRORS[exception.code])
     if path.endswith("/speech/synthesize"):
         match = re.fullmatch(r"VieNeu API trả HTTP (\d+); kiểm tra API key, quyền giọng và hạn mức\.", message)
         if match:
@@ -166,6 +168,9 @@ def _upstream_error_detail(path: str, exception: RuntimeError) -> str:
             return "Nhà cung cấp AI không nhận cấu hình yêu cầu (HTTP 400). Kiểm tra MODEL_NAME, LLM_API_BASE và hỗ trợ JSON Schema của model."
         return "Dịch vụ AI %s trả HTTP %d. Kiểm tra cấu hình model và trạng thái nhà cung cấp." % (component, status)
     known_failures = {
+        "Điền VISION_MODEL hoặc MODEL_NAME với model hỗ trợ ảnh.": "Backend chưa có model đọc ảnh. Đặt VISION_MODEL=gpt-4.1-mini khi dùng OpenAI rồi deploy lại.",
+        "Điền VISION_API_KEY riêng khi dùng nhà cung cấp đọc ảnh khác.": "Dịch vụ đọc ảnh đang trỏ tới nhà cung cấp khác nhưng thiếu khóa riêng. Kiểm tra VISION_API_BASE và VISION_API_KEY.",
+        "Đọc ảnh cần model thị giác qua ollama hoặc openai_compatible; chế độ fake không đọc ảnh.": "Backend đang ở chế độ giả lập nên chưa đọc được ảnh. Cấu hình MODEL_PROVIDER và model thị giác thật rồi khởi động lại.",
         "Điền API_KEY trong .env để gọi model qua API.": "Backend chưa nhận API_KEY của nhà cung cấp LLM. Kiểm tra biến API_KEY trên Railway rồi deploy lại.",
         "Cấu hình MODEL_PROVIDER=ollama hoặc openai_compatible và MODEL_NAME.": "MODEL_PROVIDER hoặc MODEL_NAME trên Railway không hợp lệ. Với API cloud, đặt MODEL_PROVIDER=openai_compatible và tên model nhà cung cấp hỗ trợ.",
         "LLM_API_BASE và VISION_API_BASE phải là URL HTTPS hợp lệ.": "LLM_API_BASE phải là URL HTTPS của API tương thích OpenAI, thường kết thúc bằng /v1.",
