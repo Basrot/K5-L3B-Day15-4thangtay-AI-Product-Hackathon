@@ -1876,6 +1876,20 @@ export default function HomePage() {
                   </div>
 
                   <p className="text-xs text-[var(--muted)]">Trợ lý tự động dựa trên phiếu CBC đã xác nhận để giải thích và chuẩn bị câu hỏi. Đây không phải chẩn đoán hoặc ý kiến đã được bác sĩ duyệt.</p>
+                  <details className="rounded-xl border border-[var(--border-strong)] bg-[#f8fafa]">
+                    <summary className="cursor-pointer select-none p-3 text-xs font-semibold">AI làm gì, đã được kiểm chứng đến đâu và nên làm gì nếu thấy sai?</summary>
+                    <div className="space-y-2 px-3 pb-3 text-xs leading-relaxed text-[var(--muted)]">
+                      <p><strong className="text-[var(--foreground)]">Đọc ảnh:</strong> AI tạo bản nháp; có thể đọc nhầm chữ số, dấu thập phân, đơn vị hoặc khoảng. Hãy so từng ô với phiếu gốc, sửa nếu cần và chỉ xác nhận khi khớp.</p>
+                      <p><strong className="text-[var(--foreground)]">Đối chiếu:</strong> phần mềm dùng phép tính để so giá trị đã xác nhận với khoảng đã chọn. Nhãn “trong/thấp/cao hơn khoảng” không phải kết luận có bệnh.</p>
+                      <p><strong className="text-[var(--foreground)]">Hỏi đáp:</strong> mô hình ngôn ngữ nhận diện câu hỏi; phần giải thích dùng câu chữ có kiểm soát và dữ liệu của phiếu đã xác nhận. Câu trả lời chưa được bác sĩ duyệt.</p>
+                      <div className="rounded-lg border border-[var(--border-strong)] bg-white p-2.5">
+                        <p className="font-semibold text-[var(--foreground)]">Số liệu kiểm chứng hiện có</p>
+                        <p className="mt-1">Hồ sơ hiện lưu một lượt cũ ngày 27/11/2026: model Qwen3:4b đạt 19/24 ca tổng hợp (79,2%), có 5 ca không đạt và 0 lỗi kỹ thuật. Đây là tỷ lệ đạt trên bộ ca cố định của phiên bản cũ, không phải độ chính xác lâm sàng và không đại diện cho bản hiện tại.</p>
+                        <p className="mt-1">Độ chính xác đọc ảnh và mức đúng lâm sàng của phần giải thích hiện chưa được đo. Chưa có tập phiếu được bác sĩ thẩm định độc lập.</p>
+                      </div>
+                      <p><strong className="text-[var(--foreground)]">Nếu thấy có thể sai:</strong> đừng dùng câu trả lời để tự chẩn đoán, đổi thuốc hoặc trì hoãn khám. Kiểm tra/sửa theo phiếu gốc; nếu vẫn không khớp, hỏi bác sĩ hoặc cơ sở xét nghiệm. Khi báo nhóm phát triển, không gửi tên, mã bệnh án hay ảnh phiếu qua kênh chưa được phê duyệt.</p>
+                    </div>
+                  </details>
                   <div className="flex flex-wrap gap-1.5">
                     {[
                       ...suggestedQuestions,

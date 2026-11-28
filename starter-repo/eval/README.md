@@ -2,6 +2,12 @@
 
 > Hồ sơ N3 cho bản thử nghiệm 8 chỉ số CBC: HGB, RBC, HCT, MCV, MCH, MCHC, WBC, PLT. Benchmark dùng dữ liệu giả lập, không phải đánh giá lâm sàng.
 
+## Báo cáo minh bạch theo nhóm
+
+Chạy `node eval/quality-report.mjs eval/run-1.csv` để tạo bảng tỷ lệ đạt theo nhóm ca, mẫu số, ca thiếu/chưa chấm và lỗi kỹ thuật. Công cụ đọc kết quả đã chấm, không gọi LLM và không sửa CSV. Tỷ lệ này là **pass rate trên bộ ca cố định**, không phải độ chính xác lâm sàng; không dùng khoảng tin cậy thống kê vì bộ ca không được lấy ngẫu nhiên từ quần thể người dùng. Xem [định nghĩa và giới hạn chất lượng](../docs/quality-and-safety.md).
+
+Mỗi lượt mới phải dùng file `run-N.csv` riêng và giữ nguyên output/điểm các lượt cũ. Nếu số `pass` còn trống, báo cáo ghi là chưa chấm và loại khỏi mẫu số; không tự coi là đạt.
+
 ## 1. Dataset → xử lý
 
 `eval/benchmark.csv` có 24 ca kiểm thử tổng hợp. 8 ca lấy nội dung định nghĩa chỉ số do người dùng cung cấp; 16 ca còn lại do nhóm tự viết để kiểm luồng và an toàn. Khoảng tham chiếu trong benchmark là số giả lập để kiểm phép so sánh, không lấy làm khoảng tham chiếu lâm sàng. Workbook nghiên cứu Việt Nam do người dùng gửi (867 dòng, có lặp; 305/276/286 theo tam cá nguyệt) chưa được dùng để chấm lượt này. Xem `data/DATA_CARD.md` về giới hạn nguồn.
