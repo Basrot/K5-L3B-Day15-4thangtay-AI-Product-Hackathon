@@ -279,7 +279,7 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
             or not isinstance(generated.get("analytes"), list)
             or type(generated.get("needs_clarification")) is not bool
             or any(not isinstance(code, str) or code not in rows for code in generated["analytes"])
-            or len(set(generated["analytes"])) != len(generated["analytes"])):
+            or any(generated["analytes"].count(code) > 1 for code in generated["analytes"])):
         note("fallback: cấu trúc câu trả lời AI không hợp lệ")
         return _chat_fallback(
             "Em chưa tạo được lời giải thích phù hợp từ phiếu này. Anh/chị thử hỏi cụ thể hơn về một chỉ số hoặc hỏi bác sĩ theo dõi thai kỳ ạ.",
