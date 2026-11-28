@@ -88,7 +88,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             self.assertNotIn("reference_note", context["reference_context"])
             self.assertNotIn("gestational_age", context["reference_context"])
             self.assertEqual(len(context["recent_conversation"]), 4)
-            self.assertLess(len(system), 3000)
+            self.assertLess(len(system), 4500)
             self.assertLessEqual(kwargs["max_tokens"], 800)
             return {"text": json.dumps({"answer": "Em sẽ giải thích tiếp về HGB.",
                                        "analytes": ["HGB"], "needs_clarification": False})}

@@ -1906,14 +1906,15 @@ export default function HomePage() {
                 <div ref={assistantRef} id="cbc-assistant" className="soft-card p-4 sm:p-5 space-y-3.5 scroll-mt-4">
                   <div className="flex items-center justify-between">
                     <h2 className="font-semibold text-[15px]">
-                      Hỏi về kết quả CBC
+                      Cùng chị hiểu kết quả CBC
                     </h2>
                     <span className="text-[11px] text-[var(--muted)]">
                       Zipformer STT · VieNeu TTS
                     </span>
                   </div>
 
-                  <p className="text-xs text-[var(--muted)]">Trợ lý tự động dựa trên phiếu CBC đã xác nhận để giải thích và chuẩn bị câu hỏi. Đây không phải chẩn đoán hoặc ý kiến đã được bác sĩ duyệt.</p>
+                  <p className="text-sm leading-relaxed text-[var(--muted)]">Có điều gì trên phiếu khiến chị băn khoăn, chị cứ hỏi nhé. Chị có thể hỏi lại hoặc nhờ em giải thích chậm hơn, từng ý một.</p>
+                  <p className="text-xs text-[var(--muted)]">Em là trợ lý AI dựa trên phiếu đã xác nhận để hỗ trợ chị hiểu kết quả và chuẩn bị câu hỏi cho bác sĩ. Lời giải thích chưa được bác sĩ duyệt.</p>
                   <details className="rounded-xl border border-[var(--border-strong)] bg-[#f8fafa]">
                     <summary className="cursor-pointer select-none p-3 text-xs font-semibold">AI làm gì, đã được kiểm chứng đến đâu và nên làm gì nếu thấy sai?</summary>
                     <div className="space-y-2 px-3 pb-3 text-xs leading-relaxed text-[var(--muted)]">
@@ -1947,7 +1948,7 @@ export default function HomePage() {
                   <form onSubmit={handleAskAI} className="flex gap-2">
                     <input
                       className="wf-input flex-1"
-                      placeholder="Ví dụ: HGB của tôi có ổn không?"
+                      placeholder="Ví dụ: Em lo về HGB, giải thích từng ý giúp em nhé"
                       aria-label="Nhập câu hỏi về phiếu CBC đã xác nhận"
                       value={question}
                       onChange={(e) => setQuestion(e.target.value)}
