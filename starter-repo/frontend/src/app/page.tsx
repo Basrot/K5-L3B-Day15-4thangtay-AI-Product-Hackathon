@@ -212,9 +212,11 @@ export default function HomePage() {
   const [draft, setDraft] = useState<CBCReport>(() => makeEmptyReport("study"));
   const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
   const [formExpanded, setFormExpanded] = useState(true);
+  const [visitBriefOpen, setVisitBriefOpen] = useState(false);
   const formRef = useRef<HTMLElement>(null);
   const assistantRef = useRef<HTMLDivElement | null>(null);
   const doctorPromptRef = useRef<HTMLDivElement | null>(null);
+  const visitBriefRef = useRef<HTMLElement | null>(null);
 
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -252,6 +254,7 @@ export default function HomePage() {
     setDraft(makeEmptyReport("study"));
     setOcrWarnings([]);
     setFormExpanded(true);
+    setVisitBriefOpen(false);
     setAnalysis(null);
     setHistory([]);
     setReportHistory([]);
@@ -358,6 +361,7 @@ export default function HomePage() {
     setChatRequestId(null);
 
     if (analysis && sessionId) {
+      setVisitBriefOpen(false);
       setAnalysis(null);
       setHistory([]);
       try {
@@ -437,6 +441,7 @@ export default function HomePage() {
       setRevision(session.revision);
       setDraft(makeEmptyReport("study"));
       setFormExpanded(true);
+      setVisitBriefOpen(false);
       setAnalysis(null);
       setReply(null);
       setHistory([]);
@@ -458,6 +463,7 @@ export default function HomePage() {
   async function handleLoadMockTCN2() {
     await invalidateIfConfirmed();
     setFormExpanded(true);
+    setVisitBriefOpen(false);
     setBannerError("");
     setOcrWarnings([]);
     setDoctorPrompt("");
@@ -470,6 +476,7 @@ export default function HomePage() {
     const requestEpoch = authEpochRef.current;
     abortInFlight();
     setFormExpanded(true);
+    setVisitBriefOpen(false);
     setBannerError("");
     setLoadingAction("session");
     try {
@@ -577,6 +584,7 @@ export default function HomePage() {
     if (!file) return;
     const requestEpoch = authEpochRef.current;
     setFormExpanded(true);
+    setVisitBriefOpen(false);
 
     await invalidateIfConfirmed();
     if (requestEpoch !== authEpochRef.current) return;
@@ -782,6 +790,8 @@ export default function HomePage() {
     const lines = [
       "KẾT QUẢ ĐỐI CHIẾU CHỈ SỐ CBC THAI KỲ",
       `Ngày lấy mẫu trên phiếu: ${draft.specimen_date || "chưa được nhập"}`,
+      `Tuổi thai lúc lấy mẫu: ${draft.gestational_age || "chưa được nhập"}`,
+      `Cách chọn khoảng: ${analysis.reference_mode === "study" ? `nghiên cứu theo tam cá nguyệt ${analysis.trimester || "chưa xác định"}` : "khoảng tham chiếu trên phiếu"}`,
       analysis.output,
       "",
       ...(analysis.rows || []).map(
@@ -792,9 +802,11 @@ export default function HomePage() {
       analysis.reference_note || "",
       analysis.reference_source?.title || "",
       analysis.reference_source?.url || "",
+      ...(analysis.sources || []).map((source) => `${source.title}${source.url ? ` — ${source.url}` : ""}`),
       rowsToReview.length >= 2 ? "\nCÁC DÒNG CẦN TRAO ĐỔI VỚI BÁC SĨ:" : "",
       ...rowsToReview.map((row) => `- ${row.analyte}: ${row.value} ${row.unit} — ${STATUS_META[row.status].label}`),
-      doctorPrompt ? `\nCÂU HỎI GỢI Ý CHO BÁC SĨ:\n${doctorPrompt}` : "",
+      `\nCÂU HỎI GỢI Ý CHO BÁC SĨ:\n${doctorPrompt || makeDoctorSummary()}`,
+      "\nLưu ý: Tài liệu này tóm tắt đối chiếu tham chiếu, không phải chẩn đoán hoặc hướng dẫn điều trị.",
     ];
     const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -847,7 +859,15 @@ export default function HomePage() {
     ...group,
     rows: rowsToReview.filter((row) => group.codes.includes(row.analyte)),
   })).filter((group) => group.rows.length > 0);
-  const groupQuestion = `Hãy giải thích nhóm chỉ số CBC đã xác nhận: ${rowsToReview.map((row) => `${row.analyte} ${row.value} ${row.unit} ${STATUS_META[row.status].label}`).join("; ")}. Nhóm kết quả này có thể gợi ý điều gì cần trao đổi với bác sĩ? Nêu rõ điều gì chưa thể kết luận chỉ từ CBC, không chẩn đoán hoặc hướng dẫn điều trị.`;
+  const groupQuestion = `Hãy giải thích nhóm chỉ số CBC đã xác nhận: ${rowsToReview.map((row) => `${row.analyte} ${row.value} ${row.unit} ${STATUS_META[row.status].label}`).join("; ")}. Nhóm kết quả này có thể gợi ý điều gì cần trao đổi với bác sĩ? Nêu rõ điều còn chưa thể kết luận từ riêng CBC và câu hỏi phù hợp để hỏi bác sĩ.`;
+  const comparableTrendRows = comparison?.rows.filter((row) => row.comparable && row.prior && row.current) || [];
+  const changedTrendRows = comparableTrendRows.filter((row) => row.delta !== "0");
+  const changedStatusRows = comparableTrendRows.filter((row) => row.prior?.status !== row.current?.status);
+  const visitBriefSources = Array.from(new Map(
+    [...(analysis?.sources || []), ...(analysis?.reference_source ? [analysis.reference_source] : [])]
+      .filter((source) => source.url)
+      .map((source) => [source.url!, source] as const)
+  ).values());
 
   function showDoctorPrompt(prompt: string) {
     setDoctorPrompt(prompt);
@@ -874,6 +894,16 @@ export default function HomePage() {
       "",
       "Bác sĩ có thể giải thích các kết quả này khi xem cùng triệu chứng và thông tin sức khỏe của tôi không? Tôi có cần đánh giá thêm điều gì không?",
     ].join("\n");
+  }
+
+  function openVisitBrief() {
+    setVisitBriefOpen(true);
+    requestAnimationFrame(() => visitBriefRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  function printVisitBrief() {
+    setVisitBriefOpen(true);
+    requestAnimationFrame(() => window.print());
   }
 
   async function copyDoctorPrompt() {
@@ -1460,6 +1490,7 @@ export default function HomePage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button type="button" onClick={() => setFormExpanded(true)} className="btn-outline h-8 px-3 text-xs" aria-controls="report-form">Sửa thông tin phiếu</button>
+                      <button type="button" onClick={openVisitBrief} className="btn-primary h-8 px-3 text-xs">Chuẩn bị nội dung buổi khám</button>
                       <button type="button" onClick={handleDownloadTxt} className="btn-outline h-8 px-3 text-xs"><Download className="w-3.5 h-3.5" /> Tải kết quả</button>
                     </div>
                   </div>
@@ -1636,6 +1667,45 @@ export default function HomePage() {
                   </details>
                 </div>
 
+                {visitBriefOpen && (
+                  <section ref={visitBriefRef} id="visit-brief" className="soft-card p-5 sm:p-7 space-y-4 scroll-mt-4" aria-label="Tóm tắt CBC để trao đổi với bác sĩ">
+                    <div className="flex flex-wrap items-start justify-between gap-3 no-print">
+                      <div>
+                        <h2 className="font-semibold text-base">Tóm tắt phiếu CBC cho buổi khám</h2>
+                        <p className="mt-1 text-xs text-[var(--muted)]">Xem lại nội dung rồi in hoặc lưu thành PDF từ hộp thoại in của trình duyệt.</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="button" className="btn-primary" onClick={printVisitBrief}>In / lưu PDF</button>
+                        <button type="button" className="btn-outline" onClick={() => setVisitBriefOpen(false)}>Thu gọn</button>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <h1 className="text-xl font-bold">Tóm tắt kết quả CBC</h1>
+                      <p className="text-sm">{draft.gestational_age ? `Tuổi thai lúc lấy mẫu: ${draft.gestational_age}. ` : "Chưa nhập tuổi thai. "}{draft.specimen_date ? `Ngày lấy mẫu: ${draft.specimen_date}.` : "Ngày lấy mẫu chưa được nhập."}</p>
+                      <p className="text-xs text-[var(--muted)]">{analysis.reference_mode === "study" ? `Khoảng nghiên cứu theo ${resultStage?.title || "giai đoạn thai kỳ"}${resultStage ? ` (${resultStage.weeks})` : ""}.` : "Khoảng tham chiếu do người dùng nhập theo phiếu xét nghiệm."}</p>
+                    </div>
+                    <p className="rounded-lg bg-[#f8fafa] p-3 text-sm leading-relaxed">{analysis.output}</p>
+                    {analysis.issues && analysis.issues.length > 0 && <p className="rounded-lg bg-[#fffbeb] p-3 text-xs">Chưa đối chiếu được một số dòng: {analysis.issues.join("; ")}</p>}
+                    <div className="overflow-x-auto border border-[var(--border-strong)] rounded-xl">
+                      <table className="w-full text-sm text-left border-collapse">
+                        <thead className="bg-[#f8fafa]"><tr><th className="p-2.5">Chỉ số</th><th className="p-2.5">Kết quả</th><th className="p-2.5">Khoảng đã dùng</th><th className="p-2.5">Đối chiếu</th></tr></thead>
+                        <tbody className="divide-y divide-[var(--border)]">
+                          {resultRows.map((row) => {
+                            const info = ANALYTE_LIST.find((item) => item.code === row.analyte);
+                            return <tr key={row.analyte}><td className="p-2.5">{info?.name || row.analyte} ({row.analyte})</td><td className="p-2.5">{row.value} {row.unit}</td><td className="p-2.5">{row.ref_low}–{row.ref_high} {row.unit}</td><td className="p-2.5">{STATUS_META[row.status].label}</td></tr>;
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {(rowsToReview.length > 0 || doctorPrompt) && <div><h2 className="font-semibold text-sm">Câu hỏi / điểm cần trao đổi với bác sĩ</h2><p className="mt-1 text-sm whitespace-pre-line">{doctorPrompt || makeDoctorSummary()}</p></div>}
+                    {(reply?.status === "explained" || reply?.status === "explained_group") && <div><h2 className="font-semibold text-sm">Giải thích từ trợ lý CBC</h2><p className="mt-1 text-sm whitespace-pre-line">{reply.output}</p></div>}
+                    {comparison && <div><h2 className="font-semibold text-sm">Thay đổi so với phiếu trước</h2><p className="mt-1 text-sm">So sánh được {comparableTrendRows.length} chỉ số; {changedTrendRows.length} giá trị có thay đổi và {changedStatusRows.length} trạng thái khác nhau theo khoảng dùng ở từng phiếu. Thay đổi số liệu không tự xác định tình trạng sức khỏe.</p>{changedTrendRows.length > 0 && <ul className="mt-1 list-disc pl-5 text-sm">{changedTrendRows.map((row) => <li key={row.analyte}>{row.analyte}: {row.prior_normalized_value} → {row.current_normalized_value} {row.normalized_unit}{row.prior?.status !== row.current?.status ? ` · ${STATUS_META[row.prior!.status].label} → ${STATUS_META[row.current!.status].label}` : ""}</li>)}</ul>}{comparison.reference_context_differs && <p className="mt-1 text-xs">Hai phiếu dùng bối cảnh tham chiếu khác nhau; trạng thái của từng phiếu được giữ riêng theo khoảng đã dùng tại thời điểm đó.</p>}</div>}
+                    {visitBriefSources.length > 0 && <div><h2 className="font-semibold text-sm">Nguồn tham khảo</h2><ul className="mt-1 list-disc pl-5 text-xs">{visitBriefSources.map((source) => <li key={source.url}><span>{source.title}</span><span className="ml-1 break-all">{source.url}</span></li>)}</ul></div>}
+                    {analysis.reference_note && <p className="border-t border-[var(--border-strong)] pt-3 text-xs text-[var(--muted)]">{analysis.reference_note}</p>}
+                    <p className="border-t border-[var(--border-strong)] pt-3 text-xs text-[var(--muted)]">Tài liệu này tóm tắt phép đối chiếu theo khoảng đã chọn, không phải chẩn đoán hay hướng dẫn điều trị. Bác sĩ cần xem phiếu gốc, tuổi thai, triệu chứng, bệnh sử và xét nghiệm liên quan.</p>
+                  </section>
+                )}
+
                 <div className="soft-card p-4 sm:p-5 space-y-3">
                   <div>
                     <h2 className="font-semibold text-[15px]">Theo dõi giữa các lần xét nghiệm</h2>
@@ -1719,6 +1789,19 @@ export default function HomePage() {
                           Hai phiếu khác giai đoạn thai kỳ hoặc cách chọn khoảng tham chiếu. Trạng thái của mỗi phiếu được giữ riêng theo khoảng đã dùng lúc đó.
                         </p>
                       )}
+                      <div className="rounded-xl border border-[var(--border-strong)] bg-[#f8fafa] p-3 space-y-1.5" role="status" aria-live="polite">
+                        <h3 className="text-sm font-semibold">Tóm tắt thay đổi số liệu</h3>
+                        {comparableTrendRows.length === 0 ? (
+                          <p className="text-xs text-[var(--muted)]">Chưa có chỉ số nào đủ điều kiện để so sánh trực tiếp giữa hai phiếu.</p>
+                        ) : (
+                          <>
+                            <p className="text-xs text-[var(--muted)]">So sánh được {comparableTrendRows.length} chỉ số; {changedTrendRows.length} giá trị có thay đổi{changedStatusRows.length > 0 ? ` và ${changedStatusRows.length} trạng thái khác nhau theo khoảng của từng phiếu` : ""}. Đây là mô tả số liệu, không cho biết một mình tình trạng đang tốt lên hay xấu đi.</p>
+                            {changedTrendRows.length > 0 && <ul className="space-y-1 text-xs">{changedTrendRows.slice(0, 4).map((row) => <li key={row.analyte}><strong>{row.analyte}:</strong> {row.prior_normalized_value} → {row.current_normalized_value} {row.normalized_unit}{row.prior && row.current && row.prior.status !== row.current.status ? ` · ${STATUS_META[row.prior.status].label} → ${STATUS_META[row.current.status].label}` : ""}</li>)}</ul>}
+                            {changedStatusRows.length > 0 && <p className="text-xs"><strong>Trạng thái đổi:</strong> {changedStatusRows.map((row) => `${row.analyte} (${STATUS_META[row.prior!.status].label} → ${STATUS_META[row.current!.status].label})`).join("; ")}</p>}
+                            {changedTrendRows.length > 4 && <p className="text-[10px] text-[var(--muted)]">Còn {changedTrendRows.length - 4} chỉ số thay đổi khác trong bảng bên dưới.</p>}
+                          </>
+                        )}
+                      </div>
                       <div className="overflow-x-auto border border-[var(--border-strong)] rounded-xl">
                         <table className="w-full text-xs text-left border-collapse">
                           <thead className="bg-[#f8fafa] text-[var(--muted)]">
@@ -1792,7 +1875,7 @@ export default function HomePage() {
                     </span>
                   </div>
 
-                  <p className="text-xs text-[var(--muted)]">Câu trả lời dựa trên phiếu CBC đã xác nhận. Trợ lý giúp bạn hiểu cách đối chiếu và chuẩn bị trao đổi với bác sĩ; không đưa ra chẩn đoán.</p>
+                  <p className="text-xs text-[var(--muted)]">Trợ lý tự động dựa trên phiếu CBC đã xác nhận để giải thích và chuẩn bị câu hỏi. Đây không phải chẩn đoán hoặc ý kiến đã được bác sĩ duyệt.</p>
                   <div className="flex flex-wrap gap-1.5">
                     {[
                       ...suggestedQuestions,
@@ -1848,6 +1931,7 @@ export default function HomePage() {
 
                   {reply && (
                     <div className="p-4 rounded-xl bg-[#f8fafa] border border-[var(--border-strong)] space-y-2.5 text-sm leading-relaxed">
+                      {reply.output.startsWith("[AI giả]") && <p className="rounded-lg bg-[#fffbeb] p-2 text-xs text-[#8a5b10]">Đang dùng chế độ AI mô phỏng; câu trả lời này chưa đến từ model AI thật.</p>}
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-semibold text-[var(--primary)]">
                           {reply.analyte

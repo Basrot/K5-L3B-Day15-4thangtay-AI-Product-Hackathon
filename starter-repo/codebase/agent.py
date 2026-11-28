@@ -27,9 +27,9 @@ Không tạo số, ngưỡng, chẩn đoán, lời khuyên điều trị hoặc 
 
 POSITIONS = {"below": "thấp hơn mức thấp nhất", "above": "cao hơn mức cao nhất", "within": "nằm giữa hai mức"}
 STAGE_LABELS = {
-    1: "giai đoạn 1 (từ 1 tuần 0 ngày đến hết 13 tuần 6 ngày)",
-    2: "giai đoạn 2 (từ 14 tuần 0 ngày đến hết 28 tuần 6 ngày)",
-    3: "giai đoạn 3 (từ 29 tuần 0 ngày trở đi)",
+    1: "tam cá nguyệt 1 (từ 1 tuần 0 ngày đến hết 13 tuần 6 ngày)",
+    2: "tam cá nguyệt 2 (từ 14 tuần 0 ngày đến hết 28 tuần 6 ngày)",
+    3: "tam cá nguyệt 3 (từ 29 tuần 0 ngày trở đi)",
 }
 ANALYTE_EXPLANATIONS = {
     "RBC": "RBC là số lượng hồng cầu; hồng cầu chứa hemoglobin giúp vận chuyển oxy.",
@@ -40,6 +40,16 @@ ANALYTE_EXPLANATIONS = {
     "MCHC": "MCHC cho biết nồng độ hemoglobin trung bình bên trong hồng cầu.",
     "WBC": "WBC là số lượng bạch cầu, các tế bào tham gia bảo vệ cơ thể.",
     "PLT": "PLT là số lượng tiểu cầu, thành phần tham gia quá trình đông máu.",
+}
+ANALYTE_TERMS = {
+    "RBC": ("red blood cell count", "số lượng hồng cầu"),
+    "HGB": ("hemoglobin", "haemoglobin", "hemoglobin concentration", "huyết sắc tố"),
+    "HCT": ("hematocrit", "haematocrit", "dung tích hồng cầu"),
+    "MCV": ("mean corpuscular volume", "thể tích trung bình hồng cầu"),
+    "MCH": ("mean corpuscular hemoglobin", "lượng huyết sắc tố trung bình hồng cầu"),
+    "MCHC": ("mean corpuscular hemoglobin concentration", "nồng độ huyết sắc tố trung bình hồng cầu"),
+    "WBC": ("white blood cell count", "white blood cells", "bạch cầu"),
+    "PLT": ("platelet count", "platelets", "tiểu cầu"),
 }
 LAB_SOURCE = {
     "title": "MedlinePlus — How to Understand Your Lab Results",
@@ -65,20 +75,20 @@ DEMO_MEDICAL_REQUEST = re.compile(
     re.IGNORECASE,
 )
 RANGE_STATUS_QUESTION = re.compile(
-    r"\b(ổn|bình thường|bất thường|trong khoảng|ngoài khoảng|nằm trong|cao hơn|thấp hơn|cao|thấp|vượt khoảng|ý nghĩa|là sao)\b",
+    r"\b(ổn|tốt|khỏe|bình thường|bất thường|trong khoảng|ngoài khoảng|nằm trong|cao hơn|thấp hơn|cao|thấp|vượt khoảng|ý nghĩa|là sao|có sao không)\b",
     re.IGNORECASE,
 )
 GROUP_QUESTION = re.compile(r"\b(nhóm|các chỉ số|nhiều chỉ số|cùng lệch|đồng thời|kết hợp)\b", re.IGNORECASE)
+ANEMIA_QUESTION = re.compile(r"\b(thiếu máu|anemia)\b", re.IGNORECASE)
+TREATMENT_QUESTION = re.compile(
+    r"\b(thuốc|uống|bổ sung|điều trị|kê đơn|liều|chẩn đoán|bị bệnh gì)\b",
+    re.IGNORECASE,
+)
 
 
 def _explicit_analyte(question: str, available_codes) -> str | None:
     """Find one clearly named CBC indicator without asking the model to infer it."""
-    lowered = question.casefold()
-    matches = [
-        code for code in available_codes
-        if re.search(r"\b" + re.escape(code.casefold()) + r"\b", lowered)
-        or ANALYTES[code].casefold() in lowered
-    ]
+    matches = _explicit_analytes(question, available_codes)
     return matches[0] if len(matches) == 1 else None
 
 
@@ -87,8 +97,11 @@ def _explicit_analytes(question: str, available_codes) -> list[str]:
     lowered = question.casefold()
     return [
         code for code in available_codes
-        if re.search(r"\b" + re.escape(code.casefold()) + r"\b", lowered)
-        or ANALYTES[code].casefold() in lowered
+        if (
+            re.search(r"\b" + re.escape(code.casefold()) + r"\b", lowered)
+            or ANALYTES[code].casefold() in lowered
+            or any(term in lowered for term in ANALYTE_TERMS.get(code, ()))
+        )
     ]
 
 
@@ -158,9 +171,17 @@ def answer(text: str, *, confirmed=False) -> dict:
         return {"status": "clarify_question", "output": "Nhập câu hỏi về phiếu CBC, tối đa 1000 ký tự."}
 
     rows = {row["analyte"]: row for row in comparison["rows"]}
+    flagged_count = sum(row["status"] != "within" for row in rows.values())
     explicit_analyte = _explicit_analyte(question, rows)
-    if (explicit_analyte and RANGE_STATUS_QUESTION.search(question)
-            and not DEMO_MEDICAL_REQUEST.search(question)):
+    safe_status_question = (
+        explicit_analyte and RANGE_STATUS_QUESTION.search(question)
+        and not DEMO_MEDICAL_REQUEST.search(question)
+    )
+    safe_hgb_anemia_question = (
+        explicit_analyte == "HGB" and ANEMIA_QUESTION.search(question)
+        and not TREATMENT_QUESTION.search(question)
+    )
+    if safe_status_question or safe_hgb_anemia_question:
         # A direct question about one analyte's saved range status is answered
         # from the deterministic comparison, not left to the LLM's medical-advice classifier.
         note("trả lời trạng thái khoảng theo dữ liệu đã đối chiếu: " + explicit_analyte)
@@ -186,7 +207,8 @@ def answer(text: str, *, confirmed=False) -> dict:
             decision = {"intent": "medical_advice"}
         elif re.search(r"tóm tắt|tổng hợp|cả phiếu|toàn bộ", question, re.IGNORECASE):
             decision = {"intent": "summarize"}
-        elif len(_explicit_analytes(question, rows)) >= 2 and GROUP_QUESTION.search(question):
+        elif (GROUP_QUESTION.search(question) or RANGE_STATUS_QUESTION.search(question)) and (
+                len(_explicit_analytes(question, rows)) >= 2 or flagged_count >= 2):
             decision = {"intent": "explain_group"}
         elif (analyte := _explicit_analyte(question, rows)):
             decision = {"intent": "explain", "analyte": analyte}
@@ -202,7 +224,8 @@ def answer(text: str, *, confirmed=False) -> dict:
     intent = decision.get("intent")
     analyte = decision.get("analyte")
     named_analytes = _explicit_analytes(question, rows)
-    if (len(named_analytes) >= 2 and GROUP_QUESTION.search(question)
+    if ((len(named_analytes) >= 2 or flagged_count >= 2)
+            and (GROUP_QUESTION.search(question) or RANGE_STATUS_QUESTION.search(question))
             and not DEMO_MEDICAL_REQUEST.search(question)):
         intent = "explain_group"
     explicit_analyte = _explicit_analyte(question, rows)
@@ -219,8 +242,11 @@ def answer(text: str, *, confirmed=False) -> dict:
         selected = [rows[code] for code in named_analytes if rows[code]["status"] != "within"]
         if len(selected) < 2:
             selected = [row for row in rows.values() if row["status"] != "within"]
-        if len(selected) >= 2:
+        if selected:
             return _explain_group(selected, comparison, prefix=prefix)
+        result = analyze_report(payload["report"], confirmed=confirmed)
+        result["output"] = prefix + result["output"]
+        return result
     if (intent == "explain" and set(decision) == {"intent", "analyte"}
             and isinstance(analyte, str) and analyte in rows):
         return _explain_analyte(analyte, rows[analyte], comparison, prefix=prefix)
@@ -247,13 +273,19 @@ def _explain_group(rows, comparison, *, prefix=""):
     codes = {row["analyte"] for row in selected}
     notes = []
     red_cell = codes & {"HGB", "RBC", "HCT", "MCV", "MCH", "MCHC"}
-    if len(red_cell) >= 2:
+    if red_cell:
         notes.append(
-            "Nhiều dòng thuộc nhóm hồng cầu/huyết sắc tố cùng lệch khoảng. Bác sĩ có thể xem các dòng này cùng tuổi thai và bối cảnh sức khỏe; riêng CBC không xác định được nguyên nhân."
+            ("Nhiều dòng thuộc nhóm hồng cầu/huyết sắc tố cùng lệch khoảng. " if len(red_cell) >= 2 else
+             "Dòng lệch khoảng này thuộc nhóm hồng cầu/huyết sắc tố. ")
+            + "Bác sĩ có thể xem chúng cùng tuổi thai và bối cảnh sức khỏe; riêng CBC không xác định được nguyên nhân."
         )
         if any(row["analyte"] == "HGB" and row["status"] == "below" for row in selected):
             notes.append(
                 "HGB thấp có thể khiến bác sĩ đánh giá thêm về thiếu máu. Nếu MCV hoặc MCH cũng thấp, kiểu kết quả này có thể gặp trong nhiều nguyên nhân, chẳng hạn thiếu sắt hoặc bệnh huyết sắc tố; cần đánh giá của bác sĩ để phân biệt."
+            )
+        elif any(row["analyte"] in {"MCV", "MCH", "MCHC"} and row["status"] == "below" for row in selected):
+            notes.append(
+                "MCV/MCH/MCHC thấp mô tả đặc điểm hồng cầu; có thể gặp trong nhiều tình trạng, nhưng không chỉ ra nguyên nhân duy nhất nếu chưa xem các chỉ số khác và xét nghiệm liên quan."
             )
         sources.extend([dict(LAB_SOURCE), dict(CBC_SOURCE), dict(RBC_INDEX_SOURCE)])
     if "WBC" in codes:
@@ -291,9 +323,41 @@ def _explain_analyte(analyte, row, comparison, *, prefix=""):
         "within": "nằm trong khoảng tham chiếu",
         "above": "cao hơn khoảng tham chiếu",
     }[row["status"]]
+    context = ""
+    if analyte == "HGB" and row["status"] == "below":
+        context = (
+            " HGB thấp hơn khoảng có thể khiến bác sĩ đánh giá thêm về thiếu máu, nhưng trạng thái này không tự xác nhận thiếu máu "
+            "và riêng CBC không xác định nguyên nhân; cách đánh giá còn phụ thuộc tuổi thai, triệu chứng và xét nghiệm liên quan."
+        )
+        sources.append(dict(RBC_INDEX_SOURCE))
+    elif analyte == "HGB" and row["status"] == "within":
+        context = " HGB nằm trong khoảng đang dùng không tự loại trừ thiếu máu hoặc vấn đề sức khỏe khác; bác sĩ xem kết quả cùng tuổi thai và bối cảnh cụ thể."
+    elif analyte in {"MCV", "MCH", "MCHC"} and row["status"] == "below":
+        context = (
+            " Chỉ số thấp mô tả kích thước hoặc lượng hemoglobin của hồng cầu; kiểu kết quả này có thể gặp trong nhiều nguyên nhân, "
+            "chẳng hạn thiếu sắt hoặc bệnh huyết sắc tố, nhưng không phân biệt được nguyên nhân nếu chỉ nhìn CBC."
+        )
+        sources.append(dict(RBC_INDEX_SOURCE))
+    elif analyte in {"RBC", "HCT"}:
+        context = (
+            " Chỉ số này mô tả số lượng hoặc tỷ lệ hồng cầu; bác sĩ thường xem cùng HGB và các chỉ số hồng cầu khác, "
+            "vì một kết quả riêng lẻ không xác định nguyên nhân."
+        )
+    elif analyte == "WBC":
+        context = (
+            " WBC cao hoặc thấp không tự xác nhận có nhiễm trùng hay bệnh khác; bác sĩ có thể xem thêm triệu chứng, "
+            "các dòng bạch cầu và bối cảnh thai kỳ."
+        )
+    elif analyte == "PLT":
+        context = (
+            " Tiểu cầu tham gia đông máu; CBC một mình không giải thích nguyên nhân của kết quả cao hoặc thấp."
+        )
+    if row["status"] == "within" and "không tự loại trừ" not in context:
+        context += " Nằm trong khoảng này không tự loại trừ bệnh và không thay thế đánh giá của bác sĩ."
     output = (
-        f"{explanation} Kết quả {analyte} của anh/chị là {row['value']} {row['unit']}, {status} "
+        f"{explanation} Em ghi nhận kết quả {analyte} của anh/chị là {row['value']} {row['unit']}, {status} "
         f"{reference_label} ({row['ref_low']}–{row['ref_high']} {row['unit']}). "
+        f"{context} "
         "Trạng thái này chỉ mô tả vị trí của con số so với khoảng đang dùng; không tự kết luận có hay không có bệnh. "
         "Bác sĩ sẽ xem thêm tuổi thai, triệu chứng và thông tin sức khỏe để đánh giá trong bối cảnh cụ thể ạ."
     )

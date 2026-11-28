@@ -114,3 +114,44 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #visit-brief,
+  #visit-brief * {
+    visibility: visible !important;
+  }
+
+  #visit-brief {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    color: #111 !important;
+    background: #fff !important;
+  }
+
+  #visit-brief .no-print {
+    display: none !important;
+  }
+
+  #visit-brief table {
+    font-size: 9pt !important;
+  }
+
+  #visit-brief tr,
+  #visit-brief li {
+    break-inside: avoid;
+  }
+}
