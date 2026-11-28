@@ -316,8 +316,14 @@ class CBCService:
                 raise ValueError("request_id đã được dùng cho câu hỏi khác.")
             return json.loads(cached["result"])
 
-        result = answer(json.dumps({"report": session["report"], "question": question}, ensure_ascii=False),
-                        confirmed=True)
+        recent_history = self.recent_history(
+            session_id, session["revision"], owner_id=owner_id, limit=8
+        )
+        result = answer(
+            json.dumps({"report": session["report"], "question": question}, ensure_ascii=False),
+            confirmed=True,
+            history=recent_history,
+        )
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             if owner_id is None:
@@ -338,6 +344,28 @@ class CBCService:
             if stored["question"] != question:
                 raise ValueError("request_id đã được dùng cho câu hỏi khác.")
         return json.loads(stored["result"])
+
+    def recent_history(self, session_id, revision, *, owner_id=None, limit=8):
+        """Return a bounded tail of prior turns from this session revision only."""
+        with self._connection() as db:
+            query = """SELECT m.question, m.result FROM messages m
+                       JOIN sessions s ON s.id = m.session_id AND s.revision = m.revision
+                       WHERE m.session_id = ? AND m.revision = ?"""
+            params = [session_id, revision]
+            if owner_id is not None:
+                query += " AND s.owner_id = ?"
+                params.append(owner_id)
+            query += " ORDER BY m.id DESC LIMIT ?"
+            params.append(max(0, min(int(limit), 8)))
+            rows = db.execute(query, params).fetchall()
+        turns = []
+        for row in reversed(rows):
+            result = json.loads(row["result"])
+            turns.append({
+                "question": row["question"][:500],
+                "output": str(result.get("output", ""))[:500],
+            })
+        return turns
 
     def history(self, session_id, owner_id=None):
         with self._connection() as db:

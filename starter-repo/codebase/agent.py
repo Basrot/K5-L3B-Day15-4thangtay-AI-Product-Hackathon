@@ -149,7 +149,7 @@ def analyze_report(report: dict, *, confirmed=False) -> dict:
             "row_errors": row_errors, **metadata}
 
 
-def answer(text: str, *, confirmed=False) -> dict:
+def answer(text: str, *, confirmed=False, history=None) -> dict:
     """Nhận JSON gồm report và question, trả ít nhất khóa output cho bộ chạy."""
     try:
         payload = json.loads(text)
@@ -187,9 +187,21 @@ def answer(text: str, *, confirmed=False) -> dict:
         note("trả lời trạng thái khoảng theo dữ liệu đã đối chiếu: " + explicit_analyte)
         return _explain_analyte(explicit_analyte, rows[explicit_analyte], comparison)
 
+    bounded_history = []
+    if isinstance(history, list):
+        for turn in history[-8:]:
+            if not isinstance(turn, dict):
+                continue
+            question_text, output_text = turn.get("question"), turn.get("output")
+            if isinstance(question_text, str) and isinstance(output_text, str):
+                bounded_history.append({
+                    "question": question_text[:500],
+                    "answer": output_text[:500],
+                })
     context = {
         "indicators": {code: ANALYTES[code] for code in rows},
         "question": question.strip(),
+        "recent_conversation": bounded_history,
     }
     schema = {
         "type": "object",
