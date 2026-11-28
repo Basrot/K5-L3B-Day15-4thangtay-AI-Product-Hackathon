@@ -121,9 +121,14 @@ def call_model(system: str, user: str, *, output_schema: dict | None = None,
                 }} for image in images
             ]
             user_message.pop("images", None)
+        token_limit_field = (
+            "max_completion_tokens"
+            if selected_model.casefold().startswith(("gpt-5", "gpt-6", "o1", "o3", "o4"))
+            else "max_tokens"
+        )
         body = {
             "model": selected_model, "messages": body["messages"],
-            "max_tokens": max_tokens or 180,
+            token_limit_field: max_tokens or 180,
             "temperature": 0,
         }
         if reasoning_effort and selected_model.casefold().startswith("gemini-"):
