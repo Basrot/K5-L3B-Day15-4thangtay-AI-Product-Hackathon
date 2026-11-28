@@ -165,6 +165,18 @@ def _upstream_error_detail(path: str, exception: RuntimeError) -> str:
         if status == 400:
             return "Nhà cung cấp AI không nhận cấu hình yêu cầu (HTTP 400). Kiểm tra MODEL_NAME, LLM_API_BASE và hỗ trợ JSON Schema của model."
         return "Dịch vụ AI %s trả HTTP %d. Kiểm tra cấu hình model và trạng thái nhà cung cấp." % (component, status)
+    known_failures = {
+        "Điền API_KEY trong .env để gọi model qua API.": "Backend chưa nhận API_KEY của nhà cung cấp LLM. Kiểm tra biến API_KEY trên Railway rồi deploy lại.",
+        "Cấu hình MODEL_PROVIDER=ollama hoặc openai_compatible và MODEL_NAME.": "MODEL_PROVIDER hoặc MODEL_NAME trên Railway không hợp lệ. Với API cloud, đặt MODEL_PROVIDER=openai_compatible và tên model nhà cung cấp hỗ trợ.",
+        "LLM_API_BASE và VISION_API_BASE phải là URL HTTPS hợp lệ.": "LLM_API_BASE phải là URL HTTPS của API tương thích OpenAI, thường kết thúc bằng /v1.",
+        "Dịch vụ AI trả JSON không hợp lệ.": "Nhà cung cấp AI trả dữ liệu không phải JSON hợp lệ. Kiểm tra endpoint/model tương thích OpenAI.",
+        "Không kết nối được dịch vụ AI hoặc model phản hồi quá thời gian.": "Backend không kết nối được API model hoặc model hết thời gian phản hồi. Kiểm tra LLM_API_BASE và trạng thái nhà cung cấp.",
+        "Phản hồi dịch vụ AI thiếu nội dung hoặc số token.": "API model trả sai định dạng hoặc thiếu nội dung/usage token. Kiểm tra MODEL_PROVIDER, LLM_API_BASE và khả năng tương thích OpenAI của nhà cung cấp.",
+        "Ollama trả lời rỗng.": "Model trả câu trả lời rỗng. Kiểm tra model/provider đã chọn trên Railway.",
+        "Phản hồi dịch vụ AI có số token không hợp lệ.": "API model trả trường usage token sai định dạng. Kiểm tra khả năng tương thích OpenAI của nhà cung cấp.",
+    }
+    if message in known_failures:
+        return known_failures[message]
     return "Dịch vụ AI %s chưa phản hồi. Kiểm tra cấu hình model/API hoặc trạng thái nhà cung cấp rồi thử lại." % component
 
 
