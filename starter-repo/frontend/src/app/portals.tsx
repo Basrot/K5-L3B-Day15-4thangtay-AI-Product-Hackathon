@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { createApiClient } from "@/lib/api";
 import type { CBCReport } from "@/lib/types";
 
@@ -110,7 +111,7 @@ export function DoctorPortal({ api, onLogout, status, onStatusChange }: {
   return <main className="min-h-screen max-w-4xl mx-auto p-4 sm:p-6 space-y-5">
     <header className="soft-card p-5 flex flex-wrap items-center justify-between gap-3">
       <div><p className="text-xs text-[var(--muted)]">Cổng bác sĩ · chỉ phiếu được chia sẻ</p><h1 className="text-xl font-semibold">Phiếu CBC được cấp quyền</h1></div>
-      <button className="btn-outline h-9 px-3 text-xs" onClick={onLogout}>Đăng xuất</button>
+      <span className="flex items-center gap-3"><Link href="/" className="text-xs text-[var(--primary)] underline">Trang mẹ bầu</Link><button className="btn-outline h-9 px-3 text-xs" onClick={onLogout}>Đăng xuất</button></span>
     </header>
     {status === "pending" && <section className="soft-card p-5 space-y-2"><h2 className="font-semibold">Hồ sơ đang chờ xác minh</h2><p className="text-sm text-[var(--muted)]">Quản trị viên cần xác minh thông tin hành nghề trước khi tài khoản có thể xem phiếu được chia sẻ.</p><button className="btn-outline h-9 px-3 text-xs" onClick={async () => { try { onStatusChange((await api.getCurrentUser()).doctor_status); } catch (reason) { setError(reason instanceof Error ? reason.message : "Không tải được trạng thái."); } }}>Kiểm tra trạng thái</button></section>}
     {status === "rejected" && <section className="soft-card p-5 space-y-2"><h2 className="font-semibold">Hồ sơ chưa được xác minh</h2><p className="text-sm text-[var(--muted)]">Liên hệ quản trị viên nếu thông tin đăng ký cần được kiểm tra lại.</p></section>}

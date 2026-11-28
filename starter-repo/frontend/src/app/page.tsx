@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   Check,
@@ -22,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { ApiError, createApiClient } from "@/lib/api";
-import { AdminDoctorQueue, DoctorApplication, DoctorPortal, ReportSharePanel } from "./portals";
+import { ReportSharePanel } from "./portals";
 import { SymptomSafetyCheck } from "./symptom-safety";
 import { toWav16k } from "@/lib/audio";
 import type {
@@ -204,10 +205,6 @@ export default function HomePage() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
-  const [currentUser, setCurrentUser] = useState<{
-    id: string; email: string | null; display_name: string | null; role: string;
-    doctor_status: "pending" | "active" | "rejected" | null;
-  } | null>(null);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
@@ -288,7 +285,6 @@ export default function HomePage() {
     abortInFlight();
     clearAccountData();
     setToken("");
-    setCurrentUser(null);
   }, [clearAccountData]);
 
   const api = useMemo(() => {
@@ -395,10 +391,8 @@ export default function HomePage() {
     });
     const session = await client.createSession();
     const savedReports = await client.getReportHistory();
-    const profile = await client.getCurrentUser();
     if (requestEpoch !== authEpochRef.current) return;
     setToken(accessToken);
-    setCurrentUser(profile);
     setSessionId(session.session_id);
     setRevision(session.revision);
     setReportHistory(savedReports.reports || []);
@@ -1118,14 +1112,12 @@ export default function HomePage() {
               {authMode === "register" ? "Đăng nhập" : "Đăng ký"}
             </button>
           </p>
+          <p className="text-center text-xs text-[var(--muted)]">
+            Bạn là bác sĩ? <Link href="/doctor" className="font-semibold text-[var(--primary)] underline underline-offset-2">Vào cổng bác sĩ</Link>
+          </p>
         </div>
       </main>
     );
-  }
-
-  if (currentUser?.doctor_status === "active" || currentUser?.doctor_status === "pending") {
-    return <DoctorPortal api={api} onLogout={handleLogout} status={currentUser.doctor_status}
-      onStatusChange={(status) => setCurrentUser((user) => user ? { ...user, doctor_status: status } : user)} />;
   }
 
   return (
@@ -1185,7 +1177,6 @@ export default function HomePage() {
       </header>
 
       <main className="flex-1 max-w-[1000px] w-full mx-auto px-4 sm:px-6 py-5 space-y-4">
-        {currentUser?.role === "admin" && <AdminDoctorQueue api={api} />}
         <SymptomSafetyCheck />
         {bannerError && (
           <div className="p-3.5 rounded-xl bg-[#fff1f2] text-[#be123c] text-sm flex items-start justify-between gap-3">
@@ -2048,18 +2039,6 @@ export default function HomePage() {
         </div>
 
         <ReportSharePanel api={api} sessionId={sessionId} revision={revision} enabled={Boolean(analysis && sessionId)} />
-
-        {currentUser?.doctor_status === "rejected" && <DoctorApplication api={api} onSubmitted={async () => {
-          try { setCurrentUser(await api.getCurrentUser()); }
-          catch { setBannerError("Đã gửi hồ sơ, nhưng chưa tải được trạng thái mới."); }
-        }} />}
-        {currentUser?.doctor_status == null && <details className="soft-card p-4">
-          <summary className="cursor-pointer text-sm font-medium">Bạn là bác sĩ? Đăng ký cổng bác sĩ</summary>
-          <div className="mt-3"><DoctorApplication api={api} onSubmitted={async () => {
-            try { setCurrentUser(await api.getCurrentUser()); }
-            catch { setBannerError("Đã gửi hồ sơ, nhưng chưa tải được trạng thái mới."); }
-          }} /></div>
-        </details>}
 
         <section className="soft-card p-4 sm:p-5 space-y-3">
           <div>
