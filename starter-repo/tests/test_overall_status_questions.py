@@ -72,6 +72,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
             "Em chẩn đoán thiếu máu.",
             "Chẩn đoán: thiếu máu.",
             "WBC nằm trong khoảng nên không có dấu hiệu viêm hoặc nhiễm trùng rõ ràng.",
+            "WBC nằm trong khoảng, không cho thấy dấu hiệu viêm hoặc nhiễm trùng rõ ràng.",
             "Kết quả HGB là 99.",
         ):
             with self.subTest(text=text), patch.object(agent, "call_model", return_value={
@@ -85,6 +86,7 @@ class ConversationalStatusQuestionTest(unittest.TestCase):
         def respond(system, user, **kwargs):
             context = json.loads(user)
             self.assertNotIn("reference_note", context["reference_context"])
+            self.assertNotIn("gestational_age", context["reference_context"])
             self.assertEqual(len(context["recent_conversation"]), 4)
             self.assertLess(len(system), 3000)
             self.assertLessEqual(kwargs["max_tokens"], 800)
