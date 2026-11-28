@@ -72,10 +72,21 @@ ROUTES = {
 EXPLICIT_URGENCY = re.compile(r"\b(cấp cứu|khẩn cấp|gọi 115)\b", re.IGNORECASE)
 DIRECT_DIAGNOSIS_OR_TREATMENT = re.compile(
     r"\b(chẩn đoán|bị bệnh gì|tôi bị thiếu máu|em bị thiếu máu|"
-    r"tôi có bị|em có bị|có bị thiếu máu không|bị thiếu máu không|"
+    r"tôi có bị|em có bị|mình có bị|tôi có thiếu máu|em có thiếu máu|"
+    r"mình có thiếu máu|có bị thiếu máu không|bị thiếu máu không|"
+    r"có nguy hiểm không|có đáng lo không|kết quả này có sao không|"
+    r"tôi mắc bệnh gì|em mắc bệnh gì|tôi có bệnh gì|em có bệnh gì|"
     r"uống thuốc gì|uống thuốc|uống sắt|thuốc sắt|bổ sung sắt|bổ sung thuốc|"
     r"có nên dùng|nên uống|nên dùng thuốc|liều dùng|liều thuốc|kê đơn|"
     r"điều trị cho tôi|tôi cần dùng thuốc|dùng thuốc)\b",
+    re.IGNORECASE,
+)
+UNSAFE_GENERATED_ANSWER = re.compile(
+    r"\b(chẩn đoán|kê đơn|liều thuốc|liều dùng|uống thuốc|uống sắt|thuốc sắt|"
+    r"nên uống|hãy uống|nên dùng thuốc|bổ sung sắt|ngừng thuốc|điều trị bằng thuốc|"
+    r"anh/chị.{0,35}(?:bị|mắc bệnh)|bạn.{0,35}(?:bị|mắc bệnh)|"
+    r"chị.{0,35}(?:bị|mắc bệnh)|anh.{0,35}(?:bị|mắc bệnh)|"
+    r"em.{0,35}(?:bị|mắc bệnh)|đang mắc bệnh|chắc chắn mắc)\b",
     re.IGNORECASE,
 )
 RANGE_STATUS_QUESTION = re.compile(
@@ -174,8 +185,9 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
     if DIRECT_DIAGNOSIS_OR_TREATMENT.search(question):
         note("dừng trước model: yêu cầu chẩn đoán hoặc điều trị cá nhân")
         return {"status": "medical_advice", "output": ROUTES["medical_advice"]}
-    missing_analyte = _explicit_analyte(question, ANALYTES)
-    if missing_analyte and missing_analyte not in rows:
+    missing_analytes = [code for code in _explicit_analytes(question, ANALYTES) if code not in rows]
+    if missing_analytes:
+        missing_analyte = missing_analytes[0]
         return {
             "status": "clarify_question",
             "output": f"Em chưa thấy dòng {missing_analyte} trong phiếu đã xác nhận. Anh/chị kiểm tra phiếu hoặc bổ sung chỉ số này rồi xác nhận lại nhé ạ.",
@@ -260,12 +272,22 @@ def answer(text: str, *, confirmed=False, history=None) -> dict:
         return {"status": "clarify_question",
                 "output": "Em chưa tạo được lời giải thích phù hợp từ phiếu này. Anh/chị thử hỏi cụ thể hơn về một chỉ số hoặc hỏi bác sĩ theo dõi thai kỳ ạ."}
 
+    answer_text = generated["answer"].strip()
+    answer_numbers = re.findall(r"\d+(?:[.,]\d+)?", answer_text)
+    if answer_numbers or UNSAFE_GENERATED_ANSWER.search(answer_text):
+        note("fallback: câu trả lời có số liệu chưa xác nhận hoặc nội dung vượt giới hạn an toàn")
+        return {"status": "clarify_question",
+                "output": "Em chưa thể xác nhận lời giải thích này an toàn và đúng dữ kiện. Anh/chị có thể hỏi về một chỉ số cụ thể hoặc trao đổi với bác sĩ theo dõi thai kỳ ạ."}
+
     explicit_codes = _explicit_analytes(question, rows)
-    selected_codes = explicit_codes or generated["analytes"]
-    if re.search(r"tóm tắt|tổng hợp|cả phiếu|toàn bộ", question, re.IGNORECASE):
+    history_codes = _explicit_analytes(
+        " ".join(turn["question"] + " " + turn["answer"] for turn in bounded_history), rows
+    )
+    selected_codes = explicit_codes or history_codes
+    is_summary = bool(re.search(r"tóm tắt|tổng hợp|cả phiếu|toàn bộ", question, re.IGNORECASE))
+    if is_summary:
         selected_codes = list(rows)
     selected_rows = [rows[code] for code in selected_codes]
-    answer_text = generated["answer"].strip()
     metadata, _reference_label, sources = _reference_details(comparison)
     if set(selected_codes) & {"HGB", "MCV", "MCH", "MCHC"}:
         sources.append(dict(RBC_INDEX_SOURCE))
