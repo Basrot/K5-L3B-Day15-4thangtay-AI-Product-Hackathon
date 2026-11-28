@@ -121,13 +121,13 @@ flowchart LR
 ## §7. Đánh giá & chuẩn "đạt" *(guide 2.4, 4.1)*
 - Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — **24** câu (`thuong` **8** · `kho` **14** · `tu_choi` **2** · `data_that` **8/24 = 33.3%**) · metric: `eval/metric_spec.yaml` (**3** metric: `doi_chieu_khoang`, `xu_ly_thieu_sai_ngu_canh`, `giai_thich_dung_va_an_toan`) · chấm chéo N1–N3 trên 5 mẫu `run-1.csv`: **khớp 5/5 (100%)** (`eval/calibration-5-samples.md`)
 - **Chuẩn "đạt"** (chốt **trước 19:30 Thứ Sáu 27/11**, giữ nguyên đến 23:59 Thứ Bảy 28/11): **"Đạt khi ≥ 90% tổng số câu thử qua, đồng thời 100% ca thiếu dữ kiện hoặc ngoài phạm vi đi đúng nhánh, 100% ca có giá trị và đơn vị hợp lệ được đối chiếu đúng theo đáp án, và ít nhất 90% ca giải thích bám đúng dòng và dữ kiện trên phiếu."**
-- Kết quả: lượt 1 **19/24 (79%)** (`run-1@20261127-163814`, `qwen3:4b` — chưa đạt chuẩn do lỗi `B07, B11, B12, B13` & `B21`) · lượt 2 *chưa chạy* → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
+- Kết quả: lượt 1 **19/24 (79%)** (`run-1@20261127-163814`) → lượt 2 **22/24 (92%)** (`run-2@20261128-093648`, cùng `qwen3:4b`); đạt ngưỡng tổng nhưng chưa đạt toàn bộ điều kiện cứng do B21. B06 cũng còn lỗi giải thích MCHC–MCH; chưa có lượt full benchmark sau sửa. Chi tiết `eval/report.md`, hồ sơ `eval/README.md`.
 
 ## §8. Chi phí khi dùng thật *(guide 4.2)*
-- Persona + giá: `cost/personas.yaml` · lượt mô phỏng: `cost/simulate-1.csv` (**50 phiên**, seed 42, đo token trên `qwen3:4b` local)
-- Chi phí / task thành công (tính theo tỷ lệ đạt lượt 1 `19/24 = 79%`): **$0.00012** (Gemini 3.1 Flash-Lite) · **$0.00068** (Gemini 4 Hydrogen)
-- Chi phí / tháng ở quy mô beta giả định (`100 / 500 / 1.500` người/tháng): thấp **$0.0197 / $0.1126** · cơ sở **$0.0984 / $0.5628** · cao **$0.2953 / $1.69** (`Flash-Lite / Hydrogen`, chỉ tính luồng CBC đã xác nhận, chưa tính OCR/Zipformer) → chi tiết `cost/cost-estimate.md`
-- So với impact / người / tháng (§2): Với ước tính sơ bộ `22.5` phút/người/tháng ở §2, chi phí LLM chỉ **`$0.00020–$0.0011`/người/tháng** rất nhỏ so với thời gian tiết kiệm, **nhưng chưa kết luận cuối cùng** cho đến khi xác thực số phút & tần suất thật qua phỏng vấn `P1–P3` và cập nhật lượt 2.
+- Persona + giá: `cost/personas.yaml` · mô phỏng `cost/simulate-2.csv` (**50 phiên**, seed 42, đo token trên `qwen3:4b` local; 0 lỗi)
+- Chi phí / task thành công (dùng tỷ lệ run 2 `22/24 = 92%`): **$0.000071** (Gemini 3.1 Flash-Lite) · **$0.00041** (Gemini 4 Hydrogen)
+- Chi phí / tháng ở quy mô beta giả định (`100 / 500 / 1.500` người/tháng): thấp **$0.0114 / $0.0651** · cơ sở **$0.0568 / $0.3256** · cao **$0.1705 / $0.9767** (`Flash-Lite / Hydrogen`, chỉ tính luồng CBC đã xác nhận, chưa tính OCR/Zipformer) → chi tiết `cost/cost-estimate.md`
+- So với impact / người / tháng (§2): chi phí LLM cơ sở **$0.00011–$0.00065/người/tháng** so với `22.5` phút/người/tháng *(tự ước tính)*. Chưa được xác thực qua phỏng vấn `P1–P3`; không diễn giải kết quả benchmark thành độ tin cậy lâm sàng.
 
 ## §9. Rủi ro & an toàn
 - Dữ liệu: Chỉ dùng số liệu tổng hợp và mã ẩn danh (`RIxxxx`, `P1`–`P3`) từ nghiên cứu công bố và bộ phiếu giả lập gắn nhãn `SYNTHETIC`; tuyệt đối không thu ảnh phiếu xét nghiệm thật, họ tên, SĐT, CCCD hay bệnh án thật, và không đưa dữ liệu cá nhân thật vào model gói miễn phí (`data/DATA_CARD.md`).
@@ -146,6 +146,7 @@ flowchart LR
 | Thời điểm | Đổi gì | Vì sao (trỏ về câu thử / lỗi / bằng chứng nào) |
 |---|---|---|
 | Tối 27/11/2026 | Mở rộng đào Hỏi – Đáp công khai đa nguồn (`300` trang BV Từ Dũ + `59` trang MEDLATEC: `M = 4.166 → N = 124` ca sạch PII), bổ sung kiểm chứng độ phủ 8 chỉ số (`59/62 = 95.16%` chung; `51/52 = 98.08%` BV Từ Dũ), neo quy mô dịch tễ Bộ Y tế (`25.6%`) & BV Từ Dũ (`>60.000` ca sinh/năm), và thêm 5 ca thật ẩn danh `N1_C11–N1_C15` vào `eval/n1-candidate-cases.csv` | Củng cố bằng chứng pain thật từ nhiều hệ thống y tế (`evidence/summary.md`, `evidence/public-qa-cbc-table.md`) cho `spec.md §0–§2` và chứng minh định lượng phạm vi 8 chỉ số CBC, giữ nguyên `§7` Chuẩn "đạt" và `eval/benchmark.csv` (`24` câu) |
+| 28/11/2026 09:58 | Chạy lượt 2 trên cùng 24 câu (`19/24 → 22/24`), chấm tay theo tiêu chí đã chốt; mô phỏng 50 phiên theo tỷ lệ run 2 và cập nhật chi phí/task thành công trong `eval/` và `cost/` | Hoàn tất đánh giá N3 cho CP4; giữ nguyên lượt 1, benchmark, expected và chuẩn "đạt"; ghi rõ các ca B06/B21 còn trượt và giới hạn của mô phỏng |
 
 **Sau CP4 (đến 23:59 Thứ Bảy 28/11)** (sửa theo góp ý — không sửa chuẩn "đạt", câu thử, số bằng chứng, kết quả các lượt đã chạy)
 

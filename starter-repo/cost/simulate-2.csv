@@ -1,0 +1,51 @@
+﻿run_id,session,persona,turns,inputs,model,model_calls,tool_calls,tokens_in,tokens_out,latency_s,error,tokens_by_model
+simulate-2@20261128-094041,S001,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,309,19,0.682,,"{""qwen3:4b"": {""in"": 309, ""out"": 19}}"
+simulate-2@20261128-094041,S002,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,302,19,0.305,,"{""qwen3:4b"": {""in"": 302, ""out"": 19}}"
+simulate-2@20261128-094041,S003,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,308,19,0.31,,"{""qwen3:4b"": {""in"": 308, ""out"": 19}}"
+simulate-2@20261128-094041,S004,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S005,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,317,20,0.313,,"{""qwen3:4b"": {""in"": 317, ""out"": 20}}"
+simulate-2@20261128-094041,S006,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,301,19,0.317,,"{""qwen3:4b"": {""in"": 301, ""out"": 19}}"
+simulate-2@20261128-094041,S007,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,308,19,0.316,,"{""qwen3:4b"": {""in"": 308, ""out"": 19}}"
+simulate-2@20261128-094041,S008,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S009,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S010,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,317,20,0.322,,"{""qwen3:4b"": {""in"": 317, ""out"": 20}}"
+simulate-2@20261128-094041,S011,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S012,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,309,19,0.304,,"{""qwen3:4b"": {""in"": 309, ""out"": 19}}"
+simulate-2@20261128-094041,S013,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,311,20,0.311,,"{""qwen3:4b"": {""in"": 311, ""out"": 20}}"
+simulate-2@20261128-094041,S014,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S015,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,306,19,0.323,,"{""qwen3:4b"": {""in"": 306, ""out"": 19}}"
+simulate-2@20261128-094041,S016,hoi_nhieu_chi_so,2,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age ‖ {""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,2,308,19,0.296,,"{""qwen3:4b"": {""in"": 308, ""out"": 19}}"
+simulate-2@20261128-094041,S017,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,308,19,0.294,,"{""qwen3:4b"": {""in"": 308, ""out"": 19}}"
+simulate-2@20261128-094041,S018,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S019,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,301,19,0.301,,"{""qwen3:4b"": {""in"": 301, ""out"": 19}}"
+simulate-2@20261128-094041,S020,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S021,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,314,19,0.312,,"{""qwen3:4b"": {""in"": 314, ""out"": 19}}"
+simulate-2@20261128-094041,S022,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,308,19,0.298,,"{""qwen3:4b"": {""in"": 308, ""out"": 19}}"
+simulate-2@20261128-094041,S023,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S024,hoi_nhieu_chi_so,2,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age ‖ {""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,2,0,0,0.0,,{}
+simulate-2@20261128-094041,S025,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,301,19,0.304,,"{""qwen3:4b"": {""in"": 301, ""out"": 19}}"
+simulate-2@20261128-094041,S026,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,302,19,0.303,,"{""qwen3:4b"": {""in"": 302, ""out"": 19}}"
+simulate-2@20261128-094041,S027,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,301,19,0.304,,"{""qwen3:4b"": {""in"": 301, ""out"": 19}}"
+simulate-2@20261128-094041,S028,hoi_nhieu_chi_so,2,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age ‖ {""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,2,2,622,38,0.594,,"{""qwen3:4b"": {""in"": 622, ""out"": 38}}"
+simulate-2@20261128-094041,S029,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S030,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,311,20,0.314,,"{""qwen3:4b"": {""in"": 311, ""out"": 20}}"
+simulate-2@20261128-094041,S031,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,306,19,0.306,,"{""qwen3:4b"": {""in"": 306, ""out"": 19}}"
+simulate-2@20261128-094041,S032,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S033,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S034,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S035,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,311,20,0.314,,"{""qwen3:4b"": {""in"": 311, ""out"": 20}}"
+simulate-2@20261128-094041,S036,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,309,19,0.313,,"{""qwen3:4b"": {""in"": 309, ""out"": 19}}"
+simulate-2@20261128-094041,S037,hoi_nhieu_chi_so,2,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age ‖ {""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,2,0,0,0.0,,{}
+simulate-2@20261128-094041,S038,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S039,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,301,19,0.32,,"{""qwen3:4b"": {""in"": 301, ""out"": 19}}"
+simulate-2@20261128-094041,S040,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,301,19,0.28,,"{""qwen3:4b"": {""in"": 301, ""out"": 19}}"
+simulate-2@20261128-094041,S041,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,314,19,0.303,,"{""qwen3:4b"": {""in"": 314, ""out"": 19}}"
+simulate-2@20261128-094041,S042,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,306,19,0.3,,"{""qwen3:4b"": {""in"": 306, ""out"": 19}}"
+simulate-2@20261128-094041,S043,hoi_nhieu_chi_so,2,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age ‖ {""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,2,0,0,0.0,,{}
+simulate-2@20261128-094041,S044,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,305,19,0.298,,"{""qwen3:4b"": {""in"": 305, ""out"": 19}}"
+simulate-2@20261128-094041,S045,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S046,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,309,19,0.315,,"{""qwen3:4b"": {""in"": 309, ""out"": 19}}"
+simulate-2@20261128-094041,S047,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S048,theo_doi_tai_kham,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S049,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",,0,1,0,0,0.0,,{}
+simulate-2@20261128-094041,S050,tra_cuu_mot_lan,1,"{""report"":{""pregnancy_status"":""pregnant"",""adult_confirmed"":true,""gestational_age",qwen3:4b,1,1,302,19,0.3,,"{""qwen3:4b"": {""in"": 302, ""out"": 19}}"
