@@ -11,23 +11,24 @@ from PIL import Image, UnidentifiedImageError
 if __package__:
     from . import ai
     from .ai import call_model
-    from .catalog import ANALYTES
+    from .catalog import ANALYTES, normalize_analyte
     from .references import SUPPORTED_ANALYTES
 else:
     import ai
     from ai import call_model
-    from catalog import ANALYTES
+    from catalog import ANALYTES, normalize_analyte
     from references import SUPPORTED_ANALYTES
 
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 20_000_000
+MAX_RAW_ROWS = 16
 ROW_FIELDS = ("analyte", "value", "unit", "ref_low", "ref_high", "ref_unit")
 EXTRACTION_ERRORS = {
     "shape": "AI đã phản hồi nhưng bản đọc chưa đúng cấu trúc dữ liệu. Chị thử ảnh rõ, chụp riêng vùng bảng CBC rồi tải lại.",
     "rows": "AI đọc được nhiều dòng hoặc cảnh báo hơn giới hạn của phiếu CBC. Chị chụp riêng bảng tám chỉ số CBC trên một phiếu.",
     "row_fields": "AI đọc thiếu trường kết quả hoặc đơn vị trên một dòng. Chị chụp rõ cả tên chỉ số, kết quả, đơn vị và khoảng trên phiếu.",
-    "analyte": "AI đọc trùng hoặc nhầm tên chỉ số CBC. Chị chụp riêng bảng của một phiếu, gồm đúng cột kết quả cần đọc.",
+    "analyte": "AI trả tên chỉ số sai cấu trúc dữ liệu nên chưa thể điền nháp. Chị thử tải lại bảng kết quả rõ hơn.",
     "field": "AI chưa đọc được một giá trị hoặc đơn vị theo định dạng hợp lệ. Chị thử ảnh rõ hơn hoặc nhập lại ô chưa đọc được.",
     "json": "AI đã phản hồi nhưng chưa trả được dữ liệu trích xuất hợp lệ. Chị thử chụp riêng bảng CBC rõ hơn rồi tải lại.",
 }
@@ -73,7 +74,7 @@ def _schema() -> dict:
     return {
         "type": "object", "additionalProperties": False, "required": ["rows", "warnings"],
         "properties": {
-            "rows": {"type": "array", "maxItems": 8, "items": {
+            "rows": {"type": "array", "maxItems": MAX_RAW_ROWS, "items": {
                 "type": "object", "additionalProperties": False, "required": list(ROW_FIELDS),
                 "properties": {"analyte": {"type": "string", "enum": list(SUPPORTED_ANALYTES)},
                                "value": scalar, "unit": unit, "ref_low": scalar,
@@ -83,21 +84,43 @@ def _schema() -> dict:
     }
 
 
+def _row_signature(row):
+    """Compare printed fields only; never fill blanks from another row."""
+    if __package__:
+        from .tools import _decimal, _unit
+    else:
+        from tools import _decimal, _unit
+    parts = []
+    for field in ROW_FIELDS[1:]:
+        value = row[field]
+        if value is None:
+            parts.append(None)
+        elif field in ("unit", "ref_unit"):
+            parts.append(_unit(row["analyte"], value) or ("unrecognized", value.strip()))
+        else:
+            try:
+                parts.append(_decimal(value))
+            except ValueError:
+                parts.append(("unreadable", str(value).strip()))
+    return tuple(parts)
+
+
 def _validate_result(data: object) -> dict:
     if not isinstance(data, dict) or set(data) != {"rows", "warnings"}:
         raise ExtractionError("shape")
     rows, notices = data["rows"], data["warnings"]
-    if (not isinstance(rows, list) or len(rows) > 8 or not isinstance(notices, list)
+    if (not isinstance(rows, list) or len(rows) > MAX_RAW_ROWS or not isinstance(notices, list)
             or len(notices) > 8 or any(not isinstance(item, str) or len(item) > 1000 for item in notices)):
         raise ExtractionError("rows")
-    seen = set()
+    retained, conflicts, duplicate_codes = {}, set(), set()
+    reconciliation_warnings = []
+    skipped_unknown = False
     for row in rows:
         if not isinstance(row, dict) or set(row) != set(ROW_FIELDS):
             raise ExtractionError("row_fields")
-        code = row["analyte"]
-        if not isinstance(code, str) or code not in SUPPORTED_ANALYTES or code in seen:
+        raw_code = row["analyte"]
+        if not isinstance(raw_code, str):
             raise ExtractionError("analyte")
-        seen.add(code)
         for field in ROW_FIELDS[1:]:
             value = row[field]
             if value is None:
@@ -109,6 +132,31 @@ def _validate_result(data: object) -> dict:
                 raise ExtractionError("field")
             elif isinstance(value, float) and not math.isfinite(value):
                 raise ExtractionError("field")
+        code = normalize_analyte(raw_code)
+        if code not in SUPPORTED_ANALYTES:
+            skipped_unknown = True
+            continue
+        row = {**row, "analyte": code}
+        if code in conflicts:
+            continue
+        if code in retained:
+            if _row_signature(row) == _row_signature(retained[code]):
+                duplicate_codes.add(code)
+            else:
+                conflicts.add(code)
+                retained.pop(code)
+            continue
+        retained[code] = row
+    for code in sorted(conflicts):
+        reconciliation_warnings.append(
+            f"{code}: AI đọc được nhiều kết quả hoặc đơn vị/khoảng khác nhau; dòng này được để trống. "
+            "Chị kiểm tra đúng cột kết quả trên phiếu hiện tại rồi điền lại trước khi xác nhận."
+        )
+    if duplicate_codes - conflicts:
+        reconciliation_warnings.append("Đã gộp các dòng trùng hoàn toàn: " + ", ".join(sorted(duplicate_codes - conflicts)) + ".")
+    if skipped_unknown:
+        reconciliation_warnings.append("Có dòng ngoài tám chỉ số CBC hỗ trợ hoặc tên chưa nhận diện được; các dòng đó chưa được điền nháp.")
+    rows = list(retained.values())
     if __package__:
         from .tools import result_unit_issue
     else:
@@ -116,7 +164,7 @@ def _validate_result(data: object) -> dict:
     unit_warnings = [issue for row in rows
                      if row.get("unit") is not None
                      for issue in [result_unit_issue(row["analyte"], row["unit"])] if issue]
-    return {"rows": rows, "warnings": (unit_warnings + notices)[:8]}
+    return {"rows": rows, "warnings": (reconciliation_warnings + unit_warnings + notices)[:16]}
 
 
 def extract_document(content: bytes, mime_type: str) -> dict:

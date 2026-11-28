@@ -42,9 +42,21 @@ class VisionTest(unittest.TestCase):
         result = self.extract({"rows": [row(analyte=code) for code in codes], "warnings": []})
         self.assertEqual([item["analyte"] for item in result["rows"]], codes)
 
-    def test_unsupported_code_is_rejected_from_ocr(self):
-        with self.assertRaises(RuntimeError):
-            self.extract({"rows": [row(analyte="RDW")], "warnings": []})
+    def test_unsupported_code_is_omitted_with_warning(self):
+        result = self.extract({"rows": [row(), row(analyte="RDW")], "warnings": []})
+        self.assertEqual([item["analyte"] for item in result["rows"]], ["HGB"])
+        self.assertTrue(result["warnings"])
+
+    def test_identical_duplicate_rows_and_hb_alias_are_merged(self):
+        result = self.extract({"rows": [row(analyte="Hb"), row(value="108.0")], "warnings": []})
+        self.assertEqual(len(result["rows"]), 1)
+        self.assertEqual(result["rows"][0]["analyte"], "HGB")
+        self.assertEqual(result["rows"][0]["value"], "108")
+
+    def test_conflicting_duplicate_rows_are_not_arbitrarily_selected(self):
+        result = self.extract({"rows": [row(), row(value="120"), row(analyte="RBC")], "warnings": []})
+        self.assertEqual([item["analyte"] for item in result["rows"]], ["RBC"])
+        self.assertTrue(any("HGB" in warning and "để trống" in warning for warning in result["warnings"]))
 
     def test_image_bytes_and_vision_model_reach_central_model_boundary(self):
         source = image_bytes("JPEG")
@@ -80,8 +92,8 @@ class VisionTest(unittest.TestCase):
                 vision.extract_report(image_bytes(size=(5000, 4001)), "image/png")
 
     def test_malformed_model_output_is_rejected(self):
-        invalid = [None, {"rows": "bad", "warnings": []}, {"rows": [row(analyte="XYZ")], "warnings": []},
-                   {"rows": [row(), row()], "warnings": []}, {"rows": [row(value=True)], "warnings": []},
+        invalid = [None, {"rows": "bad", "warnings": []}, {"rows": [row(analyte={})], "warnings": []},
+                   {"rows": [row(value=True)], "warnings": []},
                    {"rows": [row(value={"value": 1})], "warnings": []},
                    {"rows": [row(value=float("nan"))], "warnings": []},
                    {"rows": [row(unit=12)], "warnings": []}, {"rows": [row()], "warnings": "bad"},
