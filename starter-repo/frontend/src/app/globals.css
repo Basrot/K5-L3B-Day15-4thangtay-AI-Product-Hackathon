@@ -2,7 +2,7 @@
 
 :root {
   color-scheme: light;
-  --app-font: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --app-font: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
   --primary: #0f766e;
   --primary-hover: #0d5e58;
   --primary-foreground: #ffffff;

@@ -147,8 +147,9 @@ class CBCService:
         specimen_date = report.get("specimen_date")
         cleaned["specimen_date"] = specimen_date.isoformat() if hasattr(specimen_date, "isoformat") else specimen_date
         cleaned["rows"] = [{key: row.get(key) for key in fields} for row in report["rows"]]
-        if report.get("reference_mode") is not None or comparison["reference_mode"] == "study":
-            cleaned["reference_mode"] = comparison["reference_mode"]
+        # Pin the selected mode for both new and legacy reports so that a
+        # repeated confirmation compares against the same canonical report.
+        cleaned["reference_mode"] = comparison["reference_mode"]
         if comparison["reference_mode"] == "study":
             cleaned["reference_version"] = comparison["reference_version"]
         cleaned["analysis_snapshot"] = {
@@ -157,6 +158,9 @@ class CBCService:
                 "reference_version", "reference_source", "reference_note",
             ) if key in comparison
         }
+        # Return the same JSON-compatible values that will be read back from
+        # SQLite (notably lists instead of tuples in reference metadata).
+        cleaned = json.loads(json.dumps(cleaned, ensure_ascii=False))
         with self._connection() as db:
             db.execute("BEGIN IMMEDIATE")
             if owner_id is None:

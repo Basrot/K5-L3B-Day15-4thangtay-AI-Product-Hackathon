@@ -111,15 +111,18 @@ class StudyReferenceTest(unittest.TestCase):
     def test_chat_explains_rbc_and_keeps_study_note_out_of_prose(self):
         report = study_report(rows=[{"analyte": "RBC", "value": "4.1", "unit": "10^12/L"}])
         with patch.object(agent, "call_model", return_value={
-                "text": '{"intent":"explain","analyte":"RBC"}', "model": "test-model"}):
+                "text": json.dumps({"answer": "RBC là số lượng hồng cầu, giúp vận chuyển oxy.",
+                                    "analytes": ["RBC"], "needs_clarification": False}),
+                "model": "test-model"}):
             reply = agent.answer(json.dumps({"report": report, "question": "Giải thích chỉ số RBC"}, ensure_ascii=False))
 
         self.assertEqual(reply["status"], "explained")
         self.assertIn("số lượng hồng cầu", reply["output"].lower())
         self.assertIn("vận chuyển oxy", reply["output"].lower())
-        self.assertIn("4.1", reply["output"])
-        self.assertIn("3.33–4.98", reply["output"])
-        self.assertIn("nằm trong khoảng của nghiên cứu", reply["output"])
+        self.assertEqual(reply["verified_facts"][0]["value"], "4.1")
+        self.assertEqual((reply["verified_facts"][0]["ref_low"], reply["verified_facts"][0]["ref_high"]),
+                         ("3.33", "4.98"))
+        self.assertEqual(reply["reference_mode"], "study")
         self.assertNotIn("khoảng khoảng", reply["output"])
         self.assertNotIn(reply["reference_note"], reply["output"])
         self.assertIn("nghiên cứu", reply["reference_note"].lower())
@@ -149,7 +152,8 @@ class StudyReferenceTest(unittest.TestCase):
                         "MCH": "pg", "MCHC": "g/dL", "WBC": "10^9/L", "PLT": "10^9/L"}[code]
                 report["rows"][0]["unit"] = unit
                 with patch.object(agent, "call_model", return_value={
-                        "text": json.dumps({"intent": "explain", "analyte": code}), "model": "test-model"}):
+                        "text": json.dumps({"answer": phrase, "analytes": [code],
+                                            "needs_clarification": False}), "model": "test-model"}):
                     reply = agent.answer(json.dumps({"report": report, "question": f"Giải thích {code}"}))
                 self.assertEqual(reply["status"], "explained")
                 self.assertIn(phrase, reply["output"].lower())

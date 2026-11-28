@@ -71,11 +71,11 @@
 
 **Interfaces:**
 - Add an optional `reasoning_effort` argument to `call_model`; send it only to OpenAI-compatible Gemini requests when explicitly requested.
-- Ordinary CBC generation requests `reasoning_effort="low"` for the configured Gemini 4 Hydrogen model and sets a concise response budget (maximum 220 completion tokens).
+- Ordinary CBC generation requests `reasoning_effort="low"` for the configured Gemini 4 Hydrogen model and sets a concise response budget (maximum 280 completion tokens).
 - Other providers and Ollama requests keep their existing payload contracts.
 
 - [ ] Add provider-aware optional `reasoning_effort` support without altering vision/OCR calls.
-- [ ] Set the generated answer prompt to answer directly in 1–3 short paragraphs, normally at most 120 Vietnamese words, and avoid unnecessary preamble.
+- [ ] Set the generated answer prompt to answer directly in 1–3 short paragraphs, normally at most 100 Vietnamese words, and avoid unnecessary preamble. Use at most 280 completion tokens so the answer can explain a follow-up without excessive latency.
 - [ ] Keep all ordinary valid questions to a single model call; do not add a separate intent-classification call.
 
 ### Task 4: Render verified facts separately from generated prose

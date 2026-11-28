@@ -30,11 +30,12 @@ class SessionTest(unittest.TestCase):
 
     def test_confirmed_report_and_history_survive_restart(self):
         session = self.service.create_session()
-        self.service.confirm_report(session, report(), confirmed=True, expected_revision=self.service.get_session(session)['revision'])
+        saved = self.service.confirm_report(
+            session, report(), confirmed=True, expected_revision=self.service.get_session(session)['revision'])
         with patch("codebase.service.answer", return_value={"status": "explained", "output": "HGB mẫu"}):
             self.service.ask(session, "HGB là gì?", expected_revision=1)
         reopened = CBCService(self.path)
-        self.assertEqual(reopened.get_session(session)["report"], report())
+        self.assertEqual(reopened.get_session(session)["report"], saved["session"]["report"])
         self.assertEqual(reopened.history(session)[0]["question"], "HGB là gì?")
         self.assertEqual(reopened.history(session)[0]["result"]["output"], "HGB mẫu")
 
@@ -42,7 +43,7 @@ class SessionTest(unittest.TestCase):
         session = self.service.create_session()
         self.service.confirm_report(session, report(), confirmed=True, expected_revision=self.service.get_session(session)['revision'])
 
-        def change_report(_text):
+        def change_report(_text, **_kwargs):
             self.service.confirm_report(session, report(gestational_age="22w0d"), confirmed=True, expected_revision=self.service.get_session(session)['revision'])
             return {"status": "explained", "output": "Kết quả cũ"}
 

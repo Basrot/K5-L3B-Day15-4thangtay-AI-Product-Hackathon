@@ -67,14 +67,17 @@ class CBCWorkflowTest(unittest.TestCase):
         self.assertEqual(tools.compare_cbc(report(rows=[wbc]))["status"], "needs_input")
 
     def test_model_selects_row_and_explanation_uses_comparison_data(self):
-        model_reply = {"text": '{"intent":"explain","analyte":"HGB"}'}
+        model_reply = {"text": json.dumps({
+            "answer": "HGB là huyết sắc tố giúp vận chuyển oxy; bác sĩ xem kết quả trong bối cảnh thai kỳ.",
+            "analytes": ["HGB"], "needs_clarification": False,
+        }, ensure_ascii=False)}
         with patch.object(agent, "call_model", return_value=model_reply):
             result = agent.answer(question("Tại sao huyết sắc tố có dấu L?"))
         self.assertEqual((result["status"], result["analyte"]), ("explained", "HGB"))
-        self.assertIn("đo nồng độ hemoglobin", result["output"])
-        self.assertIn("10.8 g/dL", result["output"])
-        self.assertIn("11–14 g/dL", result["output"])
-        self.assertIn("không tự xác lập chẩn đoán", result["output"])
+        self.assertIn("vận chuyển oxy", result["output"])
+        self.assertEqual(result["verified_facts"][0]["value"], "10.8")
+        self.assertEqual((result["verified_facts"][0]["ref_low"], result["verified_facts"][0]["ref_high"]),
+                         ("11", "14"))
 
     def test_unknown_model_analyte_or_free_text_is_not_rendered(self):
         for decision in ('{"intent":"explain","analyte":"RBC"}',
@@ -121,14 +124,18 @@ class CBCWorkflowTest(unittest.TestCase):
         self.assertEqual(result["status"], "medical_advice")
 
     def test_model_can_select_only_rows_on_the_confirmed_report(self):
-        def respond(_system, user, *, output_schema):
-            self.assertEqual(output_schema["properties"]["analyte"]["enum"], ["HGB", "WBC", ""])
+        def respond(_system, user, *, output_schema, **_kwargs):
+            self.assertEqual(output_schema["properties"]["analytes"]["items"]["enum"], ["HGB", "WBC"])
             self.assertNotIn("ref_low", user)
-            return {"text": '{"intent":"explain","analyte":"HGB"}'}
+            return {"text": json.dumps({
+                "answer": "HGB là dòng được hỏi và cần được hiểu theo khoảng đã xác nhận.",
+                "analytes": ["HGB"], "needs_clarification": False,
+            }, ensure_ascii=False)}
 
         with patch.object(agent, "call_model", side_effect=respond):
             result = agent.answer(question("Vì sao dấu L đứng cạnh huyết sắc tố?"))
         self.assertEqual(result["analyte"], "HGB")
+        self.assertEqual(result["status"], "explained")
 
 
 class SpeechTest(unittest.TestCase):

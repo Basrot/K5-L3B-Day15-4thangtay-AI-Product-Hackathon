@@ -6,7 +6,7 @@ Backend FastAPI cho Railway: [triển khai và SQLite volume](docs/railway-deplo
 
 Đọc phạm vi và cách đánh giá an toàn: [Độ tin cậy và xử lý khi kết quả có thể sai](docs/quality-and-safety.md). Tỷ lệ trong benchmark là tỷ lệ đạt trên bộ câu cố định, không phải độ chính xác lâm sàng.
 
-Để mở web demo trên Windows, vào `starter-repo/` rồi chạy `./start-voice-demo.ps1`; mở `http://127.0.0.1:8501`. Hỏi đáp mặc định cần Ollama cùng model `qwen3:4b`; đặt `MODEL_PROVIDER=fake` trước khi chạy để thử giao diện không gọi model thật. Đọc ảnh cần model Vision; giọng đọc VieNeu cần `VIENEU_API_KEY`.
+**Chạy ứng dụng web local (Next.js + FastAPI):** xem [hướng dẫn chạy local](docs/local-development.md). Chạy riêng `start-voice-demo.ps1` chỉ mở màn hình Streamlit thử mic cũ ở cổng 8501; đó không phải web app đầy đủ.
 
 **Thành viên, lớp, track:** xem [TEAMS.md](TEAMS.md). **Điền TEAMS.md đúng format**: khi chấm và đánh giá, BTC quét file này để ghép điểm cho từng người.
 

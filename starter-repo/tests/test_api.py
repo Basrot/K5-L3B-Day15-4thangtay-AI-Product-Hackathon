@@ -109,7 +109,7 @@ class APITest(unittest.TestCase):
         self.request("PUT", path + "/report", json={"report": report(), "confirmed": True, "expected_revision": 0})
 
         @api.tracing.model_call
-        def model_answer(_payload):
+        def model_answer(_payload, **_kwargs):
             return {"text": "answer", "model": "test-model", "tokens_in": 7, "tokens_out": 11,
                     "status": "explained", "output": "answer"}
 
@@ -143,9 +143,11 @@ class APITest(unittest.TestCase):
         service = self.app.state.service
         path = "/v1/sessions/" + self.request("POST", "/v1/sessions").json()["session_id"]
         original = service.confirm_report
+        committed = {}
 
         def confirm_then_invalidate(session_id, *args, **kwargs):
             saved = original(session_id, *args, **kwargs)
+            committed["report"] = saved["session"]["report"]
             service.invalidate_report(session_id, expected_revision=1)
             return saved
 
@@ -154,7 +156,7 @@ class APITest(unittest.TestCase):
                 "report": report(), "confirmed": True, "expected_revision": 0})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["revision"], 1)
-        self.assertEqual(response.json()["report"], report())
+        self.assertEqual(response.json()["report"], committed["report"])
         self.assertEqual(response.json()["analysis"]["status"], "analyzed")
         self.assertEqual(self.request("GET", path).json()["revision"], 2)
 
@@ -183,8 +185,11 @@ class APITest(unittest.TestCase):
         confirmed = self.request("PUT", path + "/report", json={
             "report": new_report, "confirmed": True, "expected_revision": 0})
         self.assertEqual(confirmed.status_code, 200, confirmed.text)
-        pinned_report = {**new_report, "reference_version": "pham2023-tables-v1"}
-        self.assertEqual(confirmed.json()["report"], pinned_report)
+        pinned_report = confirmed.json()["report"]
+        self.assertEqual(pinned_report["reference_mode"], "study")
+        self.assertEqual(pinned_report["reference_version"], "pham2023-tables-v1")
+        self.assertEqual(pinned_report["rows"], new_report["rows"])
+        self.assertEqual(pinned_report["analysis_snapshot"]["rows"][0]["status"], "within")
         self.assertEqual(confirmed.json()["analysis"]["reference_mode"], "study")
         self.assertEqual(confirmed.json()["analysis"]["rows"][0]["status"], "within")
         self.assertEqual(self.request("GET", path).json()["report"], pinned_report)
