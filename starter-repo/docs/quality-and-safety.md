@@ -8,7 +8,7 @@
 |---|---|---|
 | Đọc ảnh phiếu | Model thị giác tạo bản nháp các giá trị/đơn vị/khoảng | Chưa có kết quả exact-match trên tập ảnh được chấm; bắt buộc người dùng so lại từng ô với phiếu gốc. |
 | So sánh với khoảng | Code chuẩn hóa đơn vị và so số đã xác nhận với khoảng đã chọn | Có benchmark tổng hợp lịch sử, nhưng cần chạy lại trên commit hiện tại và xác minh nguồn khoảng trước khi gọi là cổng phát hành. |
-| Hỏi đáp | LLM nhận diện ý định/chỉ số; logic có kiểm soát tạo phần giải thích và dẫn nguồn | Chưa có đánh giá lâm sàng độc lập; không gọi tỷ lệ đạt benchmark là độ chính xác y khoa. |
+| Hỏi đáp | LLM tạo lời giải thích theo câu hỏi và tối đa bốn lượt gần nhất của cùng phiếu; ứng dụng đính kèm số liệu/trạng thái đã đối chiếu và nguồn trong danh mục được duyệt | Câu chữ do AI sinh nên có thể sai; chưa có đánh giá lâm sàng độc lập. Không gọi tỷ lệ đạt benchmark là độ chính xác y khoa. |
 
 ## Số liệu hiện có — cần đọc đúng
 

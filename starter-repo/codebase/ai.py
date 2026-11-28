@@ -67,7 +67,8 @@ def _api_origin(base: str):
 @model_call
 def call_model(system: str, user: str, *, output_schema: dict | None = None,
                images: list[bytes] | None = None, model_name: str | None = None,
-               max_tokens: int | None = None) -> dict:
+               max_tokens: int | None = None,
+               reasoning_effort: str | None = None) -> dict:
     if MODEL_PROVIDER == "fake":
         last = (user.strip().splitlines() or [""])[-1]
         return {"text": "[câu trả lời giả — chưa nối model] " + last[:60], "model": "fake", "tokens_in": 0, "tokens_out": 0}
@@ -78,6 +79,8 @@ def call_model(system: str, user: str, *, output_schema: dict | None = None,
 
     if max_tokens is not None and (type(max_tokens) is not int or max_tokens <= 0):
         raise ValueError("max_tokens phải là số nguyên dương.")
+    if reasoning_effort is not None and reasoning_effort not in ("low", "medium", "high"):
+        raise ValueError("reasoning_effort phải là low, medium hoặc high.")
     user_message = {"role": "user", "content": user}
     if images is not None:
         if not isinstance(images, list) or any(not isinstance(item, bytes) or not item for item in images):
@@ -123,6 +126,8 @@ def call_model(system: str, user: str, *, output_schema: dict | None = None,
             "max_tokens": max_tokens or 180,
             "temperature": 0,
         }
+        if reasoning_effort and selected_model.casefold().startswith("gemini-"):
+            body["reasoning_effort"] = reasoning_effort
         if output_schema:
             body["response_format"] = {"type": "json_schema", "json_schema": {
                 "name": "cbc_result", "schema": output_schema, "strict": False,

@@ -103,6 +103,8 @@ export interface ChatResult {
   status: string;
   output: string;
   analyte?: string;
+  analytes?: string[];
+  verified_facts?: AnalysisRow[];
   reference_mode?: ReferenceMode;
   trimester?: number;
   reference_source?: ReferenceSource;

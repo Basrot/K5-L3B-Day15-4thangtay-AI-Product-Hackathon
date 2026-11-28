@@ -1906,7 +1906,7 @@ export default function HomePage() {
                     <div className="space-y-2 px-3 pb-3 text-xs leading-relaxed text-[var(--muted)]">
                       <p><strong className="text-[var(--foreground)]">Đọc ảnh:</strong> AI tạo bản nháp; có thể đọc nhầm chữ số, dấu thập phân, đơn vị hoặc khoảng. Hãy so từng ô với phiếu gốc, sửa nếu cần và chỉ xác nhận khi khớp.</p>
                       <p><strong className="text-[var(--foreground)]">Đối chiếu:</strong> phần mềm dùng phép tính để so giá trị đã xác nhận với khoảng đã chọn. Nhãn “trong/thấp/cao hơn khoảng” không phải kết luận có bệnh.</p>
-                      <p><strong className="text-[var(--foreground)]">Hỏi đáp:</strong> mô hình ngôn ngữ nhận diện câu hỏi; phần giải thích dùng câu chữ có kiểm soát và dữ liệu của phiếu đã xác nhận. Câu trả lời chưa được bác sĩ duyệt.</p>
+                      <p><strong className="text-[var(--foreground)]">Hỏi đáp:</strong> mô hình tạo câu trả lời theo câu hỏi hiện tại và những lượt trao đổi gần đây của cùng phiếu. Các con số và trạng thái được ứng dụng lấy trực tiếp từ dữ liệu đã xác nhận; lời giải thích của AI chưa được bác sĩ duyệt.</p>
                       <div className="rounded-lg border border-[var(--border-strong)] bg-white p-2.5">
                         <p className="font-semibold text-[var(--foreground)]">Số liệu kiểm chứng hiện có</p>
                         <p className="mt-1">Hồ sơ hiện lưu một lượt cũ ngày 27/11/2026: model Qwen3:4b đạt 19/24 ca tổng hợp (79,2%), có 5 ca không đạt và 0 lỗi kỹ thuật. Đây là tỷ lệ đạt trên bộ ca cố định của phiên bản cũ, không phải độ chính xác lâm sàng và không đại diện cho bản hiện tại.</p>
@@ -1992,6 +1992,24 @@ export default function HomePage() {
                       <p className="text-[13px] whitespace-pre-line">
                         {reply.output}
                       </p>
+                      {reply.verified_facts && reply.verified_facts.length > 0 && (
+                        <div className="border-t border-[var(--border-strong)] pt-2">
+                          <p className="text-xs font-semibold">Dữ kiện lấy từ phiếu đã xác nhận</p>
+                          <div className="mt-1.5 space-y-1.5">
+                            {reply.verified_facts.map((fact) => {
+                              const info = ANALYTE_LIST.find((item) => item.code === fact.analyte);
+                              return (
+                                <div key={fact.analyte} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg bg-white px-2.5 py-2 text-xs">
+                                  <span className="font-medium">{info?.name || fact.analyte} ({fact.analyte})</span>
+                                  <span>{fact.value} {fact.unit} · khoảng {fact.ref_low}–{fact.ref_high} {fact.unit}</span>
+                                  <span className={`rounded-full px-2 py-0.5 ${STATUS_META[fact.status].cls}`}>{STATUS_META[fact.status].label}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <p className="mt-1.5 text-[11px] text-[var(--muted)]">Đây là đối chiếu với khoảng tham chiếu, không phải kết luận chẩn đoán.</p>
+                        </div>
+                      )}
                       {reply.sources && reply.sources.length > 0 && (
                         <div className="border-t border-[var(--border-strong)] pt-2 text-xs text-[var(--muted)]">
                           <span className="font-medium">Nguồn tham khảo: </span>
